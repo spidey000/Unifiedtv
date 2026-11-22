@@ -20,6 +20,24 @@ public class UnifiedWatchArtworkTest {
         assertFalse(UnifiedWatchArtwork.isWide(300, 300));
     }
 
+    @Test public void smallOrLandscapePostersNeedSharpPortraitFallback() {
+        assertTrue(UnifiedWatchArtwork.needsBetterPoster(120, 180, 300));
+        assertTrue(UnifiedWatchArtwork.needsBetterPoster(600, 337, 300));
+        assertFalse(UnifiedWatchArtwork.needsBetterPoster(500, 750, 300));
+        assertFalse(UnifiedWatchArtwork.needsBetterPoster(780, 1170, 560));
+    }
+
+    @Test public void tmdbRatingsAreShownOnlyForActuallyRatedTitles() {
+        UnifiedCatalogApi.MediaArt rated = new UnifiedCatalogApi.MediaArt(
+                "/poster.jpg", "", 8.24, 100);
+        assertTrue(rated.hasRating());
+        assertEquals("8,2", rated.ratingText());
+        UnifiedCatalogApi.MediaArt unreviewed = new UnifiedCatalogApi.MediaArt(
+                "", "", 0, 0);
+        assertFalse(unreviewed.hasRating());
+        assertEquals("", unreviewed.ratingText());
+    }
+
     @Test public void titleMatchingIgnoresAccentsCaseAndPunctuation() {
         assertEquals("la casa de papel", UnifiedWatchArtwork.normalizeTitle("La Casa de Papel"));
         assertEquals("la casa de papel", UnifiedWatchArtwork.normalizeTitle("la casa de papel!"));
