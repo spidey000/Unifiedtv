@@ -19,8 +19,10 @@ import java.net.URL;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Locale;
 import java.util.Set;
 
@@ -35,6 +37,7 @@ final class UnifiedCatalogApi {
         volatile String watchLink = "";
         volatile String availabilityError = "";
         final Set<Integer> providerIds = new HashSet<>();
+        final Map<Integer, String> providerLogos = new HashMap<>();
 
         Media(int id, String type, String title, String poster, String year,
               double voteAverage, int voteCount) {
@@ -148,17 +151,20 @@ final class UnifiedCatalogApi {
         JSONObject countries = response.optJSONObject("results");
         JSONObject country = countries == null ? null : countries.optJSONObject(UnifiedCatalogPrefs.region(context));
         Set<Integer> ids = new HashSet<>();
+        Map<Integer, String> logos = new HashMap<>();
         if (country != null) {
-            collect(country.optJSONArray("flatrate"), ids);
+            collect(country.optJSONArray("flatrate"), ids, logos);
             if (UnifiedCatalogPrefs.allowsFree(context)) {
-                collect(country.optJSONArray("free"), ids);
-                collect(country.optJSONArray("ads"), ids);
+                collect(country.optJSONArray("free"), ids, logos);
+                collect(country.optJSONArray("ads"), ids, logos);
             }
             media.watchLink = country.optString("link", "");
         }
         synchronized (media.providerIds) {
             media.providerIds.clear();
             media.providerIds.addAll(ids);
+            media.providerLogos.clear();
+            media.providerLogos.putAll(logos);
         }
         media.availabilityReady = true;
     }
@@ -243,13 +249,85 @@ final class UnifiedCatalogApi {
         return artwork;
     }
 
-    private static void collect(JSONArray arr, Set<Integer> ids) {
+    /** TMDB ids and Netflix ids are distinct. Resolve only authoritative P1874 mappings. */
+    static String netflixTitleId(Context context, Media media) {
+        if (!"movie".equals(media.type) && !"tv".equals(media.type)) return "";
+        File dir = new File(context.getCacheDir(), "unifiedtv_netflix");
+        File cache = new File(dir, media.type + "_" + media.id + ".json");
+        final long ttl = 14L * 24 * 60 * 60 * 1000;
+        if (cache.isFile() && System.currentTimeMillis() - cache.lastModified() < ttl) {
+            try {
+                String id = new JSONObject(readFile(cache)).optString("id", "");
+                return UnifiedNetflixLinks.validTitleId(id) ? id : "";
+            } catch (Exception ignored) { /* Re-resolve after corrupt cache. */ }
+        }
+
+        String id = "";
+        boolean validResponse = false;
+        try {
+            JSONObject external = request(context, "/" + media.type + "/" + media.id
+                    + "/external_ids", PROVIDER_TTL, false);
+            String qid = external.optString("wikidata_id", "");
+            if (!qid.matches("Q[1-9][0-9]{0,11}")) return "";
+            URL url = new URL("https://www.wikidata.org/w/api.php?action=wbgetclaims"
+                    + "&entity=" + qid + "&property=P1874&format=json");
+            HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+            connection.setConnectTimeout(4500);
+            connection.setReadTimeout(6000);
+            connection.setRequestProperty("User-Agent", "UnifiedTV/0.7 (https://github.com/spidey000/Unifiedtv)");
+            try {
+                if (connection.getResponseCode() != 200) return "";
+                JSONObject response = new JSONObject(new String(
+                        readLimited(connection.getInputStream(), 128 * 1024), StandardCharsets.UTF_8));
+                JSONArray claims = response.optJSONObject("claims") == null ? null
+                        : response.optJSONObject("claims").optJSONArray("P1874");
+                Set<String> matches = new HashSet<>();
+                if (claims != null) for (int i = 0; i < claims.length(); i++) {
+                    JSONObject claim = claims.optJSONObject(i);
+                    if (claim == null || "deprecated".equals(claim.optString("rank"))) continue;
+                    JSONObject snak = claim.optJSONObject("mainsnak");
+                    JSONObject data = snak == null ? null : snak.optJSONObject("datavalue");
+                    String candidate = data == null ? "" : data.optString("value", "");
+                    if (UnifiedNetflixLinks.validTitleId(candidate)) matches.add(candidate);
+                }
+                if (matches.size() == 1) id = matches.iterator().next();
+                validResponse = true; // Ambiguous or absent IDs must not be guessed.
+            } finally {
+                connection.disconnect();
+            }
+        } catch (Exception ignored) { /* Network unavailable, retry next time. */ }
+        if (validResponse && (dir.exists() || dir.mkdirs())) {
+            try (FileOutputStream out = new FileOutputStream(cache)) {
+                out.write(new JSONObject().put("id", id).toString().getBytes(StandardCharsets.UTF_8));
+            } catch (Exception ignored) { /* In-memory result still works. */ }
+        }
+        return id;
+    }
+
+    private static void collect(JSONArray arr, Set<Integer> ids, Map<Integer, String> logos) {
         if (arr == null) return;
         for (int i = 0; i < arr.length(); i++) {
             JSONObject item = arr.optJSONObject(i);
-            if (item != null) ids.add(item.optInt("provider_id"));
+            if (item == null) continue;
+            int id = item.optInt("provider_id", 0);
+            if (id <= 0) continue;
+            ids.add(id);
+            String path = item.optString("logo_path", "");
+            if (path.startsWith("/") && !path.contains("..")) logos.put(id, path);
         }
     }
+
+    static String logoPath(Media media, UnifiedCatalogPrefs.Provider provider) {
+        synchronized (media.providerIds) {
+            for (int id : provider.tmdbIds) {
+                String path = media.providerLogos.get(id);
+                if (path != null) return path;
+            }
+        }
+        return "";
+    }
+
+    static Bitmap logo(Context context, String path) { return artwork(context, path, "w92"); }
 
     private static JSONObject request(Context c, String endpoint, long ttl, boolean refresh) throws Exception {
         File dir = new File(c.getCacheDir(), "unifiedtv_json");
