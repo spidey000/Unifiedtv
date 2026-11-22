@@ -46,7 +46,7 @@ public final class UnifiedCatalogSettingsActivity extends Activity {
     private Button button(String label, View.OnClickListener listener) {
         Button button = new Button(this);
         button.setText(label);
-        button.setTextAllCaps(false);
+        button.setAllCaps(false);
         button.setOnClickListener(listener);
         return button;
     }
