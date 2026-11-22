@@ -57,6 +57,8 @@ public final class UnifiedQaSeedActivity extends Activity {
                 .putString(UnifiedCatalogPrefs.REGION, "ES")
                 .putBoolean(UnifiedCatalogPrefs.UPDATE_AUTO_CHECK, false)
                 .putBoolean(UnifiedCatalogPrefs.CONTINUE_HOME, false)
+                .putBoolean(UnifiedCatalogPrefs.CATALOG_COLUMNS,
+                        "columns".equals(getIntent().getStringExtra("qa_layout")))
                 .apply();
         File posters = new File(getCacheDir(), "unifiedtv_posters");
         File json = new File(getCacheDir(), "unifiedtv_json");
