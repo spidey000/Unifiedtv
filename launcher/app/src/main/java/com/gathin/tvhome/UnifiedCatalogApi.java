@@ -48,23 +48,39 @@ final class UnifiedCatalogApi {
         @Override protected int sizeOf(String key, Bitmap value) { return value.getByteCount(); }
     };
 
-    static List<Media> list(Context context, String shelf, String query, boolean refresh) throws Exception {
+    /**
+     * Browsing categories are independent of streaming services, which TMDB resolves
+     * per title/region via watch/providers. "Most watched" is a weekly trending
+     * proxy, not a provider's actual playback count.
+     */
+    static List<Media> list(Context context, String mediaType, String category,
+                            String query, boolean refresh) throws Exception {
         String region = UnifiedCatalogPrefs.region(context);
+        String type = "tv".equals(mediaType) ? "tv" : "movie";
         String endpoint;
-        switch (shelf) {
-            case "movies":
-                endpoint = "/movie/now_playing?language=es-ES&region=" + region;
-                break;
-            case "series":
-                endpoint = "/trending/tv/week?language=es-ES";
-                break;
-            case "search":
-                endpoint = "/search/multi?language=es-ES&include_adult=false&query="
-                        + URLEncoder.encode(query, "UTF-8");
-                break;
-            default:
-                endpoint = "/trending/all/week?language=es-ES";
-                break;
+        if ("search".equals(category)) {
+            endpoint = "/search/" + type + "?language=es-ES&include_adult=false&query="
+                    + URLEncoder.encode(query == null ? "" : query, "UTF-8");
+        } else {
+            switch (category) {
+                case "watched":
+                    endpoint = "/trending/" + type + "/week?language=es-ES";
+                    break;
+                case "new":
+                    endpoint = type.equals("movie")
+                            ? "/movie/now_playing?language=es-ES&region=" + region
+                            : "/tv/on_the_air?language=es-ES";
+                    break;
+                case "popular":
+                    endpoint = "/" + type + "/popular?language=es-ES";
+                    break;
+                case "rated":
+                    endpoint = "/" + type + "/top_rated?language=es-ES";
+                    break;
+                default:
+                    endpoint = "/trending/" + type + "/day?language=es-ES";
+                    break;
+            }
         }
         JSONObject response = request(context, endpoint, LIST_TTL, refresh);
         JSONArray results = response.optJSONArray("results");
@@ -73,14 +89,15 @@ final class UnifiedCatalogApi {
         for (int i = 0; i < results.length() && media.size() < 24; i++) {
             JSONObject o = results.optJSONObject(i);
             if (o == null) continue;
-            String type = o.optString("media_type", shelf.equals("series") ? "tv" : "movie");
-            if (!type.equals("movie") && !type.equals("tv")) continue;
+            String resultType = o.optString("media_type", type);
+            if (!type.equals(resultType)) continue;
             String name = o.optString(type.equals("tv") ? "name" : "title", "");
             String poster = o.optString("poster_path", "");
             if (name.isEmpty() || poster.isEmpty() || poster.equals("null")) continue;
             String date = o.optString(type.equals("tv") ? "first_air_date" : "release_date", "");
             String year = date.length() >= 4 ? date.substring(0, 4) : "";
-            media.add(new Media(o.optInt("id"), type, name, poster, year));
+            int id = o.optInt("id", 0);
+            if (id > 0) media.add(new Media(id, type, name, poster, year));
         }
         return media;
     }
