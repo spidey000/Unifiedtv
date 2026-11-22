@@ -20,9 +20,11 @@ import android.widget.TextView;
 import android.content.Intent;
 
 import java.util.ArrayList;
-import java.util.HashSet;
+import java.util.IdentityHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.Collections;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -37,7 +39,9 @@ public final class UnifiedCatalogActivity extends Activity {
     private boolean created;
     private int generation;
     private String lastSettings;
-    private final Set<String> availabilityPending = new HashSet<>();
+    private final Set<UnifiedCatalogApi.Media> availabilityPending =
+            Collections.newSetFromMap(new IdentityHashMap<>());
+    private final Map<UnifiedCatalogApi.Media, List<Runnable>> callbacks = new IdentityHashMap<>();
 
     private int dp(int n) { return Math.round(n * getResources().getDisplayMetrics().density); }
 
@@ -68,6 +72,7 @@ public final class UnifiedCatalogActivity extends Activity {
 
     @Override protected void onCreate(Bundle state) {
         super.onCreate(state);
+        UnifiedTvHome.catalogCreated();
         getWindow().setStatusBarColor(Color.BLACK);
         getWindow().setNavigationBarColor(Color.BLACK);
         buildLayout();
@@ -125,7 +130,10 @@ public final class UnifiedCatalogActivity extends Activity {
     private void load(boolean refresh) {
         final int version = ++generation;
         shelves.removeAllViews();
-        synchronized (availabilityPending) { availabilityPending.clear(); }
+        synchronized (availabilityPending) {
+            availabilityPending.clear();
+            callbacks.clear();
+        }
         if (UnifiedCatalogPrefs.apiKey(this).isEmpty()) {
             status.setText("Configuración necesaria");
             TextView text = label("Configura tu clave gratuita de TMDB en Ajustes para cargar películas, series y disponibilidad por país.", 22, Color.WHITE);
@@ -239,42 +247,38 @@ public final class UnifiedCatalogActivity extends Activity {
             if (completed != null) completed.run();
             return;
         }
-        String id = media.type + ":" + media.id;
+        final int version = generation;
         synchronized (availabilityPending) {
-            if (availabilityPending.contains(id)) {
-                // A tap while a prefetch runs is promoted to launch when the same request finishes.
-                if (openAfter) worker.execute(() -> {
-                    for (int i = 0; i < 60 && !media.availabilityReady && media.availabilityError.isEmpty(); i++) {
-                        try { Thread.sleep(200); } catch (InterruptedException ignored) { return; }
-                    }
-                    runOnUiThread(() -> {
-                        if (isFinishing()) return;
-                        if (media.availabilityReady && completed != null) completed.run();
-                        else if (!media.availabilityError.isEmpty()) showError(media.availabilityError);
-                    });
-                });
-                return;
-            }
-            availabilityPending.add(id);
+            if (completed != null)
+                callbacks.computeIfAbsent(media, ignored -> new ArrayList<>()).add(completed);
+            if (!availabilityPending.add(media)) return;
         }
         worker.execute(() -> {
+            String failure = null;
             try {
                 UnifiedCatalogApi.availability(this, media);
-                runOnUiThread(() -> {
-                    if (isFinishing()) return;
-                    updateBadge(media, badge);
-                    if (completed != null) completed.run();
-                });
-            } catch (Exception e) {
-                media.availabilityError = e.getMessage() == null ? "Sin conexión" : e.getMessage();
-                runOnUiThread(() -> {
-                    if (isFinishing()) return;
-                    badge.setText("Sin datos");
-                    if (openAfter) showError(media.availabilityError);
-                });
-            } finally {
-                synchronized (availabilityPending) { availabilityPending.remove(id); }
+                media.availabilityError = "";
+            } catch (Exception error) {
+                failure = error.getMessage() == null ? "Sin conexión" : error.getMessage();
+                media.availabilityError = failure;
             }
+            final String error = failure;
+            runOnUiThread(() -> {
+                List<Runnable> toRun;
+                synchronized (availabilityPending) {
+                    availabilityPending.remove(media);
+                    toRun = callbacks.remove(media);
+                }
+                if (isFinishing() || generation != version) return;
+                if (error != null) {
+                    badge.setText("Sin datos");
+                    badge.setTextColor(0xFFFFB27A);
+                    if (toRun != null && !toRun.isEmpty()) showError(error);
+                } else {
+                    updateBadge(media, badge);
+                    if (toRun != null) for (Runnable callback : toRun) callback.run();
+                }
+            });
         });
     }
 
