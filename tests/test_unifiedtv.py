@@ -63,6 +63,19 @@ class UnifiedTvTests(unittest.TestCase):
         self.assertIn('"movie"', home)
         self.assertIn('"tv"', home)
 
+    def test_tmdb_scores_are_in_catalog_cards_without_extra_requests(self):
+        api = (JAVA / "UnifiedCatalogApi.java").read_text(encoding="utf-8")
+        home = (JAVA / "UnifiedCatalogActivity.java").read_text(encoding="utf-8")
+        self.assertIn('o.optDouble("vote_average", 0.0)', api)
+        self.assertIn('o.optInt("vote_count", 0)', api)
+        self.assertIn("boolean hasRating()", api)
+        self.assertIn("Locale.forLanguageTag(\"es-ES\")", api)
+        self.assertIn("titleRow.addView(title", home)
+        self.assertIn("titleRow.addView(rating", home)
+        self.assertIn("if (media.hasRating())", home)
+        self.assertIn("SpannableString", home)
+        self.assertIn("valoración TMDB", home)
+
     def test_continue_watching_is_explicit_opt_in(self):
         source = (JAVA / "UnifiedWatchNext.java").read_text(encoding="utf-8")
         settings = (JAVA / "UnifiedCatalogSettingsActivity.java").read_text(encoding="utf-8")
