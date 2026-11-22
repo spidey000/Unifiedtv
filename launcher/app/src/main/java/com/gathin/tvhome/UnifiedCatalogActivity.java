@@ -76,11 +76,26 @@ public final class UnifiedCatalogActivity extends Activity {
                 page = Page.SERIES; // Migrate the former top tab.
             query = state.getString("query", "");
         }
+        // Debug-branch-only deterministic emulator navigation, never shipped.
+        if (BuildConfig.DEBUG && getIntent().getBooleanExtra("unifiedtv_qa", false)) {
+            String target = getIntent().getStringExtra("unifiedtv_qa_page");
+            try { if (target != null) page = Page.valueOf(target); }
+            catch (IllegalArgumentException ignored) { page = Page.HOME; }
+        }
         settingsSnapshot = snapshot();
         accent = StreamUi.accent(this);
         inflateShell();
         show(page, false);
         routes.get(page).requestFocus();
+        if (BuildConfig.DEBUG && getIntent().getBooleanExtra("unifiedtv_qa", false)) {
+            String focusTitle = getIntent().getStringExtra("unifiedtv_qa_focus");
+            if (focusTitle != null && !focusTitle.isEmpty())
+                pageBody.postDelayed(() -> qaFocusCard(focusTitle, 16), 800);
+            if (getIntent().getBooleanExtra("unifiedtv_qa_details", false))
+                pageBody.postDelayed(() -> details(new UnifiedCatalogApi.Media(
+                        10001, "movie", "PELÍCULA QA 01", "/qa_poster_01.jpg",
+                        "2026", 8.3, 200, "", "Sinopsis ficticia.")), 1700);
+        }
     }
 
     @Override protected void onSaveInstanceState(Bundle state) {
@@ -177,6 +192,28 @@ public final class UnifiedCatalogActivity extends Activity {
             railAnimation.start();
         };
         getWindow().getDecorView().getViewTreeObserver().addOnGlobalFocusChangeListener(railFocus);
+    }
+
+    /** Debug screenshot helper; only the isolated QA branch invokes it. */
+    private void qaFocusCard(String title, int attempts) {
+        if (pageBody == null || isFinishing()) return;
+        View target = qaFindCard(pageBody, title);
+        if (target != null) target.requestFocus();
+        else if (attempts > 0) pageBody.postDelayed(() -> qaFocusCard(title, attempts-1), 450);
+    }
+
+    private View qaFindCard(View node, String title) {
+        CharSequence text = node.getContentDescription();
+        if (node instanceof FrameLayout && text != null && text.toString().startsWith(title))
+            return node;
+        if (node instanceof android.view.ViewGroup) {
+            android.view.ViewGroup group = (android.view.ViewGroup) node;
+            for (int i = 0; i < group.getChildCount(); i++) {
+                View match = qaFindCard(group.getChildAt(i), title);
+                if (match != null) return match;
+            }
+        }
+        return null;
     }
 
     private void clearRailListener() {
