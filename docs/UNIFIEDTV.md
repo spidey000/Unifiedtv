@@ -5,7 +5,7 @@
 Esta primera versión añade el catálogo unificado a la app nativa del fork. Implementado:
 
 - Entrada a UnifiedTV desde el Home de Android TV, configurable.
-- Selector **Películas / Series**. En Inicio, debajo del destacado principal, aparece **Seguir viendo** si está habilitado y después cinco filas horizontales independientes: **Destacados**, **Más vistos**, **Novedades**, **Populares** y **Mejor valorados (histórico)**. No hay pestañas para cambiar entre categorías.
+- Selector **Películas / Series**. En Inicio, debajo del destacado principal, aparece **Seguir viendo** si está habilitado y después cinco filas horizontales independientes: **Destacados**, **Más vistos**, **Novedades**, **Populares** y **Mejor valorados (histórico)**. No hay pestañas para cambiar entre categorías. Las filas horizontales presentan un máximo de seis pósteres visibles a la vez (2:3 sin foco) y se recorren con izquierda/derecha del mando.
 - Destacados = tendencia del día; Más vistos = tendencia semanal como aproximación, **no** reproducciones agregadas reales; Novedades = cartelera actual de cine o series actualmente en emisión; Populares y Mejor valorados = listas TMDB.
 - Seguir viendo integrado mediante Android TV `Watch Next` (lectura con permiso) y canales `Continue Watching` disponibles, con origen, progreso y apertura de la acción de la app.
 - Fuentes independientes por aplicación: Netflix, Max, Prime, Disney+, Apple TV+, SkyShowtime, Movistar, Filmin, Stremio, Nuvio y apps adicionales opcionales.
@@ -38,6 +38,7 @@ En **Ajustes → Plataformas** pueden activarse/desactivarse reproductores conoc
 
 Se usa `android.permission.READ_TV_LISTINGS`, solicitado de forma explícita al entrar en Seguir viendo. La consulta se realiza con proyección de columnas concreta y **sin selección SQL** para respetar las restricciones del TV Provider de Android. No se requiere acceso privilegiado, root, servicios de accesibilidad ni credenciales de Netflix/Max.
 
+- En Inicio, «Seguir viendo» es un carrusel horizontal de seis carátulas visibles como máximo. Al pulsar «Ver todo» se abre una cuadrícula de seis columnas fijas con desplazamiento **vertical** y todos los elementos disponibles (hasta 60 según el límite de lectura), sin carrusel horizontal.
 - Se leen filas visibles de `TvContract.WatchNextPrograms` con tipo *continue* y opcionalmente *next episode*.
 - Opcionalmente se consultan `TvContract.Channels` y `TvContract.PreviewPrograms` para canales cuyo nombre anuncie claramente continuidad (algunas versiones de Stremio).
 - Se muestra un elemento solo si está instalado el proveedor que publica la fila y el usuario lo ha activado. Se pueden habilitar otras apps no enumeradas explícitamente.
