@@ -184,3 +184,7 @@ Never do these in a PR:
 Questions go to [GitHub Discussions](https://github.com/Gathin23/cleanyourtv/discussions); bugs, TV lists and
 ideas that need a launcher change or a new dependency go to an issue first, with the templates in
 `.github/ISSUE_TEMPLATE/`.
+
+## UnifiedTV cinematic UI (this fork)
+
+For changes to the streaming catalog, settings, TMDB mobile pairing, media cards, focus navigation, or any other visual UI, first read [the UnifiedTV cinematic design skill](.agents/skills/unifiedtv-cinematic-design/SKILL.md). It records the design language, navigation and poster geometry, glass treatment, and screenshot-based QA for this fork. Treat its guidance as subordinate to explicit user instructions, security requirements and working device constraints; do not copy Netflix assets or branding.
