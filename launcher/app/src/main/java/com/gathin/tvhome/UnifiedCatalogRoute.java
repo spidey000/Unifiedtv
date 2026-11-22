@@ -72,7 +72,6 @@ final class UnifiedCatalogRoute {
         for (int i = 0; i < choices.size(); i++) labels[i] = choices.get(i).label;
         StreamUi.dialog(activity)
                 .setTitle("Abrir «" + media.title + "» con")
-                .setMessage("Las apps de catálogo no garantizan que el contenido esté disponible.")
                 .setItems(labels, (dialog, which) -> launch(activity, media, choices.get(which)))
                 .setNegativeButton("Cancelar", null)
                 .show();
@@ -80,8 +79,7 @@ final class UnifiedCatalogRoute {
 
     private static void launch(Activity activity, UnifiedCatalogApi.Media media, Choice choice) {
         if ("nuvio".equals(choice.kind)) {
-            String uri = "nuvio://tmdb/" + ("tv".equals(media.type) ? "tv" : "movie") + "/" + media.id;
-            if (openUri(activity, choice.packageName, uri)) return;
+            if (openUri(activity, choice.packageName, nuvioUri(media.type, media.id))) return;
         } else if ("stremio".equals(choice.kind)) {
             // TMDB media IDs are not Stremio/Cinemeta IDs. Resolve IMDb off the UI thread.
             new Thread(() -> {
@@ -92,10 +90,8 @@ final class UnifiedCatalogRoute {
                 activity.runOnUiThread(() -> {
                     if (activity.isFinishing() || activity.isDestroyed()) return;
                     if (!resolved.isEmpty()) {
-                        String type = "tv".equals(media.type) ? "series" : "movie";
-                        String path = "stremio:///detail/" + type + "/" + resolved + "/"
-                                + ("movie".equals(type) ? resolved : "");
-                        if (openUri(activity, choice.packageName, path)) return;
+                        if (openUri(activity, choice.packageName,
+                                stremioUri(media.type, resolved))) return;
                     }
                     if (openUri(activity, choice.packageName,
                             "stremio:///search?search=" + Uri.encode(media.title))) return;
@@ -105,6 +101,16 @@ final class UnifiedCatalogRoute {
             return;
         }
         openSearchOrApp(activity, choice.packageName, choice.label, media.title);
+    }
+
+    static String nuvioUri(String mediaType, int id) {
+        return "nuvio://tmdb/" + ("tv".equals(mediaType) ? "tv" : "movie") + "/" + id;
+    }
+
+    static String stremioUri(String mediaType, String imdb) {
+        String type = "tv".equals(mediaType) ? "series" : "movie";
+        return "stremio:///detail/" + type + "/" + imdb + "/"
+                + ("movie".equals(type) ? imdb : "");
     }
 
     private static boolean openUri(Activity activity, String pkg, String uri) {
