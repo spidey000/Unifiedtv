@@ -6,7 +6,9 @@ import android.graphics.Color;
 import android.os.Bundle;
 import android.text.InputType;
 import android.view.Gravity;
+import android.view.KeyEvent;
 import android.view.View;
+import android.view.ViewTreeObserver;
 import android.widget.CheckBox;
 import android.widget.EditText;
 import android.widget.LinearLayout;
@@ -31,6 +33,8 @@ public final class UnifiedCatalogSettingsActivity extends Activity {
     private final List<TextView> tabs = new ArrayList<>();
     private LinearLayout content;
     private ScrollView scroll;
+    private TvSpatialNavigation spatial;
+    private ViewTreeObserver.OnGlobalFocusChangeListener focusObserver;
     private TextView installPermissionStatus;
     private TmdbPairingDialog pairing;
     private int section;
@@ -67,12 +71,37 @@ public final class UnifiedCatalogSettingsActivity extends Activity {
         scroll.addView(content);
         root.addView(scroll, new LinearLayout.LayoutParams(0, -1, 1));
         setContentView(root);
+        spatial = new TvSpatialNavigation(railScroll, scroll);
+        focusObserver = (previous, current) -> {
+            spatial.remember(current);
+            if (TvSpatialNavigation.inside(railScroll, current)) {
+                restoredFocus = null;
+            } else if (TvSpatialNavigation.inside(scroll, current)
+                    && current.getTag() instanceof String) {
+                restoredFocus = (String) current.getTag();
+            }
+        };
+        getWindow().getDecorView().getViewTreeObserver().addOnGlobalFocusChangeListener(focusObserver);
         int selected = state == null ? getIntent().getIntExtra(EXTRA_SECTION, 0) : state.getInt("section", 0);
         if (selected < 0 || selected >= SECTIONS.length) selected = 0;
         show(selected, state == null ? null : state.getString("focus"));
         if (state == null || state.getString("focus") == null || getCurrentFocus() == null) {
             tabs.get(section).requestFocus();
         }
+    }
+
+    @Override public boolean dispatchKeyEvent(KeyEvent event) {
+        return (spatial != null && spatial.onKey(getCurrentFocus(), event))
+                || super.dispatchKeyEvent(event);
+    }
+
+    @Override protected void onDestroy() {
+        if (focusObserver != null) {
+            getWindow().getDecorView().getViewTreeObserver()
+                    .removeOnGlobalFocusChangeListener(focusObserver);
+            focusObserver = null;
+        }
+        super.onDestroy();
     }
 
     @Override protected void onSaveInstanceState(Bundle state) {
@@ -99,6 +128,7 @@ public final class UnifiedCatalogSettingsActivity extends Activity {
 
     private void show(int selected, String focusTag) {
         section = selected;
+        if (spatial != null) spatial.setPreferredRail(tabs.get(section));
         for (int i = 0; i < tabs.size(); i++) tabs.get(i).setSelected(i == selected);
         content.removeAllViews();
         installPermissionStatus = null;
@@ -120,6 +150,7 @@ public final class UnifiedCatalogSettingsActivity extends Activity {
         else {
             View target = content.findViewWithTag(focusTag);
             if (target != null) target.requestFocus();
+            else tabs.get(section).requestFocus();
         }
     }
 
@@ -217,6 +248,7 @@ public final class UnifiedCatalogSettingsActivity extends Activity {
             CheckBox use = StreamUi.toggle(this, provider.name + (installed ? "  ·  Instalada" : "  ·  No instalada"),
                     UnifiedCatalogPrefs.selected(this, provider));
             use.setOnCheckedChangeListener((v, checked) -> save("selected_" + provider.key, checked));
+            use.setTag("provider:" + provider.key);
             left(use);
             row.addView(use, new LinearLayout.LayoutParams(0, -2, 1));
             row.addView(priority(provider, -1));
@@ -230,6 +262,7 @@ public final class UnifiedCatalogSettingsActivity extends Activity {
             CheckBox use = StreamUi.toggle(this, app.name + (installed ? "  ·  Instalada" : "  ·  No instalada"),
                     UnifiedPlaybackApps.selected(this, app));
             use.setOnCheckedChangeListener((v, checked) -> save("playback_source_" + app.key, checked));
+            use.setTag("playback:" + app.key);
             left(use);
             add(content, use);
         }
@@ -294,6 +327,7 @@ public final class UnifiedCatalogSettingsActivity extends Activity {
             CheckBox use = StreamUi.toggle(this, provider.name + (installed ? "  ·  Instalada" : "  ·  No instalada"),
                     UnifiedCatalogPrefs.continueSourceSelected(this, provider));
             use.setOnCheckedChangeListener((v, checked) -> save("continue_source_" + provider.key, checked));
+            use.setTag("continue:" + provider.key);
             left(use);
             add(content, use);
         }
@@ -337,6 +371,7 @@ public final class UnifiedCatalogSettingsActivity extends Activity {
     private void toggle(String title, String key, boolean fallback) {
         CheckBox check = StreamUi.toggle(this, title, UnifiedCatalogPrefs.prefs(this).getBoolean(key, fallback));
         check.setOnCheckedChangeListener((view, value) -> save(key, value));
+        check.setTag("toggle:" + key);
         left(check);
         add(content, check);
     }
