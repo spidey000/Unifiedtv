@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="160dp" android:height="90dp"
+    android:viewportWidth="320" android:viewportHeight="180">
+    <path android:pathData="M0,0H320V180H0Z">
+        <aapt:attr name="android:fillColor">
+            <gradient android:startX="0" android:startY="20" android:endX="320" android:endY="155"
+                android:startColor="#8A1B2B" android:centerColor="#42101B" android:endColor="#210910" />
+        </aapt:attr>
+    </path>
+    <path android:fillColor="#32DA4450" android:pathData="M246,0H320V180H151Z" />
+    <path android:fillColor="#5DC7883E" android:pathData="M38,129H281V131H38Z" />
+    <group android:translateX="24" android:translateY="49" android:scaleX="0.76" android:scaleY="0.76">
+        <path android:fillColor="#200910" android:pathData="M54,14L88,29V65L75,86L54,96L33,86L20,65V29Z" />
+        <path android:fillColor="#E8AC43" android:pathData="M54,17L85,31V64L73,83L54,92L35,83L23,64V31Z" />
+        <path android:fillColor="#351018" android:pathData="M54,26L77,37V62L67,77L54,83L41,77L31,62V37Z" />
+        <path android:fillColor="#D63B43" android:pathData="M54,26L77,37V43L54,33L31,43V37Z" />
+        <path android:fillColor="#FFD776" android:pathData="M44,39L68,54L44,69Z" />
+        <path android:fillColor="#FFF1BD" android:pathData="M44,39L68,54H44Z" />
+        <path android:fillColor="#B9F6FF" android:pathData="M49,74H59L54,78Z" />
+    </group>
+    <!-- The non-localized Unifiedtv wordmark, drawn as paths for consistent TV rendering. -->
+    <group android:translateX="103" android:translateY="72">
+        <path android:strokeColor="#FFF1DF" android:strokeWidth="4.6" android:strokeLineCap="round"
+            android:strokeLineJoin="round" android:pathData="M1,0V17C1,30 21,30 21,17V0 M29,27V8 M29,14C31,6 46,4 46,16V27 M54,27V8 M54,0H54.25 M64,27V7C64,1 68,-2 74,-1 M60,9H72 M80,27V8 M80,0H80.25 M89,18H107C107,5 89,4 88,17C87,26 97,31 105,25 M130,0V27 M130,15C126,3 112,7 112,18C112,29 126,31 130,21" />
+        <path android:strokeColor="#FFD776" android:strokeWidth="4.6" android:strokeLineCap="round"
+            android:strokeLineJoin="round" android:pathData="M143,2V21C143,27 147,29 153,26 M138,9H153 M159,8L167,27L175,8" />
+    </group>
+</vector>

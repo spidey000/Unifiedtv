@@ -98,7 +98,7 @@ public final class UnifiedCatalogActivity extends Activity {
         LinearLayout rail = StreamUi.column(this);
         rail.setBackgroundColor(0xFF101014);
         rail.setPadding(dp(12), dp(18), dp(12), dp(14));
-        TextView mark = text("UnifiedTV", 21, StreamUi.RED, true);
+        TextView mark = text(getString(R.string.unifiedtv_name), 21, StreamUi.RED, true);
         mark.setPadding(dp(10), 0, 0, dp(14));
         rail.addView(mark);
         route(rail, Page.HOME, "Inicio");

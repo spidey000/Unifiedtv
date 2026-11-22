@@ -32,6 +32,20 @@ class UnifiedTvTests(unittest.TestCase):
         self.assertIn(".UnifiedCatalogActivity", activities)
         self.assertIn(".UnifiedCatalogSettingsActivity", activities)
 
+    def test_android_tv_branding_is_locale_independent(self):
+        manifest = ET.parse(MAIN / "AndroidManifest.xml")
+        application = manifest.find("application")
+        ns = "{http://schemas.android.com/apk/res/android}"
+        self.assertEqual(application.get(ns + "label"), "@string/unifiedtv_name")
+        self.assertEqual(application.get(ns + "icon"), "@drawable/ic_unifiedtv")
+        self.assertEqual(application.get(ns + "banner"), "@drawable/banner_unifiedtv")
+        for alias in application.findall("activity-alias"):
+            self.assertNotEqual(alias.get(ns + "label"), "@string/app_name")
+        strings = ET.parse(MAIN / "res/values/strings.xml")
+        name = strings.find("string[@name='unifiedtv_name']")
+        self.assertEqual(name.text, "Unifiedtv")
+        self.assertEqual(name.get("translatable"), "false")
+
     def test_home_and_launcher_settings_are_connected(self):
         source = (JAVA / "MainActivity.java").read_text(encoding="utf-8")
         self.assertIn("UnifiedTvHome.maybeLaunch(this)", source)
