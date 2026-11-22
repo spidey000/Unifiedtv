@@ -114,6 +114,7 @@ public final class UnifiedCatalogActivity extends Activity {
         bar.addView(action("Actualizar", v -> load(true)));
         root.addView(bar);
 
+        // Title metadata is TMDB content; watch-provider data is supplied through JustWatch.
         status = label("", 15, 0xFF9BAFBD);
         root.addView(status, new LinearLayout.LayoutParams(-1, dp(28)));
 
@@ -124,6 +125,8 @@ public final class UnifiedCatalogActivity extends Activity {
         shelves.setPadding(0, dp(10), dp(10), dp(20));
         scroll.addView(shelves);
         root.addView(scroll, new LinearLayout.LayoutParams(-1, 0, 1));
+        TextView credit = label("Datos: TMDB / JustWatch · Consulta la disponibilidad final en la app", 12, 0xFF788B9B);
+        root.addView(credit, new LinearLayout.LayoutParams(-1, dp(24)));
         title.requestFocus();
     }
 
