@@ -35,6 +35,16 @@ UnifiedTV es un fork independiente de [CleanYourTV](https://github.com/Gathin23/
 
 > **Limitación real:** TMDB no devuelve una URL directa de ficha para cada proveedor y las apps no publican una interfaz universal para abrir fichas. Por tanto, el MVP **no garantiza abrir la ficha exacta** ni comprobar suscripciones activas. Instalar Netflix no implica poder reproducir cualquier título; la disponibilidad cambia con el tiempo y el país. No se hace ninguna reproducción no autorizada ni se elude DRM.
 
+## Versiones y descargas
+
+Los cambios fusionados en `main` generan **una nueva versión por merge** mediante [GitHub Actions](.github/workflows/release.yml), siempre que pasen la compilación Android, las pruebas y lint. Los tags serán `v0.1.N` y las notas se publicarán en [GitHub Releases](https://github.com/spidey000/Unifiedtv/releases).
+
+- Con una clave de firma estable configurada en los secretos del repositorio se adjunta una APK de Android TV junto con su SHA-256.
+- Si falta la clave de firma, se publica **únicamente el código fuente**, evitando APKs que no puedan actualizarse entre versiones.
+- GitHub Actions puede estar desactivado inicialmente en un fork; habilítalo antes de esperar un release automático.
+
+[Instrucciones completas de publicación y firma](docs/RELEASES.md).
+
 ## Requisitos
 
 - Android TV / Google TV con Android 8+ (API 26).
