@@ -42,8 +42,10 @@ final class UnifiedWatchArtwork {
 
         // Even when the platform gives only one shape and TMDB is unavailable,
         // 2:3 center-crops it; 16:9 uses FIT_CENTER to display the ENTIRE image.
-        if (portrait == null) portrait = poster != null ? poster : thumbnail;
-        if (landscape == null) landscape = thumbnail != null ? thumbnail : poster;
+        if (portrait == null) portrait = poster != null ? poster
+                : thumbnail != null ? thumbnail : landscape;
+        if (landscape == null) landscape = thumbnail != null ? thumbnail
+                : poster != null ? poster : portrait;
         return new Pair(portrait, landscape);
     }
 
