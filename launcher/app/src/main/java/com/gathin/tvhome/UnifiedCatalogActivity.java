@@ -819,7 +819,15 @@ public final class UnifiedCatalogActivity extends Activity {
             if (value != null) runOnUiThread(() -> {
                 if (live(stamp)) {
                     target.setImageBitmap(value);
-                    if (onLoaded != null) onLoaded.run();
+                    if (onLoaded != null) {
+                        onLoaded.run(); // Focused 16:9 thumbnails have their own reveal.
+                    } else if (StreamUi.motionEnabled() && target.isAttachedToWindow()) {
+                        target.animate().cancel();
+                        target.setAlpha(0f);
+                        target.animate().alpha(1f).setDuration(StreamUi.ART_ANIM_MS).start();
+                    } else {
+                        target.setAlpha(1f);
+                    }
                 }
             });
         });
