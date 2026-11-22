@@ -73,19 +73,35 @@ final class UnifiedCatalogApi {
         }
     }
 
-    /** Paths are fetched only when Android TV does not provide an image in the right ratio. */
+    /** TMDB match shared by Watch Next poster enrichment and its star rating. */
     static final class MediaArt {
         final String poster, backdrop;
-        MediaArt(String poster, String backdrop) {
+        final double voteAverage;
+        final int voteCount;
+
+        MediaArt(String poster, String backdrop, double voteAverage, int voteCount) {
             this.poster = poster;
             this.backdrop = backdrop;
+            this.voteAverage = voteAverage;
+            this.voteCount = voteCount;
+        }
+
+        boolean hasRating() {
+            return voteCount > 0 && Double.isFinite(voteAverage)
+                    && voteAverage > 0 && voteAverage <= 10;
+        }
+
+        String ratingText() {
+            return hasRating() ? String.format(Locale.forLanguageTag("es-ES"),
+                    "%.1f", voteAverage) : "";
         }
     }
 
     private static final LruCache<String, MediaArt> WATCH_ART = new LruCache<>(80);
     private static final long LIST_TTL = 6L * 60 * 60 * 1000;
     private static final long PROVIDER_TTL = 12L * 60 * 60 * 1000;
-    private static final LruCache<String, Bitmap> POSTERS = new LruCache<String, Bitmap>(8 * 1024 * 1024) {
+    // Higher resolution art is sampled for modest TVs and kept in a bounded cache.
+    private static final LruCache<String, Bitmap> POSTERS = new LruCache<String, Bitmap>(12 * 1024 * 1024) {
         @Override protected int sizeOf(String key, Bitmap value) { return value.getByteCount(); }
     };
 
@@ -246,7 +262,8 @@ final class UnifiedCatalogApi {
         if (matches.size() != 1) return null;
         JSONObject match = matches.get(0);
         MediaArt artwork = new MediaArt(match.optString("poster_path", ""),
-                match.optString("backdrop_path", ""));
+                match.optString("backdrop_path", ""),
+                match.optDouble("vote_average", 0.0), match.optInt("vote_count", 0));
         synchronized (WATCH_ART) { WATCH_ART.put(cacheKey, artwork); }
         return artwork;
     }
@@ -342,7 +359,8 @@ final class UnifiedCatalogApi {
         }
     }
 
-    static Bitmap poster(Context c, String path) { return artwork(c, path, "w342"); }
+    /** w780 retains detail on Full HD/4K TVs; old w342 disk cache is not reused. */
+    static Bitmap poster(Context c, String path) { return artwork(c, path, "w780"); }
 
     static Bitmap shelfArtwork(Context c, String path) { return artwork(c, path, "w300"); }
 
@@ -362,7 +380,7 @@ final class UnifiedCatalogApi {
         try {
             if (cache.isFile()) {
                 try (FileInputStream in = new FileInputStream(cache)) {
-                    data = readLimited(in, 350 * 1024);
+                    data = readLimited(in, 2 * 1024 * 1024);
                 }
             } else {
                 HttpURLConnection connection = (HttpURLConnection)
@@ -371,16 +389,35 @@ final class UnifiedCatalogApi {
                 connection.setReadTimeout(10000);
                 try {
                     if (connection.getResponseCode() != 200) return null;
-                    data = readLimited(connection.getInputStream(), 350 * 1024);
+                    data = readLimited(connection.getInputStream(), 2 * 1024 * 1024);
                     try (FileOutputStream out = new FileOutputStream(cache)) { out.write(data); }
                 } finally { connection.disconnect(); }
             }
-            Bitmap poster = BitmapFactory.decodeByteArray(data, 0, data.length);
+            Bitmap poster = decodePoster(c, data);
             if (poster != null) {
                 synchronized (POSTERS) { POSTERS.put(key, poster); }
             }
             return poster;
         } catch (Exception ignored) { return null; }
+    }
+
+    /**
+     * Decode enough pixels for a sharp TV card while avoiding multiple multi-MB
+     * full-size bitmaps on inexpensive Android TV hardware.
+     */
+    private static Bitmap decodePoster(Context c, byte[] jpeg) {
+        if (jpeg == null || jpeg.length == 0) return null;
+        BitmapFactory.Options bounds = new BitmapFactory.Options();
+        bounds.inJustDecodeBounds = true;
+        BitmapFactory.decodeByteArray(jpeg, 0, jpeg.length, bounds);
+        if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null;
+        int screenWidth = c.getResources().getDisplayMetrics().widthPixels;
+        int targetWidth = Math.max(320, Math.min(780, Math.round(screenWidth * .28f)));
+        BitmapFactory.Options options = new BitmapFactory.Options();
+        options.inSampleSize = 1;
+        while (bounds.outWidth / (options.inSampleSize * 2) >= targetWidth)
+            options.inSampleSize *= 2;
+        return BitmapFactory.decodeByteArray(jpeg, 0, jpeg.length, options);
     }
 
     private static String readFile(File path) throws IOException {
