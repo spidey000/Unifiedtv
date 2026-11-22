@@ -14,24 +14,25 @@ Esta primera versión añade el catálogo unificado a la app nativa del fork. Im
 - Consulta de proveedores por título y país usando los endpoints de TMDB `/movie/{id}/watch/providers` y `/tv/{id}/watch/providers`.
 - Iconografía textual de plataformas compatibles solo cuando la aplicación está instalada, seleccionada y TMDB la identifica como opción de streaming.
 - Preferencias: país, prioridad, casillas por servicio y modo Home; clave v3 introducida localmente.
-- Apertura de apps con un intento de búsqueda Android (`ACTION_SEARCH`) y fallback al inicio de la aplicación; error cuando no existe ninguna opción de streaming seleccionada.
+- Selector de aplicaciones al pulsar **Ver ahora**: servicios identificados por TMDB y reproductores locales configurados de forma independiente. Nuvio puede abrir fichas por ID TMDB y Stremio por ID IMDb; otras apps usan búsqueda Android (`ACTION_SEARCH`) o apertura de inicio.
 - Salida «Aplicaciones» y Atrás para volver al dock del launcher original.
 
 **Pendiente:** compilar en un entorno con Android SDK 34, ejecutar las pruebas Android, verificar con mandos y TV reales los intent de búsqueda de cada proveedor, confirmar variantes de nombres de paquetes y ajustes de rendimiento/seguridad. Los identificadores de proveedores cambian según país y producto.
 
-## Limitación de apertura de fichas
+## Apertura de títulos de TMDB en apps instaladas
 
-No existe un estándar Android TV que permita abrir la ficha de cualquier película de cualquier servicio usando solo un título de TMDB. En el MVP:
+Los servicios comerciales y los reproductores locales son categorías distintas. La disponibilidad de Netflix, Prime, Max, etc. se consulta mediante TMDB/JustWatch; las apps Nuvio, Stremio, Kodi, Plex, Jellyfin, Emby, VLC y Nova son destinos de apertura, **no** proveedores de disponibilidad TMDB. No se declara que un título esté disponible simplemente por tener instalada una app.
 
-1. Se comprueba que el servicio está instalado, habilitado en preferencias y que TMDB lo considera disponible.
-2. Se prueba una búsqueda `Intent.ACTION_SEARCH` específica de ese paquete si el propio servicio expone un handler compatible.
-3. Si no existe handler, se abre la actividad principal de la app, con indicación para buscar el título manualmente.
-4. Si la app falla al abrir, se prueba la siguiente plataforma disponible.
-5. Si no hay proveedor instalado/activado para ese título se informa de ello, con enlace informativo opcional.
+1. Al pulsar **Ver ahora** aparece un selector compatible con el mando, en el orden de servicios seleccionados y reproductores locales instalados.
+2. **Nuvio**: intenta abrir la ficha exacta mediante `nuvio://tmdb/movie/{id}` o `nuvio://tmdb/tv/{id}`.
+3. **Stremio**: obtiene en segundo plano `imdb_id` a través de `/movie/{id}/external_ids` o `/tv/{id}/external_ids` y utiliza un enlace de detalle `stremio:///detail/...`. Si no está disponible, usa su enlace de búsqueda por título.
+4. **Otras apps**: busca con `ACTION_SEARCH` solo si la app lo admite o, en su defecto, abre la app seleccionada para que el usuario localice el título.
+5. Una URL directa fallida solo pasa a búsqueda/apertura **en esa misma app**. Nunca lanza silenciosamente otra plataforma después de que el usuario haya elegido una.
+6. El selector sigue funcionando con Nuvio, Stremio u otros reproductores aunque la consulta de disponibilidad TMDB haya fallado.
 
-**No se garantiza la ficha exacta ni se lanza vídeo automáticamente.** No se utilizan servicios de descarga, scraping de cuentas, reproducción sin autorización, ni bypass de DRM.
+En **Ajustes → Plataformas** pueden activarse/desactivarse reproductores conocidos, y elegir manualmente **otras apps instaladas** desde el listado de aplicaciones lanzables de Android TV. No se pide `QUERY_ALL_PACKAGES` ni permisos especiales. Las apps adicionales requieren opt-in y pueden no admitir búsqueda ni enlaces a fichas. Las apps que Android no exponga como lanzables no se pueden enumerar con este método.
 
-La disponibilidad está indicada por TMDB/JustWatch y no demuestra que la persona tenga cuenta activa o plan compatible.
+**Límite:** Android no proporciona un contrato universal para abrir fichas de cualquier servicio ni comprobar que haya fuentes de reproducción, cuentas o suscripciones activas. Los deep links pueden variar entre versiones. No se inicia automáticamente ningún vídeo ni se eluden DRM, permisos o suscripciones.
 
 ## Seguir viendo (Android TV)
 
@@ -58,7 +59,7 @@ Estos datos **no** se sincronizan con servidores del proyecto. El permiso puede 
 | Populares | Lista TMDB de películas populares | Lista TMDB de series populares |
 | Mejor valorados | Lista histórica TMDB por valoración | Lista histórica TMDB por valoración |
 
-**Las cinco categorías son de descubrimiento general** y no necesariamente filtran por un servicio. La disponibilidad efectiva se consulta por título y país en TMDB; se muestra como insignia solo para proveedores instalados y seleccionados. Stremio y Nuvio son fuentes de progreso, no proveedores de suscripción en TMDB.
+**Las cinco categorías son de descubrimiento general** y no necesariamente filtran por un servicio. La disponibilidad efectiva se consulta por título y país en TMDB; se muestra como insignia solo para proveedores instalados y seleccionados. Stremio y Nuvio pueden ofrecer progreso en «Seguir viendo» y abrir fichas desde el catálogo, pero no son proveedores de suscripción de TMDB.
 
 ## Claves, privacidad y red
 
@@ -93,10 +94,10 @@ No deshabilites el launcher de fábrica hasta comprobar que el nuevo funciona co
 2. Con clave incorrecta: se informa del error HTTP; con clave válida: aparecen los tres carruseles.
 3. Desconecta Wi-Fi: deben conservarse las últimas respuestas cacheadas, si ya se habían descargado.
 4. Comprueba si un proveedor instalado aparece correctamente, y que uno ausente no aparezca como seleccionable para reproducir.
-5. Cambia el orden de prioridad, vuelve al catálogo y comprueba que la primera opción disponible sea la prioritaria.
-6. Desmarca todos los proveedores compatibles: al pulsar un título debe mostrar «No disponible».
+5. Cambia el orden de prioridad, vuelve al catálogo y comprueba el orden de los servicios en el selector.
+6. Desmarca todos los proveedores y reproductores: al pulsar un título se debe informar de que no existen apps habilitadas.
 7. Busca una película y una serie: deben distinguirse y consultarse los endpoints correctos.
-8. Verifica búsqueda externa real y apertura del inicio de cada aplicación. Algunas apps no admiten `ACTION_SEARCH`.
+8. Verifica apertura directa de fichas en Nuvio/Stremio, búsqueda externa e inicio de los demás reproductores. Prueba tanto con la API TMDB disponible como con un fallo de red.
 9. Pulsa «Aplicaciones» y Atrás: debe reaparecer el Home clásico; vuelve a pulsar Home.
 10. Prueba la navegación D-pad en todos los bordes, un televisor de poca RAM, reconexión de red y varias entradas/salidas.
 

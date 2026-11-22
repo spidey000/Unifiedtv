@@ -548,22 +548,15 @@ public final class UnifiedCatalogActivity extends Activity {
     private void openMedia(UnifiedCatalogApi.Media media, TextView button, int stamp) {
         button.setEnabled(false);
         data.execute(() -> {
-            boolean available;
-            try {
-                UnifiedCatalogApi.availability(this, media);
-                available = true;
-            } catch (Exception ignored) {
-                available = false;
-            }
-            boolean loaded = available;
+            try { UnifiedCatalogApi.availability(this, media); }
+            catch (Exception ignored) { /* Local players still work without availability data. */ }
             runOnUiThread(() -> {
                 if (!live(stamp) || !hasWindowFocus()) {
                     if (live(stamp)) button.setEnabled(true);
                     return;
                 }
                 button.setEnabled(true);
-                if (loaded) UnifiedCatalogRoute.open(this, media);
-                else details(media);
+                UnifiedCatalogRoute.open(this, media);
             });
         });
     }
@@ -969,15 +962,13 @@ public final class UnifiedCatalogActivity extends Activity {
         synopsis.setEllipsize(TextUtils.TruncateAt.END);
         copy.addView(synopsis);
         TextView platforms = text("Consultando disponibilidad…", 14, StreamUi.DIM, false);
-        platforms.setMaxLines(2);
+        platforms.setMaxLines(4);
         platforms.setEllipsize(TextUtils.TruncateAt.END);
         copy.addView(platforms);
         TextView open = StreamUi.control(this, "Ver opciones", R.drawable.uic_play, true, v -> {
-            if (!media.availabilityReady) return;
             dialog.dismiss();
             UnifiedCatalogRoute.open(this, media);
         });
-        open.setEnabled(false);
         copy.addView(open, new LinearLayout.LayoutParams(-2, -2));
         TextView close = StreamUi.control(this, "Cerrar ficha", R.drawable.uic_x, false, v -> dialog.dismiss());
         copy.addView(close, new LinearLayout.LayoutParams(-2, -2));
@@ -999,10 +990,13 @@ public final class UnifiedCatalogActivity extends Activity {
                 if (!dialog.isShowing() || isFinishing()) return;
                 List<String> names = new ArrayList<>();
                 if (loaded) for (UnifiedCatalogPrefs.Provider provider : UnifiedCatalogApi.eligible(this, media)) names.add(provider.name);
-                platforms.setText(!loaded ? "No se pudo consultar la disponibilidad"
-                        : names.isEmpty() ? "No está en tus plataformas seleccionadas" : TextUtils.join(" · ", names));
-                open.setEnabled(loaded);
-                if (!names.isEmpty()) open.setText("Abrir en " + names.get(0));
+                List<String> players = UnifiedCatalogRoute.localAppNames(this);
+                String tmdb = !loaded ? "Disponibilidad TMDB no consultada"
+                        : names.isEmpty() ? "Sin servicios disponibles según TMDB"
+                        : "Según TMDB: " + TextUtils.join(" · ", names);
+                platforms.setText(tmdb + (players.isEmpty() ? ""
+                        : "\nApps de reproducción: " + TextUtils.join(" · ", players)));
+                open.setText("Ver opciones de reproducción");
             });
         });
     }

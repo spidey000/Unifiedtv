@@ -185,7 +185,7 @@ public final class UnifiedCatalogSettingsActivity extends Activity {
     }
 
     private void providers() {
-        description("Selecciona las plataformas que usas. Las de arriba se intentan primero cuando hay varias opciones.");
+        description("Servicios disponibles según TMDB en tu región. Solo aparecen al abrir un título si TMDB indica que está disponible.");
         for (UnifiedCatalogPrefs.Provider provider : UnifiedCatalogPrefs.ordered(this)) {
             LinearLayout row = new LinearLayout(this);
             row.setGravity(Gravity.CENTER_VERTICAL);
@@ -199,6 +199,40 @@ public final class UnifiedCatalogSettingsActivity extends Activity {
             row.addView(priority(provider, 1));
             add(content, row);
         }
+
+        description("Apps para abrir títulos descubiertos en TMDB. Nuvio y Stremio pueden abrir fichas; otras apps pueden requerir buscar manualmente. No implica disponibilidad del contenido.");
+        for (UnifiedPlaybackApps.Known app : UnifiedPlaybackApps.KNOWN) {
+            boolean installed = app.installedPackage(this) != null;
+            CheckBox use = StreamUi.toggle(this, app.name + (installed ? "  ·  Instalada" : "  ·  No instalada"),
+                    UnifiedPlaybackApps.selected(this, app));
+            use.setOnCheckedChangeListener((v, checked) -> save("playback_source_" + app.key, checked));
+            left(use);
+            add(content, use);
+        }
+        action("Elegir otras apps instaladas para reproducir", v -> chooseOtherPlaybackApps(), "otherPlayback");
+        description("Las aplicaciones adicionales se activan manualmente y solo se abren si están instaladas.");
+    }
+
+    private void chooseOtherPlaybackApps() {
+        List<UnifiedPlaybackApps.App> apps = UnifiedPlaybackApps.otherInstalledApps(this);
+        if (apps.isEmpty()) {
+            StreamUi.dialog(this).setTitle("No se encontraron otras apps")
+                    .setMessage("Las apps de Android TV disponibles ya están incluidas en las listas anteriores.")
+                    .setPositiveButton("Aceptar", null).show();
+            return;
+        }
+        CharSequence[] names = new CharSequence[apps.size()];
+        boolean[] enabled = new boolean[apps.size()];
+        for (int i = 0; i < apps.size(); i++) {
+            UnifiedPlaybackApps.App app = apps.get(i);
+            names[i] = app.name;
+            enabled[i] = UnifiedPlaybackApps.selectedOther(this, app.packageName);
+        }
+        StreamUi.dialog(this).setTitle("Otras apps instaladas")
+                .setMultiChoiceItems(names, enabled, (dialog, which, chosen) ->
+                        save("playback_package_" + apps.get(which).packageName, chosen))
+                .setPositiveButton("Listo", (dialog, which) -> show(section, "otherPlayback"))
+                .show();
     }
 
     private TextView priority(UnifiedCatalogPrefs.Provider provider, int direction) {
