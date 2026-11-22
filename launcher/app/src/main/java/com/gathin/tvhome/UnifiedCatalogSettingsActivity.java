@@ -12,7 +12,9 @@ import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
+import android.widget.Toast;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -30,6 +32,7 @@ public final class UnifiedCatalogSettingsActivity extends Activity {
     private LinearLayout content;
     private ScrollView scroll;
     private TextView installPermissionStatus;
+    private TmdbPairingDialog pairing;
     private int section;
     private String restoredFocus;
 
@@ -82,6 +85,11 @@ public final class UnifiedCatalogSettingsActivity extends Activity {
         super.onResume();
         UnifiedAppUpdater.onResume(this);
         if (installPermissionStatus != null) installPermissionStatus.setText(permissionStatus());
+    }
+
+    @Override protected void onStop() {
+        if (pairing != null) pairing.dismiss();
+        super.onStop();
     }
 
     private int dp(int n) { return StreamUi.dp(this, n); }
@@ -178,7 +186,9 @@ public final class UnifiedCatalogSettingsActivity extends Activity {
     private void catalog() {
         description("Elige qué se muestra al abrir UnifiedTV y conecta el catálogo de películas y series.");
         toggle("Mostrar catálogo al pulsar Home", UnifiedCatalogPrefs.ON_HOME, true);
-        action(UnifiedCatalogPrefs.apiKey(this).isEmpty() ? "Conectar TMDB" : "Cambiar clave de TMDB", v -> editKey(), "tmdb");
+        action(UnifiedCatalogPrefs.apiKey(this).isEmpty() ? "Configurar TMDB desde el móvil"
+                : "Cambiar clave de TMDB desde el móvil", v -> pairKey(), "tmdb");
+        action("Introducir clave de TMDB con el mando", v -> editKey(), "tmdb-manual");
         action("Región de disponibilidad  ·  " + UnifiedCatalogPrefs.region(this), v -> chooseRegion(), "region");
         toggle("Incluir servicios gratuitos y con anuncios", UnifiedCatalogPrefs.INCLUDE_FREE, true);
         description("La clave personal v3 de TMDB se guarda únicamente en esta TV.");
@@ -287,6 +297,22 @@ public final class UnifiedCatalogSettingsActivity extends Activity {
         UnifiedCatalogPrefs.prefs(this).edit().putBoolean(key, value).apply();
     }
 
+    private void pairKey() {
+        if (pairing != null) return;
+        try {
+            pairing = new TmdbPairingDialog(this, () -> {
+                show(section, "tmdb");
+                Toast.makeText(this, "TMDB conectado", Toast.LENGTH_SHORT).show();
+            }, () -> pairing = null);
+        } catch (IOException | SecurityException e) {
+            StreamUi.dialog(this).setTitle("No se ha podido abrir el QR")
+                    .setMessage("Comprueba que la TV esté conectada por Wi-Fi o Ethernet e inténtalo de nuevo.")
+                    .setNegativeButton("Cerrar", null)
+                    .setPositiveButton("Introducir con el mando", (dialog, which) -> editKey())
+                    .show();
+        }
+    }
+
     private void editKey() {
         EditText input = new EditText(this);
         input.setSingleLine(true);
@@ -299,7 +325,7 @@ public final class UnifiedCatalogSettingsActivity extends Activity {
                 .setPositiveButton("Guardar", (dialog, which) -> {
                     UnifiedCatalogPrefs.prefs(this).edit().putString(UnifiedCatalogPrefs.KEY,
                             input.getText().toString().trim()).apply();
-                    show(section, "tmdb");
+                    show(section, "tmdb-manual");
                 }).show();
     }
 
