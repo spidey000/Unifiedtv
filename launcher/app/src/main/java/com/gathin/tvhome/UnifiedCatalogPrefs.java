@@ -66,6 +66,10 @@ final class UnifiedCatalogPrefs {
     static final String CONTINUE_HIDE_FINISHED = "continue_hide_finished";
     static final String CONTINUE_MAX_AGE = "continue_max_age_days";
     static final String CONTINUE_OTHER_APPS = "continue_other_apps";
+    static final String UPDATE_AUTO_CHECK = "update_auto_check";
+    static final String UPDATE_LAST_CHECK = "update_last_check";
+    static final String UPDATE_LAST_SHOWN = "update_last_shown";
+
 
     // Stremio and Nuvio are catalog/player apps rather than TMDB subscription providers.
     // They are sources of Watch Next, not TMDB availability badges.
@@ -77,6 +81,11 @@ final class UnifiedCatalogPrefs {
         sources.add(new Provider("nuvio", "Nuvio", new int[]{},
                 "com.nuvio.tv", "com.nuvio.app"));
         CONTINUE_SOURCES = Collections.unmodifiableList(sources);
+    }
+
+    /** Automatically look for signed GitHub releases, without downloading them. */
+    static boolean autoCheckUpdates(Context c) {
+        return prefs(c).getBoolean(UPDATE_AUTO_CHECK, true);
     }
 
     static boolean continueEnabled(Context c) {
