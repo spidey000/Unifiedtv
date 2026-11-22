@@ -601,7 +601,8 @@ public final class UnifiedCatalogActivity extends Activity {
                 UnifiedCatalogApi.Media media = result.get(i + first);
                 FrameLayout card = mediaTile(row, i, () -> details(media));
                 ImageView cover = tileArt(card);
-                ImageView thumbnail = media.backdrop.startsWith("/") ? tileArt(card) : null;
+                ImageView thumbnail = tileArt(card);
+                thumbnail.setScaleType(ImageView.ScaleType.FIT_CENTER);
                 LinearLayout caption = caption(card);
                 TextView title = singleLine(media.title, 9, StreamUi.WHITE, true);
                 caption.addView(title);
@@ -610,10 +611,10 @@ public final class UnifiedCatalogActivity extends Activity {
                 if (media.hasRating()) rating(card, media.ratingText());
                 card.setContentDescription(media.title + (media.hasRating() ? ", valoración TMDB " + media.ratingText() : ""));
                 loads.add(once(() -> image(stamp, cover, () -> UnifiedCatalogApi.poster(this, media.poster))));
-                Runnable loadThumbnail = thumbnail == null ? null
-                        : once(() -> image(stamp, thumbnail,
-                                () -> UnifiedCatalogApi.shelfArtwork(this, media.backdrop),
-                                () -> { if (card.isFocused()) revealThumbnail(thumbnail); }));
+                Runnable loadThumbnail = once(() -> image(stamp, thumbnail, () -> {
+                    Bitmap wide = UnifiedCatalogApi.shelfArtwork(this, media.backdrop);
+                    return wide != null ? wide : UnifiedCatalogApi.poster(this, media.poster);
+                }, () -> { if (card.isFocused()) revealThumbnail(thumbnail); }));
                 bindTileFocus(card, loads, i, thumbnail, loadThumbnail, title, facts);
             }
         }, () -> {
@@ -918,6 +919,32 @@ public final class UnifiedCatalogActivity extends Activity {
         });
     }
 
+    /** Resolve platform images first, then TMDB only for missing portrait/landscape formats. */
+    private void watchImage(int stamp, UnifiedWatchNext.Entry item, FrameLayout card,
+                            ImageView poster, ImageView thumbnail) {
+        art.execute(() -> {
+            if (revision != stamp) return;
+            UnifiedWatchArtwork.Pair pair = UnifiedWatchArtwork.resolve(getApplicationContext(), item);
+            runOnUiThread(() -> {
+                if (!live(stamp)) return;
+                if (pair.portrait != null) {
+                    poster.setImageBitmap(pair.portrait);
+                    if (StreamUi.motionEnabled() && poster.isAttachedToWindow()) {
+                        poster.animate().cancel();
+                        poster.setAlpha(0f);
+                        poster.animate().alpha(1f).setDuration(StreamUi.ART_ANIM_MS).start();
+                    } else {
+                        poster.setAlpha(1f);
+                    }
+                }
+                if (thumbnail != null && pair.landscape != null) {
+                    thumbnail.setImageBitmap(pair.landscape);
+                    if (card.isFocused()) revealThumbnail(thumbnail);
+                }
+            });
+        });
+    }
+
     private void watch(int stamp) {
         if (!UnifiedCatalogPrefs.continueEnabled(this)) {
             link("Activar Seguir viendo en Ajustes", v -> startActivity(new Intent(this, UnifiedCatalogSettingsActivity.class)));
@@ -965,6 +992,11 @@ public final class UnifiedCatalogActivity extends Activity {
                             : mediaTile(line, i, () -> UnifiedWatchNext.open(this, item));
                     cards.add(card);
                     ImageView artwork = tileArt(card);
+                    ImageView thumbnail = fullGrid ? null : tileArt(card);
+                    if (thumbnail != null) {
+                        // The landscape artwork is shown completely, without CENTER_CROP.
+                        thumbnail.setScaleType(ImageView.ScaleType.FIT_CENTER);
+                    }
                     LinearLayout copy = caption(card);
                     TextView title = singleLine(item.title, 9, StreamUi.WHITE, true);
                     copy.addView(title);
@@ -992,8 +1024,9 @@ public final class UnifiedCatalogActivity extends Activity {
                     } else if (!item.episode.isEmpty()) {
                         copy.addView(singleLine(item.episode, 9, StreamUi.DIM, false));
                     }
-                    loads.add(once(() -> image(stamp, artwork, () -> UnifiedWatchNext.artwork(this, item.poster))));
-                    if (!fullGrid) bindTileFocus(card, loads, i, null, null, title, episode);
+                    Runnable loadArtwork = once(() -> watchImage(stamp, item, card, artwork, thumbnail));
+                    loads.add(loadArtwork);
+                    if (!fullGrid) bindTileFocus(card, loads, i, thumbnail, loadArtwork, title, episode);
                 }
                 if (fullGrid) {
                     connectGridFocus(cards, loads);
