@@ -65,6 +65,18 @@ class UnifiedTvTests(unittest.TestCase):
         self.assertIn('getString(KEY, "")', source)
         self.assertNotRegex(source, r"(?i)(?:sk|eyJ)[A-Za-z0-9._-]{35,}")
 
+    def test_short_press_opens_direct_link_and_long_press_uses_rich_details(self):
+        home = (JAVA / "UnifiedCatalogActivity.java").read_text(encoding="utf-8")
+        api = (JAVA / "UnifiedCatalogApi.java").read_text(encoding="utf-8")
+        watch = (JAVA / "UnifiedWatchNext.java").read_text(encoding="utf-8")
+        self.assertIn("card.setOnLongClickListener(v -> { details(media); return true; })", home)
+        self.assertIn("card.setOnLongClickListener(v -> { watchDetails(item); return true; })", home)
+        self.assertIn("UnifiedCatalogRoute.launchTarget(this, target)", home)
+        self.assertIn("UnifiedWatchNext.open(this, item)", home)
+        self.assertIn("UnifiedCatalogApi.fullDetails(this, media)", home)
+        self.assertIn("fullDetailsText(JSONObject info, String type)", api)
+        self.assertNotIn("getLeanbackLaunchIntentForPackage(item.providerPackage)", watch)
+
     def test_catalog_layout_can_switch_to_two_column_category_groups(self):
         home = (JAVA / "UnifiedCatalogActivity.java").read_text(encoding="utf-8")
         prefs = (JAVA / "UnifiedCatalogPrefs.java").read_text(encoding="utf-8")

@@ -283,19 +283,9 @@ final class UnifiedWatchNext {
         } catch (Exception ignored) {
             // Some provider links only work after the service's profile chooser.
         }
-        try {
-            Intent launch = activity.getPackageManager()
-                    .getLeanbackLaunchIntentForPackage(item.providerPackage);
-            if (launch == null) launch = activity.getPackageManager()
-                    .getLaunchIntentForPackage(item.providerPackage);
-            if (launch != null) {
-                activity.startActivity(launch);
-                Toast.makeText(activity, "Abriendo " + item.source
-                        + "; busca «" + item.title + "»", Toast.LENGTH_LONG).show();
-                return;
-            }
-        } catch (Exception ignored) { }
-        Toast.makeText(activity, "No se puede abrir " + item.source, Toast.LENGTH_LONG).show();
+        Toast.makeText(activity, "El enlace al título ya no está disponible en "
+                + item.source + ". Prueba a abrir su ficha mediante pulsación larga.",
+                Toast.LENGTH_LONG).show();
     }
 
     private static final LruCache<String, Bitmap> ART = new LruCache<String, Bitmap>(6 * 1024 * 1024) {

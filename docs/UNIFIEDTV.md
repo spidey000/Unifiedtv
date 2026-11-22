@@ -44,6 +44,11 @@ En **Ajustes → Plataformas** pueden activarse/desactivarse reproductores conoc
 
 **Límite:** Android no proporciona un contrato universal para abrir fichas de cualquier servicio ni comprobar que haya fuentes de reproducción, cuentas o suscripciones activas. Los deep links pueden variar entre versiones. No se inicia automáticamente ningún vídeo ni se eluden DRM, permisos o suscripciones.
 
+### Acciones del mando
+**Pulsación corta / OK** sobre un póster: abre el enlace específico a la ficha del título en la primera plataforma configurada/instalada que tenga disponibilidad TMDB y un enlace confirmado. Si falta un deep link verificable, muestra opciones explícitas sin abrir la portada de una aplicación como si fuera la película. En «Seguir viendo» se usa preferentemente el `intent_uri` publicado por esa app; cuando falla, se muestra un aviso en lugar de abrir silenciosamente la pantalla inicial.
+
+**Pulsación larga / mantener OK**: abre una ficha informativa ampliada con sinopsis completa, título original, géneros, duración, estreno, reparto, dirección, creadores, temporadas, episodios, producción, estado y disponibilidad según los metadatos que efectivamente proporcione TMDB. El contenido de la ficha es desplazable y tiene botón para abrir el título. En «Seguir viendo» primero se intenta una coincidencia inequívoca de TMDB y se muestra la información pública disponible aun si no puede verificarse esa coincidencia.
+
 ### Diseño opcional por columnas
 En **Ajustes → Catálogo** se puede activar **Categorías en columnas · 2 pósteres por fila**. La opción está desactivada por defecto; las cinco filas horizontales actuales siguen funcionando igual. Con ella, las categorías Destacados / Más vistos / Novedades / Populares / Mejor valorados se disponen como **columnas de sección desplazables horizontalmente**, cada una con **dos subcolumnas de pósteres 2:3** y desplazamiento vertical global. Todas conservan el título, puntuación TMDB, logotipo de plataforma y comportamiento de pulsación corta/larga. El enfoque usa una escala uniforme del 2,5 % sin alterar la proporción. Las imágenes se precargan al entrar en la parte visible para no descargar 120 pósteres de golpe.
 
