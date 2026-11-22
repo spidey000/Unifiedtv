@@ -169,6 +169,14 @@ final class UnifiedCatalogApi {
         return result;
     }
 
+    /** Resolve an IMDb/Cinemeta ID for a Stremio detail link; TMDB IDs are not interchangeable. */
+    static String imdbId(Context context, Media media) throws Exception {
+        JSONObject ids = request(context, "/" + media.type + "/" + media.id + "/external_ids",
+                PROVIDER_TTL, false);
+        String id = ids.optString("imdb_id", "");
+        return id.matches("tt[0-9]{5,12}") ? id : "";
+    }
+
     private static void collect(JSONArray arr, Set<Integer> ids) {
         if (arr == null) return;
         for (int i = 0; i < arr.length(); i++) {
