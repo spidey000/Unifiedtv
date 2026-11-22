@@ -74,7 +74,9 @@ public final class UnifiedCatalogSettingsActivity extends Activity {
         spatial = new TvSpatialNavigation(railScroll, scroll);
         focusObserver = (previous, current) -> {
             spatial.remember(current);
-            if (TvSpatialNavigation.inside(scroll, current)
+            if (TvSpatialNavigation.inside(railScroll, current)) {
+                restoredFocus = null;
+            } else if (TvSpatialNavigation.inside(scroll, current)
                     && current.getTag() instanceof String) {
                 restoredFocus = (String) current.getTag();
             }
@@ -148,6 +150,7 @@ public final class UnifiedCatalogSettingsActivity extends Activity {
         else {
             View target = content.findViewWithTag(focusTag);
             if (target != null) target.requestFocus();
+            else tabs.get(section).requestFocus();
         }
     }
 
