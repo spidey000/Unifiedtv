@@ -4,6 +4,7 @@ import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.Context;
 import android.graphics.Color;
+import android.graphics.Typeface;
 import android.os.Bundle;
 import android.text.InputType;
 import android.view.Gravity;
@@ -19,14 +20,16 @@ import java.util.List;
 
 /** Simple D-pad friendly, local-only streaming preferences. */
 public final class UnifiedCatalogSettingsActivity extends Activity {
+    private LinearLayout sections;
     private LinearLayout content;
+    private ScrollView scroller;
 
     @Override protected void onCreate(Bundle state) {
         super.onCreate(state);
         render();
     }
 
-    private int dp(int n) { return Math.round(n * getResources().getDisplayMetrics().density); }
+    private int dp(int n) { return CinemaUi.dp(this, n); }
 
     private LinearLayout column() {
         LinearLayout layout = new LinearLayout(this);
@@ -35,43 +38,59 @@ public final class UnifiedCatalogSettingsActivity extends Activity {
     }
 
     private TextView text(String value, int size) {
-        TextView t = new TextView(this);
-        t.setText(value);
-        t.setTextColor(Color.WHITE);
-        t.setTextSize(size);
-        t.setPadding(dp(7), dp(8), dp(7), dp(8));
+        TextView t = CinemaUi.text(this, value, size, size < 17 ? CinemaUi.MUTED : Color.WHITE);
+        t.setPadding(dp(6), dp(5), dp(6), dp(5));
         return t;
     }
 
     private Button button(String label, View.OnClickListener listener) {
-        Button button = new Button(this);
-        button.setText(label);
-        button.setAllCaps(false);
-        button.setOnClickListener(listener);
+        Button button = CinemaUi.button(this, label, listener);
+        LinearLayout.LayoutParams size = new LinearLayout.LayoutParams(-2, -2);
+        size.setMargins(dp(4), dp(3), dp(4), dp(3));
+        button.setLayoutParams(size);
         return button;
     }
 
     private void section(String title) {
-        TextView label = text(title, 24);
-        label.setPadding(0, dp(24), 0, dp(8));
+        content = column();
+        content.setBackground(CinemaUi.shape(this, CinemaUi.SURFACE, 12, Color.TRANSPARENT));
+        content.setPadding(dp(12), dp(10), dp(12), dp(10));
+        LinearLayout.LayoutParams size = new LinearLayout.LayoutParams(-1, -2);
+        size.topMargin = dp(10);
+        sections.addView(content, size);
+        TextView label = text(title, 20);
+        label.setTypeface(null, Typeface.BOLD);
         content.addView(label);
     }
 
     private void render() {
-        ScrollView scroller = new ScrollView(this);
-        scroller.setBackgroundColor(Color.rgb(12, 16, 21));
-        content = column();
-        content.setPadding(dp(48), dp(24), dp(48), dp(48));
-        scroller.addView(content);
-        setContentView(scroller);
+        render(null);
+    }
 
-        content.addView(text("Ajustes de UnifiedTV", 30));
-        content.addView(text("Catálogo de TMDB y plataformas instaladas; todas las preferencias se guardan solo en esta TV.", 15));
+    private void render(String focusTag) {
+        int scrollY = scroller == null ? 0 : scroller.getScrollY();
+        LinearLayout root = column();
+        root.setBackgroundColor(CinemaUi.BASE);
+        root.setPadding(dp(28), dp(10), dp(28), 0);
+        LinearLayout header = new LinearLayout(this);
+        header.setGravity(Gravity.CENTER_VERTICAL);
+        TextView heading = text("Ajustes · UnifiedTV", 26);
+        heading.setTextColor(CinemaUi.ACCENT);
+        heading.setTypeface(null, Typeface.BOLD);
+        header.addView(heading, new LinearLayout.LayoutParams(0, -2, 1));
+        header.addView(button("Volver al catálogo", v -> finish()));
+        root.addView(header);
+        scroller = new ScrollView(this);
+        scroller.setVerticalScrollBarEnabled(false);
+        sections = column();
+        sections.setPadding(0, 0, 0, dp(22));
+        scroller.addView(sections);
+        root.addView(scroller, new LinearLayout.LayoutParams(-1, 0, 1));
+        setContentView(root);
 
         section("Inicio");
-        CheckBox home = new CheckBox(this);
-        home.setText("Mostrar catálogo al pulsar Home (Atrás abre el launcher original)");
-        home.setTextColor(Color.WHITE);
+        CheckBox home = CinemaUi.toggle(this);
+        home.setText("Mostrar catálogo al pulsar Home (Atrás abre Aplicaciones)");
         home.setChecked(UnifiedCatalogPrefs.enabled(this));
         home.setOnCheckedChangeListener((v, checked) ->
                 UnifiedCatalogPrefs.prefs(this).edit().putBoolean(UnifiedCatalogPrefs.ON_HOME, checked).apply());
@@ -85,9 +104,8 @@ public final class UnifiedCatalogSettingsActivity extends Activity {
 
         section("País y disponibilidad");
         content.addView(button("País: " + UnifiedCatalogPrefs.region(this), v -> chooseRegion()));
-        CheckBox free = new CheckBox(this);
+        CheckBox free = CinemaUi.toggle(this);
         free.setText("Incluir plataformas gratuitas y con anuncios");
-        free.setTextColor(Color.WHITE);
         free.setChecked(UnifiedCatalogPrefs.allowsFree(this));
         free.setOnCheckedChangeListener((v, checked) ->
                 UnifiedCatalogPrefs.prefs(this).edit().putBoolean(UnifiedCatalogPrefs.INCLUDE_FREE, checked).apply());
@@ -101,17 +119,15 @@ public final class UnifiedCatalogSettingsActivity extends Activity {
             row.setOrientation(LinearLayout.HORIZONTAL);
             row.setGravity(Gravity.CENTER_VERTICAL);
             String installed = provider.installedPackage(this) == null ? " (no instalada)" : " (instalada)";
-            CheckBox enabled = new CheckBox(this);
+            CheckBox enabled = CinemaUi.toggle(this);
             enabled.setText(provider.name + installed);
-            enabled.setTextColor(Color.WHITE);
-            enabled.setTextSize(16);
             enabled.setChecked(UnifiedCatalogPrefs.selected(this, provider));
             enabled.setOnCheckedChangeListener((v, checked) ->
                     UnifiedCatalogPrefs.prefs(this).edit()
                             .putBoolean("selected_" + provider.key, checked).apply());
-            row.addView(enabled, new LinearLayout.LayoutParams(0, dp(60), 1));
-            row.addView(button("↑", v -> { UnifiedCatalogPrefs.move(this, provider, -1); render(); }));
-            row.addView(button("↓", v -> { UnifiedCatalogPrefs.move(this, provider, 1); render(); }));
+            row.addView(enabled, new LinearLayout.LayoutParams(0, dp(46), 1));
+            row.addView(priority(provider, -1));
+            row.addView(priority(provider, 1));
             content.addView(row);
         }
 
@@ -141,10 +157,8 @@ public final class UnifiedCatalogSettingsActivity extends Activity {
         content.addView(text("Qué aplicaciones pueden alimentar la fila:", 16));
         for (UnifiedCatalogPrefs.Provider provider : UnifiedCatalogPrefs.CONTINUE_SOURCES) {
             boolean installed = provider.installedPackage(this) != null;
-            CheckBox watching = new CheckBox(this);
+            CheckBox watching = CinemaUi.toggle(this);
             watching.setText(provider.name + (installed ? " · instalada" : " · no instalada"));
-            watching.setTextColor(Color.WHITE);
-            watching.setTextSize(16);
             watching.setChecked(UnifiedCatalogPrefs.continueSourceSelected(this, provider));
             watching.setOnCheckedChangeListener((v, checked) ->
                     UnifiedCatalogPrefs.prefs(this).edit()
@@ -156,13 +170,27 @@ public final class UnifiedCatalogSettingsActivity extends Activity {
 
         section("Información");
         content.addView(text("TMDB informa de plataformas por país, pero no acredita una suscripción activa ni garantiza que una app permita abrir la ficha concreta. Si la app no admite búsqueda externa, se abre su inicio.", 14));
-        content.addView(button("Volver al catálogo", v -> finish()));
+        View target = focusTag == null ? null : sections.findViewWithTag(focusTag);
+        if (scrollY > 0 || target != null) scroller.post(() -> {
+            scroller.scrollTo(0, scrollY);
+            if (target != null) target.requestFocus();
+        });
+    }
+
+    private Button priority(UnifiedCatalogPrefs.Provider provider, int direction) {
+        String tag = provider.key + ":" + direction;
+        Button control = button(direction < 0 ? "↑" : "↓", v -> {
+            UnifiedCatalogPrefs.move(this, provider, direction);
+            render(tag);
+        });
+        control.setTag(tag);
+        control.setContentDescription((direction < 0 ? "Subir prioridad: " : "Bajar prioridad: ") + provider.name);
+        return control;
     }
 
     private void addToggle(String title, String key, boolean defaultValue) {
-        CheckBox toggle = new CheckBox(this);
+        CheckBox toggle = CinemaUi.toggle(this);
         toggle.setText(title);
-        toggle.setTextColor(Color.WHITE);
         toggle.setChecked(UnifiedCatalogPrefs.prefs(this).getBoolean(key, defaultValue));
         toggle.setOnCheckedChangeListener((view, checked) ->
                 UnifiedCatalogPrefs.prefs(this).edit().putBoolean(key, checked).apply());

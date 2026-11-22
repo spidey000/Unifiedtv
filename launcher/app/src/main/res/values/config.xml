@@ -291,7 +291,7 @@
     <!-- A name after the greeting: "Mr. Trịnh" shows GOOD MORNING, MR. TRỊNH. Empty: the greeting alone. -->
     <string name="greeting_name" translatable="false"></string>
     <!-- The greeting above the clock ("Good evening"). false hides it. Can also be set with "show_greeting" in a theme. -->
-    <bool name="show_greeting">true</bool>
+    <bool name="show_greeting">false</bool>
     <!-- The date and the line between the clock and the date in the clock's full white instead of dimmed. Can also be
          set with "header_white" in a theme. -->
     <bool name="header_white">false</bool>
@@ -322,7 +322,7 @@
          also be set with "dock_glass": true in a theme's config.json. -->
     <bool name="dock_glass">false</bool>
     <!-- Draw the dock band and its edge. false leaves the tiles floating on the wallpaper (config.xml dock_band). -->
-    <bool name="dock_band">true</bool>
+    <bool name="dock_band">false</bool>
     <!-- Every app in one row: the dock apps first, the rest after them, and the row scrolls sideways when focus
          reaches its edge. No grid below; rows_below_dock is ignored. Needs dock_row. Can also be set with
          "single_row" in a theme. -->
@@ -413,7 +413,7 @@
 
     <!-- Grid rows left visible under the dock on the home screen. 0 = dock sits at the very bottom. Tiles shrink if
          the dock, its title and this many rows would not otherwise fit the screen height. -->
-    <integer name="rows_below_dock">0</integer>
+    <integer name="rows_below_dock">1</integer>
 
     <!-- The focused dock app's name in large type above the dock. false keeps only the glow, which leaves room
          for bigger tiles when rows_below_dock is 2 or 3. -->
@@ -421,7 +421,7 @@
 
     <!-- Tiles per row in the grid; the dock always has this many slots. Tiles are 180dp wide at 4 columns and
          shrink to fit from 5 up (about 144dp at 5, 117dp at 6 on a 1080p TV). -->
-    <integer name="columns">4</integer>
+    <integer name="columns">5</integer>
 
     <!-- Basic motion is on; advanced effects are opt-in in the launcher's own Settings screen. -->
     <bool name="animations">true</bool>
@@ -503,7 +503,7 @@
          colour; the shelf gets a larger name, a "Last opened" line (from the apps Home opened) and dock position
          dots, the focus glow takes the app's colour and the dock band turns translucent. false keeps the plain
          shelf. Can also be set with "cinematic_home": true in a theme's config.json. -->
-    <bool name="cinematic_home">false</bool>
+    <bool name="cinematic_home">true</bool>
     <!-- With cinematic_home, false leaves out the dock position dots under the app's name, for a quieter shelf. Can
          also be set with "cinematic_dots": false in a theme's config.json. -->
     <bool name="cinematic_dots">true</bool>
