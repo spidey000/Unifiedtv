@@ -28,7 +28,7 @@ import java.util.Set;
 final class UnifiedCatalogApi {
     static final class Media {
         final int id;
-        final String type, title, poster, year, backdrop;
+        final String type, title, poster, year, backdrop, overview;
         final double voteAverage;
         final int voteCount;
         volatile boolean availabilityReady;
@@ -38,13 +38,14 @@ final class UnifiedCatalogApi {
 
         Media(int id, String type, String title, String poster, String year,
               double voteAverage, int voteCount) {
-            this(id, type, title, poster, year, voteAverage, voteCount, "");
+            this(id, type, title, poster, year, voteAverage, voteCount, "", "");
         }
 
         Media(int id, String type, String title, String poster, String year,
-              double voteAverage, int voteCount, String backdrop) {
+              double voteAverage, int voteCount, String backdrop, String overview) {
             this.id = id;
             this.backdrop = backdrop;
+            this.overview = overview;
             this.type = type;
             this.title = title;
             this.poster = poster;
@@ -125,7 +126,7 @@ final class UnifiedCatalogApi {
             double voteAverage = o.optDouble("vote_average", 0.0);
             int voteCount = o.optInt("vote_count", 0);
             if (id > 0) media.add(new Media(id, type, name, poster, year,
-                    voteAverage, voteCount, o.optString("backdrop_path", "")));
+                    voteAverage, voteCount, o.optString("backdrop_path", ""), o.optString("overview", "")));
         }
         return media;
     }

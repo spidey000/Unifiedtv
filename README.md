@@ -9,8 +9,8 @@ UnifiedTV es un fork independiente de [CleanYourTV](https://github.com/Gathin23/
 ## ¿Qué incluye?
 
 - **Tres pestañas principales:** **Películas**, **Series** y **Seguir viendo**, navegables con el mando. El catálogo recuerda la última pestaña.
-- **Cinco filtros en Películas y Series:** Destacados (tendencia diaria), Más vistos (aproximación por tendencia semanal), Novedades (estrenos en cartelera / series en emisión), Populares y Mejor valorados (histórico).
-- **Interfaz de cine para el mando:** portada con arte panorámico de TMDB, filas de pósteres compactas, foco de alto contraste y tarjetas horizontales de Seguir viendo con barra de progreso. Los ajustes están agrupados por tema. Aplicaciones sigue abriendo la vista basada en CleanYourTV.
+- **Cinco filas en Películas y Series:** Destacados (tendencia diaria), Más vistos (aproximación por tendencia semanal), Novedades (estrenos en cartelera / series en emisión), Populares y Mejor valorados (histórico).
+- **Interfaz de streaming para el mando:** menú lateral fijo, portada panorámica y filas de pósteres independientes. Pulsa OK en un título para ver la ficha con sinopsis, puntuación de TMDB y plataformas disponibles. Buscar, Aplicaciones y Ajustes tienen pantallas propias.
 - **Valoraciones TMDB junto al título:** estrella dorada discreta y puntuación sobre 10 con un decimal (por ejemplo, `★ 8,5`), en películas, series y resultados de búsqueda. Se leen de `vote_average`/`vote_count` en los resultados existentes; sin votos o con nota inválida, la valoración no aparece. No se confunden con las notas de las plataformas.
 - **Seguir viendo unificado:** lee las entradas visibles del proveedor Android TV `Watch Next` y, cuando existen, los canales «Continue Watching» de las aplicaciones. Muestra portada, origen y barra de progreso, y permite abrir la entrada publicada por la app.
 - **Fuentes configurables de Seguir viendo:** Netflix, Prime Video, Max/HBO Max, Disney+, Apple TV+, SkyShowtime, Movistar Plus+, Filmin, **Stremio** y **Nuvio**, además de otras apps compatibles opcionalmente.
@@ -21,12 +21,12 @@ UnifiedTV es un fork independiente de [CleanYourTV](https://github.com/Gathin23/
 - **Apertura:** prueba la búsqueda externa de la aplicación de mayor prioridad. Si no es compatible, abre la propia aplicación y te indica qué título buscar. Si la app falla al arrancar, prueba la siguiente plataforma.
 - **Error explícito** si el título no figura disponible en ninguna de tus apps seleccionadas; enlace a opciones online cuando TMDB lo proporciona.
 - **Caché:** últimas respuestas de catálogo, disponibilidad y carteles, para reducir consultas y mostrar datos previamente guardados sin conexión.
-- **Launcher original preservado:** pulsar «Aplicaciones» o Atrás desde el catálogo muestra la cuadrícula y dock originales de CleanYourTV. Se puede desactivar el catálogo como Home desde Ajustes.
+- **Launcher clásico preservado:** «Aplicaciones → Abrir launcher clásico» o Atrás desde Inicio muestran la cuadrícula y el dock basados en CleanYourTV. Se puede desactivar el catálogo como Home desde Ajustes.
 
 ### Flujo de usuario
 
 1. Pulsas **Home**. Eliges **Películas**, **Series** o **Seguir viendo**.
-2. Dentro de Películas o Series cambias entre **Destacados · Más vistos · Novedades · Populares · Mejor valorados (histórico)**. Las etiquetas de plataformas se basan en disponibilidad TMDB y aplicaciones instaladas/activadas.
+2. Abre Películas o Series desde el menú lateral y recorre las filas con el mando. A la izquierda de la primera tarjeta de cada fila puedes volver al menú. Las plataformas de la ficha se basan en disponibilidad TMDB y aplicaciones instaladas y activadas.
 3. Seleccionas un título. UnifiedTV intenta abrir la búsqueda de la primera app según tu prioridad; si no ofrece búsqueda externa, abre la aplicación para que busques el título. Cuando no hay plataforma compatible se informa del motivo.
 4. En **Seguir viendo** aparecen las entradas que las apps comparten voluntariamente con Android TV. Pulsar una abre su acción de continuación si funciona en la TV, o su app como alternativa.
 5. En **Ajustes → Seguir viendo** puedes filtrar fuentes, activar la fila en Home, incluir próximos episodios o canales de continuación, definir antigüedad máxima y ocultar títulos completados.

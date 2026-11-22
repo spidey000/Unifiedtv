@@ -70,11 +70,20 @@ class UnifiedTvTests(unittest.TestCase):
         self.assertIn('o.optInt("vote_count", 0)', api)
         self.assertIn("boolean hasRating()", api)
         self.assertIn("Locale.forLanguageTag(\"es-ES\")", api)
-        self.assertIn("titleRow.addView(title", home)
-        self.assertIn("titleRow.addView(rating", home)
+        self.assertIn('card.addView(singleLine("★ " + media.ratingText()', home)
         self.assertIn("if (media.hasRating())", home)
-        self.assertIn("SpannableString", home)
         self.assertIn("valoración TMDB", home)
+
+    def test_streaming_shell_preserves_apps_and_provider_routing(self):
+        home = (JAVA / "UnifiedCatalogActivity.java").read_text(encoding="utf-8")
+        api = (JAVA / "UnifiedCatalogApi.java").read_text(encoding="utf-8")
+        self.assertIn('route(rail, Page.APPS, "Aplicaciones")', home)
+        self.assertIn('link("Abrir launcher clásico", v -> UnifiedTvHome.leaveForApps(this))', home)
+        self.assertIn("setNextFocusLeftId(routes.get(page).getId())", home)
+        self.assertIn("UnifiedCatalogRoute.open(this, media)", home)
+        self.assertIn("UnifiedWatchNext.open(this, item)", home)
+        self.assertIn('o.optString("overview", "")', api)
+        self.assertIn('o.optString("backdrop_path", "")', api)
 
     def test_continue_watching_is_explicit_opt_in(self):
         source = (JAVA / "UnifiedWatchNext.java").read_text(encoding="utf-8")
