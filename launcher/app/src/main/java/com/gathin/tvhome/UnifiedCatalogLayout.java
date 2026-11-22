@@ -5,6 +5,33 @@ final class UnifiedCatalogLayout {
     static final int COLUMNS = 6;
     static final int GRID_ROW_GAP_DP = 12;
 
+    /** Separate landscape app banners from 2:3 content posters. */
+    static final int APP_CELL_GAP_DP = 8;
+    static final int APP_FOCUS_INSET_X_DP = 5;
+    static final int APP_FOCUS_INSET_TOP_DP = 7;
+    static final int APP_FOCUS_INSET_BOTTOM_DP = 9;
+    static final int APP_LABEL_HEIGHT_DP = 27;
+
+    /** Exactly six 16:9 app banners per row, reserving a focus-safe margin. */
+    static int appBannerWidthDp(int screenDp, int railDp, int startDp, int endDp) {
+        int usable = Math.max(1, screenDp - railDp - startDp - endDp);
+        int spacing = COLUMNS * (APP_CELL_GAP_DP + 2 * APP_FOCUS_INSET_X_DP);
+        return Math.max(1, (usable - spacing) / COLUMNS);
+    }
+
+    static int appBannerHeightDp(int widthDp) {
+        return Math.max(1, Math.round(widthDp * 9f / 16f));
+    }
+
+    static int appCardHeightDp(int widthDp) {
+        return appBannerHeightDp(widthDp) + APP_LABEL_HEIGHT_DP;
+    }
+
+    static int appRowStrideDp(int widthDp) {
+        return appCardHeightDp(widthDp) + APP_FOCUS_INSET_TOP_DP
+                + APP_FOCUS_INSET_BOTTOM_DP;
+    }
+
     /** Width of a 2:3 poster; a seventh tile must not enter the visible shelf. */
     static int posterWidthDp(int screenDp, int railDp, int startDp, int endDp, int gapDp) {
         int usable = Math.max(1, screenDp - railDp - startDp - endDp);
