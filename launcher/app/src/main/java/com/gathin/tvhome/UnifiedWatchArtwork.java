@@ -8,33 +8,45 @@ import java.util.Locale;
 
 /** Chooses a single portrait poster; all UnifiedTV catalog cards are 2:3. */
 final class UnifiedWatchArtwork {
-    /**
-     * Show Android TV's own poster if correctly shaped; try its thumbnail only
-     * when the poster is not a portrait. A wide source is center-cropped inside
-     * the 2:3 card if neither source provides portrait artwork.
-     */
+    /** Keep any sufficiently detailed portrait provided by the original app. */
     static Bitmap platformPoster(Context context, UnifiedWatchNext.Entry item) {
         Bitmap poster = UnifiedWatchNext.artwork(context, item.poster);
-        if (isPortrait(poster)) return poster;
         Bitmap thumbnail = item.thumbnail.equals(item.poster) ? poster
                 : UnifiedWatchNext.artwork(context, item.thumbnail);
+        int minWidth = targetPosterWidthPixels(context);
+        if (isPortrait(poster) && poster.getWidth() >= minWidth) return poster;
+        if (isPortrait(thumbnail) && thumbnail.getWidth() >= minWidth) return thumbnail;
+        if (isPortrait(poster)) return poster;
         if (isPortrait(thumbnail)) return thumbnail;
         return poster != null ? poster : thumbnail;
     }
 
-    /** Resolve only a missing portrait via TMDB; never fetch the 16:9 backdrop. */
-    static Bitmap withTmdbPoster(Context context, UnifiedWatchNext.Entry item,
-                                 Bitmap existing) {
-        if (isPortrait(existing)) return existing;
-        try {
-            UnifiedCatalogApi.MediaArt match = UnifiedCatalogApi.watchArtwork(context,
-                    item.title, item.mediaType, item.releaseDate);
-            if (match != null) {
-                Bitmap tmdbPoster = UnifiedCatalogApi.poster(context, match.poster);
-                if (isPortrait(tmdbPoster)) return tmdbPoster;
-            }
-        } catch (Exception ignored) { /* Retain the platform's image offline. */ }
+    /**
+     * Prefer TMDB's 780px portrait when Android published only a tiny source;
+     * don't discard a sharper original poster or fetch a landscape backdrop.
+     */
+    static Bitmap withTmdbPoster(Context context, Bitmap existing,
+                                 UnifiedCatalogApi.MediaArt match) {
+        int minWidth = targetPosterWidthPixels(context);
+        if (!needsBetterPoster(existing, minWidth) || match == null) return existing;
+        Bitmap tmdb = UnifiedCatalogApi.poster(context, match.poster);
+        if (isPortrait(tmdb) && (existing == null || !isPortrait(existing)
+                || tmdb.getWidth() > existing.getWidth())) return tmdb;
         return existing;
+    }
+
+    static int targetPosterWidthPixels(Context context) {
+        int screen = context.getResources().getDisplayMetrics().widthPixels;
+        return Math.max(280, Math.min(780, Math.round(screen * .155f)));
+    }
+
+    static boolean needsBetterPoster(Bitmap bitmap, int minWidth) {
+        return bitmap == null || needsBetterPoster(bitmap.getWidth(),
+                bitmap.getHeight(), minWidth);
+    }
+
+    static boolean needsBetterPoster(int width, int height, int minWidth) {
+        return !isPortrait(width, height) || width < minWidth;
     }
 
     static boolean isPortrait(Bitmap bitmap) {

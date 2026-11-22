@@ -51,6 +51,7 @@ public final class UnifiedCatalogActivity extends Activity {
 
     private final ExecutorService data = Executors.newFixedThreadPool(3);
     private final ExecutorService art = Executors.newFixedThreadPool(2);
+    private final ExecutorService watchMeta = Executors.newFixedThreadPool(2);
     private final ExecutorService providerArt = Executors.newFixedThreadPool(2);
     private final Map<Page, TextView> routes = new LinkedHashMap<>();
     private FrameLayout viewport;
@@ -147,6 +148,8 @@ public final class UnifiedCatalogActivity extends Activity {
         styleRailControl(settings);
         rail.addView(settings, new LinearLayout.LayoutParams(-1, dp(29)));
         viewport = new FrameLayout(this);
+        viewport.setClipChildren(false);
+        viewport.setClipToPadding(false);
         FrameLayout.LayoutParams body = new FrameLayout.LayoutParams(-1, -1);
         body.leftMargin = dp(RAIL_COLLAPSED);
         root.addView(viewport, body);
@@ -229,8 +232,10 @@ public final class UnifiedCatalogActivity extends Activity {
         scroll.setFillViewport(true);
         scroll.setVerticalScrollBarEnabled(false);
         scroll.setClipToPadding(false);
+        scroll.setClipChildren(false);
         pageBody = StreamUi.column(this);
         pageBody.setClipChildren(false);
+        pageBody.setClipToPadding(false);
         pageBody.setPadding(0, 0, 0, dp(24));
         scroll.addView(pageBody);
         viewport.addView(scroll, new FrameLayout.LayoutParams(-1, -1));
@@ -564,7 +569,9 @@ public final class UnifiedCatalogActivity extends Activity {
         horizontal.setClipToPadding(false);
         LinearLayout line = new LinearLayout(this);
         line.setClipChildren(false);
-        line.setPadding(dp(CONTENT_START), dp(9), dp(CONTENT_END), dp(16));
+        line.setClipToPadding(false);
+        // The carousel allocates space above and below each fixed poster cell.
+        line.setPadding(dp(CONTENT_START), dp(14), dp(CONTENT_END), dp(18));
         horizontal.addView(line);
         pageBody.addView(horizontal, new LinearLayout.LayoutParams(-1, -2));
         return line;
@@ -593,7 +600,7 @@ public final class UnifiedCatalogActivity extends Activity {
                        boolean refresh, FrameLayout spotlight) {
         LinearLayout row = row(heading);
         // Keep shelf positions stable while all five TMDB requests resolve independently.
-        row.setMinimumHeight(dp(tileHeight() + 25));
+        row.setMinimumHeight(dp(tileHeight() + 32));
         row.addView(text("Cargando…", 15, StreamUi.DIM, false));
         requestList(stamp, kind, category, search, refresh, result -> {
             row.removeAllViews();
@@ -708,8 +715,15 @@ public final class UnifiedCatalogActivity extends Activity {
     private FrameLayout mediaTile(LinearLayout row, int index, Runnable click) {
         FrameLayout card = mediaCard(click);
         if (index == 0) leftToRail(card);
-        LinearLayout.LayoutParams tile = new LinearLayout.LayoutParams(dp(coverWidth()), dp(tileHeight()));
-        tile.setMarginEnd(dp(CARD_GAP));
+        int slotWidth = coverWidth();
+        LinearLayout.LayoutParams tile = new LinearLayout.LayoutParams(
+                dp(UnifiedCatalogLayout.cardWidthDp(slotWidth)),
+                dp(UnifiedCatalogLayout.cardHeightDp(slotWidth)));
+        // Poster + border/zoom occupies LESS than the cell; its slot remains stable.
+        tile.setMargins(dp(UnifiedCatalogLayout.FOCUS_INSET_X_DP),
+                dp(UnifiedCatalogLayout.FOCUS_INSET_TOP_DP),
+                dp(UnifiedCatalogLayout.FOCUS_INSET_X_DP + CARD_GAP),
+                dp(UnifiedCatalogLayout.focusBottomInsetDp(slotWidth)));
         row.addView(card, tile);
         return card;
     }
@@ -719,8 +733,9 @@ public final class UnifiedCatalogActivity extends Activity {
         GridLayout grid = new GridLayout(this);
         grid.setColumnCount(UnifiedCatalogLayout.COLUMNS);
         grid.setOrientation(GridLayout.HORIZONTAL);
-        grid.setPadding(dp(CONTENT_START), dp(4), dp(CONTENT_END), dp(12));
+        grid.setPadding(dp(CONTENT_START), dp(10), dp(CONTENT_END), dp(14));
         grid.setClipChildren(false);
+        grid.setClipToPadding(false);
         pageBody.addView(grid, new LinearLayout.LayoutParams(-1, -2));
         return grid;
     }
@@ -730,10 +745,15 @@ public final class UnifiedCatalogActivity extends Activity {
         int column = UnifiedCatalogLayout.column(index);
         GridLayout.LayoutParams tile = new GridLayout.LayoutParams(
                 GridLayout.spec(UnifiedCatalogLayout.row(index)), GridLayout.spec(column));
-        tile.width = dp(coverWidth());
-        tile.height = dp(tileHeight());
-        tile.setMargins(0, 0, dp(column == UnifiedCatalogLayout.COLUMNS - 1 ? 0 : CARD_GAP),
-                dp(UnifiedCatalogLayout.GRID_ROW_GAP_DP));
+        int slotWidth = coverWidth();
+        tile.width = dp(UnifiedCatalogLayout.cardWidthDp(slotWidth));
+        tile.height = dp(UnifiedCatalogLayout.cardHeightDp(slotWidth));
+        tile.setMargins(dp(UnifiedCatalogLayout.FOCUS_INSET_X_DP),
+                dp(UnifiedCatalogLayout.FOCUS_INSET_TOP_DP),
+                dp(UnifiedCatalogLayout.FOCUS_INSET_X_DP
+                        + (column == UnifiedCatalogLayout.COLUMNS - 1 ? 0 : CARD_GAP)),
+                dp(UnifiedCatalogLayout.focusBottomInsetDp(slotWidth)
+                        + UnifiedCatalogLayout.GRID_ROW_GAP_DP));
         grid.addView(card, tile);
         if (column == 0) leftToRail(card);
         return card;
@@ -763,11 +783,20 @@ public final class UnifiedCatalogActivity extends Activity {
         return badge;
     }
 
-    private void rating(FrameLayout card, String value) {
-        TextView badge = ratingBadge("★ " + value);
+    /** Shared TMDB star badge for catalog and lazily identified Watch Next titles. */
+    private TextView ratingSlot(FrameLayout card) {
+        TextView badge = ratingBadge("");
+        badge.setVisibility(View.GONE);
         FrameLayout.LayoutParams size = new FrameLayout.LayoutParams(-2, -2, Gravity.TOP | Gravity.END);
         size.setMargins(0, dp(5), dp(6), 0);
         card.addView(badge, size);
+        return badge;
+    }
+
+    private void rating(FrameLayout card, String value) {
+        TextView badge = ratingSlot(card);
+        badge.setText("★ " + value);
+        badge.setVisibility(View.VISIBLE);
     }
 
     private LinearLayout card(LinearLayout row, int width, int index, Runnable click) {
@@ -927,17 +956,39 @@ public final class UnifiedCatalogActivity extends Activity {
         });
     }
 
-    /** Show portrait artwork immediately; TMDB only fills missing 2:3 posters. */
-    private void watchImage(int stamp, UnifiedWatchNext.Entry item, ImageView poster) {
+    /** Paint the platform poster first; one conservative TMDB match supplies both rating and fallback art. */
+    private void watchImage(int stamp, UnifiedWatchNext.Entry item, FrameLayout card,
+                            ImageView poster, TextView score) {
         art.execute(() -> {
             if (revision != stamp) return;
             Bitmap platform = UnifiedWatchArtwork.platformPoster(getApplicationContext(), item);
             runOnUiThread(() -> showWatchImage(stamp, poster, platform));
-            if (revision != stamp) return;
-            Bitmap enhanced = UnifiedWatchArtwork.withTmdbPoster(
-                    getApplicationContext(), item, platform);
-            if (enhanced != platform)
-                runOnUiThread(() -> showWatchImage(stamp, poster, enhanced));
+            // TMDB is intentionally isolated: slow rating/search requests must not
+            // queue behind other images or delay their first paint on low-end TVs.
+            watchMeta.execute(() -> {
+                if (revision != stamp) return;
+                UnifiedCatalogApi.MediaArt match = null;
+                try {
+                    match = UnifiedCatalogApi.watchArtwork(getApplicationContext(),
+                            item.title, item.mediaType, item.releaseDate);
+                } catch (Exception ignored) { /* No false rating when offline or ambiguous. */ }
+                if (revision != stamp) return;
+                Bitmap enhanced = UnifiedWatchArtwork.withTmdbPoster(
+                        getApplicationContext(), platform, match);
+                if (enhanced != platform)
+                    runOnUiThread(() -> showWatchImage(stamp, poster, enhanced));
+                if (match != null && match.hasRating()) {
+                    String rating = match.ratingText();
+                    runOnUiThread(() -> {
+                        if (!live(stamp)) return;
+                        score.setText("★ " + rating);
+                        score.setVisibility(View.VISIBLE);
+                        card.setContentDescription(item.title + " · " + item.source
+                                + " · ★ " + rating
+                                + (item.progress() < 0 ? "" : " · " + item.progress() + "%"));
+                    });
+                }
+            });
         });
     }
 
@@ -967,7 +1018,7 @@ public final class UnifiedCatalogActivity extends Activity {
         boolean fullGrid = page == Page.WATCH;
         LinearLayout line = fullGrid ? null : row("Seguir viendo");
         GridLayout grid = fullGrid ? watchGrid() : null;
-        if (line != null) line.setMinimumHeight(dp(tileHeight() + 25));
+        if (line != null) line.setMinimumHeight(dp(tileHeight() + 32));
         if (!UnifiedWatchNext.hasPermission(this)) {
             TextView allow = StreamUi.control(this, "Permitir acceso a Watch Next", true,
                     v -> requestPermissions(new String[]{UnifiedWatchNext.PERMISSION}, UnifiedWatchNext.PERMISSION_REQUEST));
@@ -1006,6 +1057,7 @@ public final class UnifiedCatalogActivity extends Activity {
                             : mediaTile(line, i, () -> UnifiedWatchNext.open(this, item));
                     cards.add(card);
                     ImageView artwork = tileArt(card);
+                    TextView score = ratingSlot(card);
                     LinearLayout copy = caption(card);
                     TextView title = singleLine(item.title, 9, StreamUi.WHITE, true);
                     copy.addView(title);
@@ -1033,7 +1085,7 @@ public final class UnifiedCatalogActivity extends Activity {
                     } else if (!item.episode.isEmpty()) {
                         copy.addView(singleLine(item.episode, 9, StreamUi.DIM, false));
                     }
-                    Runnable loadArtwork = once(() -> watchImage(stamp, item, artwork));
+                    Runnable loadArtwork = once(() -> watchImage(stamp, item, card, artwork, score));
                     loads.add(loadArtwork);
                     if (!fullGrid) bindTileFocus(card, loads, i, episode);
                 }
@@ -1211,6 +1263,7 @@ public final class UnifiedCatalogActivity extends Activity {
         revision++;
         data.shutdownNow();
         art.shutdownNow();
+        watchMeta.shutdownNow();
         providerArt.shutdownNow();
         super.onDestroy();
     }

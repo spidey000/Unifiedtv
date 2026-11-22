@@ -14,6 +14,23 @@ public class UnifiedCatalogLayoutTest {
         assertEquals(Math.round(width * 1.5f), UnifiedCatalogLayout.posterHeightDp(width));
     }
 
+    @Test public void focusPosterHasSafeInsetsAndStillKeepsTwoToThreeRatio() {
+        for (int screen : new int[]{320, 720, 960, 1280, 1920}) {
+            int slotWidth = UnifiedCatalogLayout.posterWidthDp(screen, 52, 21, 12, 7);
+            int slotHeight = UnifiedCatalogLayout.posterHeightDp(slotWidth);
+            int posterWidth = UnifiedCatalogLayout.cardWidthDp(slotWidth);
+            int posterHeight = UnifiedCatalogLayout.cardHeightDp(slotWidth);
+            assertEquals(Math.round(posterWidth * 1.5f), posterHeight);
+            assertTrue(posterWidth < slotWidth);
+            assertTrue(posterHeight < slotHeight);
+            assertTrue(UnifiedCatalogLayout.FOCUS_INSET_TOP_DP > posterHeight * .025f / 2);
+            assertTrue(UnifiedCatalogLayout.focusBottomInsetDp(slotWidth)
+                    > posterHeight * .025f / 2);
+            assertEquals(slotHeight, UnifiedCatalogLayout.FOCUS_INSET_TOP_DP
+                    + posterHeight + UnifiedCatalogLayout.focusBottomInsetDp(slotWidth));
+        }
+    }
+
     @Test public void sixColumnsWrapOnlyAfterSixItems() {
         assertEquals(0, UnifiedCatalogLayout.row(0));
         assertEquals(0, UnifiedCatalogLayout.row(5));

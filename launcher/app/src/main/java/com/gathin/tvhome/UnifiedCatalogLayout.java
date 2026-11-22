@@ -15,6 +15,25 @@ final class UnifiedCatalogLayout {
         return Math.max(1, Math.round(posterWidthDp * 1.5f));
     }
 
+    /** Reserve this fraction of the cell for the focus outline and 2.5% zoom. */
+    static final int FOCUS_INSET_X_DP = 6;
+    static final int FOCUS_INSET_TOP_DP = 9;
+
+    /** Each carousel/grid cell remains fixed; its actual 2:3 poster sits inside it. */
+    static int cardWidthDp(int slotWidthDp) {
+        return Math.max(1, slotWidthDp - 2 * FOCUS_INSET_X_DP);
+    }
+
+    static int cardHeightDp(int slotWidthDp) {
+        return posterHeightDp(cardWidthDp(slotWidthDp));
+    }
+
+    /** Bottom breathing space is derived to keep the overall cell height constant. */
+    static int focusBottomInsetDp(int slotWidthDp) {
+        return Math.max(0, posterHeightDp(slotWidthDp)
+                - cardHeightDp(slotWidthDp) - FOCUS_INSET_TOP_DP);
+    }
+
     static int row(int index) { return index / COLUMNS; }
     static int column(int index) { return index % COLUMNS; }
 

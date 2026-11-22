@@ -27,7 +27,8 @@ class PortraitOnlyCarouselTests(unittest.TestCase):
         self.assertNotIn("UnifiedWatchArtwork.withTmdb(", source)
         self.assertNotIn("ImageView thumbnail = fullGrid", source)
         self.assertNotIn("shelfArtwork(", artwork)
-        self.assertIn("isPortrait(tmdbPoster)", artwork)
+        self.assertIn("isPortrait(tmdb)", artwork)
+        self.assertIn("needsBetterPoster(existing, minWidth)", artwork)
 
 
 if __name__ == "__main__":

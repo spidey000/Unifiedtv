@@ -330,12 +330,20 @@ final class UnifiedWatchNext {
                 byte[] buf = new byte[8192];
                 int n;
                 while ((n = stream.read(buf)) != -1) {
-                    if (out.size() + n > 512 * 1024) return null;
+                    if (out.size() + n > 2 * 1024 * 1024) return null;
                     out.write(buf, 0, n);
                 }
                 byte[] bytes = out.toByteArray();
+                BitmapFactory.Options bounds = new BitmapFactory.Options();
+                bounds.inJustDecodeBounds = true;
+                BitmapFactory.decodeByteArray(bytes, 0, bytes.length, bounds);
+                if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null;
+                // Avoid the former forced /2 downsample: small posters must stay sharp.
+                int target = UnifiedWatchArtwork.targetPosterWidthPixels(context);
                 BitmapFactory.Options opts = new BitmapFactory.Options();
-                opts.inSampleSize = 2;
+                opts.inSampleSize = 1;
+                while (bounds.outWidth / (opts.inSampleSize * 2) >= target)
+                    opts.inSampleSize *= 2;
                 bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.length, opts);
             } finally {
                 if (connection != null) connection.disconnect();
