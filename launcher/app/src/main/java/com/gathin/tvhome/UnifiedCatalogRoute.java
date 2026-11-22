@@ -137,9 +137,19 @@ final class UnifiedCatalogRoute {
     }
 
     private static void launch(Activity activity, UnifiedCatalogApi.Media media, Choice choice) {
-        if ("provider".equals(choice.kind) && media.autoTarget != null
-                && choice.packageName.equals(media.autoTarget.packageName)) {
-            if (launchTarget(activity, media.autoTarget)) return;
+        if ("provider".equals(choice.kind)) {
+            if (media.autoTarget != null
+                    && choice.packageName.equals(media.autoTarget.packageName)
+                    && launchTarget(activity, media.autoTarget)) return;
+            StreamUi.dialog(activity).setTitle("Enlace directo no disponible")
+                    .setMessage("TMDB confirma la oferta, pero no hay un enlace verificable a la ficha"
+                            + " de «" + media.title + "» en esta aplicación. Puedes buscarla"
+                            + " manualmente; no se abrirá la portada como si fuera la película.")
+                    .setPositiveButton("Buscar en la app",
+                            (dialog, which) -> openSearchOrApp(activity,
+                                    choice.packageName, choice.label, media.title))
+                    .setNegativeButton("Cancelar", null).show();
+            return;
         }
         if ("nuvio".equals(choice.kind)) {
             if (openUri(activity, choice.packageName, nuvioUri(media.type, media.id))) return;
