@@ -15,6 +15,8 @@ public class UnifiedWatchArtworkTest {
         assertFalse(UnifiedWatchArtwork.isPortrait(0, 300));
         assertFalse(UnifiedWatchArtwork.isWide(480, 0));
         assertFalse(UnifiedWatchArtwork.isPortrait(300, 300));
+        assertFalse(UnifiedWatchArtwork.isPortrait(250, 300));
+        assertFalse(UnifiedWatchArtwork.isWide(400, 300));
         assertFalse(UnifiedWatchArtwork.isWide(300, 300));
     }
 
