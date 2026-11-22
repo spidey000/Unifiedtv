@@ -10,6 +10,7 @@ UnifiedTV es un fork independiente de [CleanYourTV](https://github.com/Gathin23/
 
 - **Tres pestañas principales:** **Películas**, **Series** y **Seguir viendo**, navegables con el mando. El catálogo recuerda la última pestaña.
 - **Cinco filtros en Películas y Series:** Destacados (tendencia diaria), Más vistos (aproximación por tendencia semanal), Novedades (estrenos en cartelera / series en emisión), Populares y Mejor valorados (histórico).
+- **Valoraciones TMDB junto al título:** estrella dorada discreta y puntuación sobre 10 con un decimal (por ejemplo, `★ 8,5`), en películas, series y resultados de búsqueda. Se leen de `vote_average`/`vote_count` en los resultados existentes; sin votos o con nota inválida, la valoración no aparece. No se confunden con las notas de las plataformas.
 - **Seguir viendo unificado:** lee las entradas visibles del proveedor Android TV `Watch Next` y, cuando existen, los canales «Continue Watching» de las aplicaciones. Muestra portada, origen y barra de progreso, y permite abrir la entrada publicada por la app.
 - **Fuentes configurables de Seguir viendo:** Netflix, Prime Video, Max/HBO Max, Disney+, Apple TV+, SkyShowtime, Movistar Plus+, Filmin, **Stremio** y **Nuvio**, además de otras apps compatibles opcionalmente.
 - **Buscador global** de películas y series en TMDB.
