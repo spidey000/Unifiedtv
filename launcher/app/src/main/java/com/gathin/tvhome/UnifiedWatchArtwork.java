@@ -65,11 +65,11 @@ final class UnifiedWatchArtwork {
     }
 
     static boolean isPortrait(int width, int height) {
-        return width > 0 && height > 0 && width * 100L <= height * 88L;
+        return width > 0 && height > 0 && width * 100L <= height * 82L;
     }
 
     static boolean isWide(int width, int height) {
-        return width > 0 && height > 0 && width * 100L >= height * 125L;
+        return width > 0 && height > 0 && width * 100L >= height * 150L;
     }
 
     static String searchTitle(String raw) {
