@@ -56,16 +56,14 @@ final class StreamUi {
                 (Color.blue(color) + 255) / 2);
     }
 
-    static GradientDrawable surface(Context c, int top, int bottom, int stroke, int width) {
-        GradientDrawable d = new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,
-                new int[]{top, bottom});
-        d.setCornerRadius(dp(c, 10));
+    private static GradientDrawable glass(Context c, int fill, int stroke, int width) {
+        GradientDrawable d = shape(c, fill, 10, Color.TRANSPARENT);
         if (width > 0) d.setStroke(dp(c, width), stroke);
         return d;
     }
 
     static GradientDrawable panel(Context c) {
-        return surface(c, 0xFF222229, PANEL, BORDER, 1);
+        return glass(c, 0xE9212128, 0x44FFFFFF, 1);
     }
 
     static GradientDrawable rail(Context c) {
@@ -109,15 +107,13 @@ final class StreamUi {
     }
 
     static StateListDrawable buttonBackground(Context c, boolean primary, boolean bare) {
-        int accent = accent(c);
         StateListDrawable drawable = new StateListDrawable();
-        drawable.addState(new int[]{-android.R.attr.state_enabled},
-                surface(c, PANEL, BLACK, BORDER, 1));
-        drawable.addState(FOCUS, surface(c, shade(accent, .50f), shade(accent, .20f), WHITE, 2));
-        drawable.addState(new int[]{android.R.attr.state_activated},
-                surface(c, shade(accent, .43f), shade(accent, .22f), visibleAccent(c), 1));
-        drawable.addState(SELECTED, surface(c, shade(accent, .43f), shade(accent, .22f), visibleAccent(c), 1));
-        drawable.addState(DEFAULT, primary ? surface(c, shade(accent, .73f), shade(accent, .44f), visibleAccent(c), 1)
+        Drawable active = glass(c, 0x503F3F49, visibleAccent(c), 1);
+        drawable.addState(new int[]{-android.R.attr.state_enabled}, glass(c, 0x301B1B21, 0, 0));
+        drawable.addState(FOCUS, glass(c, 0xE64B4B57, WHITE, 2));
+        drawable.addState(new int[]{android.R.attr.state_activated}, glass(c, 0x553F3F49, visibleAccent(c), 1));
+        drawable.addState(SELECTED, active);
+        drawable.addState(DEFAULT, primary ? glass(c, 0xE63B3B46, 0x66FFFFFF, 1)
                 : bare ? shape(c, Color.TRANSPARENT, 10, Color.TRANSPARENT) : panel(c));
         return drawable;
     }
@@ -192,8 +188,7 @@ final class StreamUi {
                 dialog.setOnShowListener(ignored -> {
                     dialog.getWindow().setBackgroundDrawable(panel(c));
                     if (dialog.getListView() != null) {
-                        dialog.getListView().setSelector(surface(c, shade(accent(c), .36f),
-                                shade(accent(c), .15f), WHITE, 2));
+                        dialog.getListView().setSelector(glass(c, 0xC83F3F49, WHITE, 2));
                         dialog.getListView().setDrawSelectorOnTop(false);
                     }
                     for (int which : new int[]{AlertDialog.BUTTON_POSITIVE, AlertDialog.BUTTON_NEGATIVE,

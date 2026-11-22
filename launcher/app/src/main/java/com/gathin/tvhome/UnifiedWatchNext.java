@@ -59,6 +59,13 @@ final class UnifiedWatchNext {
             this.fromPreview = preview;
             this.episode = episode == null ? "" : episode;
         }
+        boolean meetsMinimum(int percent, int minutes) {
+            if (percent == 0 && minutes == 0) return true;
+            if (position <= 0) return false;
+            return (percent > 0 && duration > 0 && position * 100.0 >= duration * (double) percent)
+                    || (minutes > 0 && position >= minutes * 60_000L);
+        }
+
         int progress() {
             return duration > 0 ? (int) Math.max(0, Math.min(100, position * 100.0 / duration)) : -1;
         }
@@ -178,6 +185,8 @@ final class UnifiedWatchNext {
             long age = System.currentTimeMillis() - entry.updated;
             if (age > UnifiedCatalogPrefs.continueMaxAge(context) * 86400000L) return;
         }
+        if (!entry.meetsMinimum(UnifiedCatalogPrefs.continueMinPercent(context),
+                UnifiedCatalogPrefs.continueMinMinutes(context))) return;
         int percent = entry.progress();
         if (UnifiedCatalogPrefs.continueHideFinished(context) && percent >= 95) return;
         String key = entry.providerPackage + "|" + entry.title.toLowerCase(Locale.ROOT);
