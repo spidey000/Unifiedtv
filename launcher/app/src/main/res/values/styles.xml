@@ -13,7 +13,7 @@
         <item name="android:colorAccent">#FFF7F7F8</item>
         <item name="android:textColorPrimary">#FFF7F7F8</item>
         <item name="android:textColorSecondary">#FFB7B7C0</item>
-        <item name="android:windowDimAmount">0.72</item>
+        <item name="android:backgroundDimAmount">0.72</item>
     </style>
 
     <!-- Frosted pill, tvOS style. -->

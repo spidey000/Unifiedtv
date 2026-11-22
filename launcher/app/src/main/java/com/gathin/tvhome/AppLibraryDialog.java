@@ -402,7 +402,8 @@ final class AppLibraryDialog {
         list.setAdapter(new Catalog());
         shelf.addView(list, new FrameLayout.LayoutParams(-1, -1));
         highlight = new GlassView(activity, null);
-        highlight.setRadius(dp(20));
+        highlight.setRadius(dp(10));
+        highlight.setAccent(StreamUi.visibleAccent(activity));
         highlight.setAlpha(0f);
         highlight.setFocusable(false);
         highlight.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
