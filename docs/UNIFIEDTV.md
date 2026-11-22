@@ -5,7 +5,7 @@
 Esta primera versión añade el catálogo unificado a la app nativa del fork. Implementado:
 
 - Entrada a UnifiedTV desde el Home de Android TV, configurable.
-- Selector **Películas / Series**. En Inicio, debajo del destacado principal, aparece **Seguir viendo** si está habilitado y después cinco filas horizontales independientes: **Destacados**, **Más vistos**, **Novedades**, **Populares** y **Mejor valorados (histórico)**. No hay pestañas para cambiar entre categorías. Las filas horizontales presentan un máximo de seis pósteres visibles a la vez (2:3 sin foco) y se recorren con izquierda/derecha del mando.
+- Selector **Películas / Series**. En Inicio, debajo del destacado principal, aparece **Seguir viendo** si está habilitado y después cinco filas horizontales independientes: **Destacados**, **Más vistos**, **Novedades**, **Populares** y **Mejor valorados (histórico)**. No hay pestañas para cambiar entre categorías. Las filas horizontales presentan un máximo de seis pósteres visibles a la vez (2:3 sin foco). El foco mantiene su posición lateral y el carrusel se desliza horizontalmente para acercar la siguiente tarjeta; las filas reservan margen vertical para la animación 16:9 sin recortar el arte.
 - Destacados = tendencia del día; Más vistos = tendencia semanal como aproximación, **no** reproducciones agregadas reales; Novedades = cartelera actual de cine o series actualmente en emisión; Populares y Mejor valorados = listas TMDB.
 - Seguir viendo integrado mediante Android TV `Watch Next` (lectura con permiso) y canales `Continue Watching` disponibles, con origen, progreso y apertura de la acción de la app.
 - Fuentes independientes por aplicación: Netflix, Max, Prime, Disney+, Apple TV+, SkyShowtime, Movistar, Filmin, Stremio, Nuvio y apps adicionales opcionales.
@@ -18,6 +18,9 @@ Esta primera versión añade el catálogo unificado a la app nativa del fork. Im
 - Salida «Aplicaciones» y Atrás para volver al dock del launcher original.
 
 **Pendiente:** compilar en un entorno con Android SDK 34, ejecutar las pruebas Android, verificar con mandos y TV reales los intent de búsqueda de cada proveedor, confirmar variantes de nombres de paquetes y ajustes de rendimiento/seguridad. Los identificadores de proveedores cambian según país y producto.
+
+- **Apertura automática:** al seleccionar una película o serie se consulta disponibilidad en la región configurada. Entre los proveedores instalados y activados se prioriza el orden de Ajustes y se intenta abrir un enlace **directo al título**. Se aceptan ofertas de suscripción (flatrate) y las opciones gratis/con anuncios cuando están habilitadas; nunca alquiler o compra. En el póster se muestra el logotipo TMDB del proveedor elegido solo cuando se ha resuelto su enlace específico.
+- **Origen de los enlaces:** JustWatch publica enlaces por oferta, pero su API oficial requiere acuerdo y token; UnifiedTV utiliza una consulta opcional de su GraphQL público/no documentado, sin garantía de estabilidad, con coincidencia por ID TMDB, país, tipo de oferta y dominio del proveedor. Para Netflix se intenta además un ID verificable de Wikidata; nunca se usa el ID TMDB como si fuese el de Netflix. Si no hay enlace directo verificable o la TV no lo admite, aparece un selector explicando la limitación. Abrir la portada de una app no se confunde con abrir la ficha.
 
 ## Apertura de títulos de TMDB en apps instaladas
 
