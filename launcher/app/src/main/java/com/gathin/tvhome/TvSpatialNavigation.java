@@ -39,7 +39,8 @@ final class TvSpatialNavigation {
 
     static boolean inside(ViewGroup group, View view) {
         if (group == null || view == null) return false;
-        for (ViewParent parent = view; parent != null; parent = parent.getParent()) {
+        if (view == group) return true;
+        for (ViewParent parent = view.getParent(); parent != null; parent = parent.getParent()) {
             if (parent == group) return true;
         }
         return false;
