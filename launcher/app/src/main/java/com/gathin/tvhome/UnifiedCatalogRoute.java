@@ -18,6 +18,64 @@ import java.util.Set;
  * catalog/media apps are separate local launch targets, never availability claims.
  */
 final class UnifiedCatalogRoute {
+    static final class Target {
+        final UnifiedCatalogPrefs.Provider provider;
+        final String packageName, url;
+        Target(UnifiedCatalogPrefs.Provider provider, String pkg, String url) {
+            this.provider = provider;
+            this.packageName = pkg;
+            this.url = url;
+        }
+    }
+
+    /**
+     * Resolve an exact, provider-owned deep link in configured priority order.
+     * JustWatch supplies offers with content URLs; TMDB validates availability.
+     * Fall back to a separately verified Netflix ID when necessary.
+     * Network access is worker-thread only.
+     */
+    static Target resolve(Activity activity, UnifiedCatalogApi.Media media) {
+        synchronized (media) {
+            if (media.autoTargetReady) return media.autoTarget;
+            if (!media.availabilityReady) return null;
+            List<UnifiedCatalogPrefs.Provider> eligible = UnifiedCatalogApi.eligible(activity, media);
+            if (eligible.isEmpty()) {
+                media.autoTargetReady = true;
+                return null;
+            }
+            java.util.Map<String, String> offers = UnifiedJustWatchLinks.offers(activity, media);
+            for (UnifiedCatalogPrefs.Provider provider : eligible) {
+                String pkg = provider.installedPackage(activity);
+                if (pkg == null) continue;
+                String url = offers.get(provider.key);
+                if (!UnifiedJustWatchLinks.safeUrl(provider.key, url)) {
+                    if ("netflix".equals(provider.key)) {
+                        String id = UnifiedCatalogApi.netflixTitleId(activity, media);
+                        url = UnifiedNetflixLinks.titleUrl(id);
+                    }
+                }
+                if (!UnifiedJustWatchLinks.safeUrl(provider.key, url)) continue;
+                Target match = new Target(provider, pkg, url);
+                media.autoTarget = match;
+                media.autoTargetReady = true;
+                return match;
+            }
+            media.autoTargetReady = true;
+            return null;
+        }
+    }
+
+    static boolean launchTarget(Activity activity, Target target) {
+        if (target == null) return false;
+        try {
+            Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(target.url))
+                    .setPackage(target.packageName).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            if ("netflix".equals(target.provider.key)) intent.putExtra("source", "30");
+            activity.startActivity(intent);
+            return true;
+        } catch (RuntimeException ignored) { return false; }
+    }
+
     private static final class Choice {
         final String label;
         final String packageName;
@@ -79,6 +137,10 @@ final class UnifiedCatalogRoute {
     }
 
     private static void launch(Activity activity, UnifiedCatalogApi.Media media, Choice choice) {
+        if ("provider".equals(choice.kind) && media.autoTarget != null
+                && choice.packageName.equals(media.autoTarget.packageName)) {
+            if (launchTarget(activity, media.autoTarget)) return;
+        }
         if ("nuvio".equals(choice.kind)) {
             if (openUri(activity, choice.packageName, nuvioUri(media.type, media.id))) return;
         } else if ("stremio".equals(choice.kind)) {
