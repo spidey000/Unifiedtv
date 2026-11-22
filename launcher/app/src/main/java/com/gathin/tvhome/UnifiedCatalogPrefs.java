@@ -64,6 +64,8 @@ final class UnifiedCatalogPrefs {
     static final String CONTINUE_PREVIEWS = "continue_previews";
     static final String CONTINUE_NEXT_EPISODES = "continue_next";
     static final String CONTINUE_HIDE_FINISHED = "continue_hide_finished";
+    static final String CONTINUE_MIN_PERCENT = "continue_min_percent";
+    static final String CONTINUE_MIN_MINUTES = "continue_min_minutes";
     static final String CONTINUE_MAX_AGE = "continue_max_age_days";
     static final String CONTINUE_OTHER_APPS = "continue_other_apps";
     static final String UPDATE_AUTO_CHECK = "update_auto_check";
@@ -106,6 +108,14 @@ final class UnifiedCatalogPrefs {
 
     static boolean continueHideFinished(Context c) {
         return prefs(c).getBoolean(CONTINUE_HIDE_FINISHED, true);
+    }
+
+    static int continueMinPercent(Context c) {
+        return Math.max(0, Math.min(100, prefs(c).getInt(CONTINUE_MIN_PERCENT, 5)));
+    }
+
+    static int continueMinMinutes(Context c) {
+        return Math.max(0, Math.min(1440, prefs(c).getInt(CONTINUE_MIN_MINUTES, 5)));
     }
 
     static int continueMaxAge(Context c) {

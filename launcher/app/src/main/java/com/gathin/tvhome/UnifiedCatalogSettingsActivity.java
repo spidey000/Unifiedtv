@@ -219,6 +219,12 @@ public final class UnifiedCatalogSettingsActivity extends Activity {
         description("Solo se muestran los títulos que las aplicaciones comparten con Android TV Watch Next.");
         toggle("Activar Seguir viendo unificado", UnifiedCatalogPrefs.CONTINUE_ENABLED, true);
         toggle("Mostrar Seguir viendo en Inicio", UnifiedCatalogPrefs.CONTINUE_HOME, true);
+        int percent = UnifiedCatalogPrefs.continueMinPercent(this);
+        int minutes = UnifiedCatalogPrefs.continueMinMinutes(this);
+        String minimum = percent == 0 && minutes == 0 ? "desactivado"
+                : percent == 0 ? minutes + " min"
+                : minutes == 0 ? percent + "%" : percent + "% o " + minutes + " min";
+        action("Progreso mínimo  ·  " + minimum, v -> chooseMinimum(), "minimum");
         toggle("Incluir siguiente episodio", UnifiedCatalogPrefs.CONTINUE_NEXT_EPISODES, true);
         toggle("Consultar canales de progreso (Stremio y Nuvio)", UnifiedCatalogPrefs.CONTINUE_PREVIEWS, true);
         toggle("Ocultar títulos completados (95% o más)", UnifiedCatalogPrefs.CONTINUE_HIDE_FINISHED, true);
@@ -304,6 +310,56 @@ public final class UnifiedCatalogSettingsActivity extends Activity {
                     UnifiedCatalogPrefs.prefs(this).edit().putString(UnifiedCatalogPrefs.REGION, regions[index]).apply();
                     show(section, "region");
                 }).show();
+    }
+
+    private void chooseMinimum() {
+        LinearLayout fields = StreamUi.column(this);
+        fields.setPadding(dp(24), dp(8), dp(24), dp(8));
+        fields.addView(text("Se muestra el título cuando alcanza cualquiera de los mínimos. "
+                + "Introduce 0 para desactivar ese criterio.", 14, StreamUi.DIM, false));
+        EditText percent = addMinimumField(fields, "Porcentaje reproducido", UnifiedCatalogPrefs.continueMinPercent(this));
+        EditText minutes = addMinimumField(fields, "Minutos reproducidos", UnifiedCatalogPrefs.continueMinMinutes(this));
+        android.app.AlertDialog dialog = StreamUi.dialog(this).setTitle("Progreso mínimo")
+                .setView(fields)
+                .setNegativeButton("Cancelar", null)
+                .setPositiveButton("Guardar", null).create();
+        dialog.show();
+        dialog.getButton(android.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener(view -> {
+            Integer percentValue = minimumValue(percent, 100);
+            if (percentValue == null) return;
+            Integer minutesValue = minimumValue(minutes, 1440);
+            if (minutesValue == null) return;
+            UnifiedCatalogPrefs.prefs(this).edit()
+                    .putInt(UnifiedCatalogPrefs.CONTINUE_MIN_PERCENT, percentValue)
+                    .putInt(UnifiedCatalogPrefs.CONTINUE_MIN_MINUTES, minutesValue).apply();
+            dialog.dismiss();
+            show(section, "minimum");
+        });
+    }
+
+    private EditText addMinimumField(LinearLayout fields, String label, int value) {
+        TextView caption = text(label, 14, StreamUi.WHITE, true);
+        EditText input = new EditText(this);
+        input.setId(View.generateViewId());
+        caption.setLabelFor(input.getId());
+        fields.addView(caption);
+        input.setSingleLine(true);
+        input.setInputType(InputType.TYPE_CLASS_NUMBER);
+        input.setText(Integer.toString(value));
+        input.setSelectAllOnFocus(true);
+        StreamUi.field(input);
+        add(fields, input);
+        return input;
+    }
+
+    private Integer minimumValue(EditText input, int max) {
+        try {
+            int value = Integer.parseInt(input.getText().toString().trim());
+            if (value >= 0 && value <= max) return value;
+        } catch (NumberFormatException ignored) {}
+        input.setError("Introduce un número entre 0 y " + max);
+        input.requestFocus();
+        return null;
     }
 
     private void chooseAge() {

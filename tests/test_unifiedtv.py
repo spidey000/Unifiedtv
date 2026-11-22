@@ -93,7 +93,7 @@ class UnifiedTvTests(unittest.TestCase):
         api = (JAVA / "UnifiedCatalogApi.java").read_text(encoding="utf-8")
         self.assertIn('route(rail, Page.APPS, "Apps y fuentes", R.drawable.ic_apps)', home)
         self.assertIn('link("Abrir launcher clásico", R.drawable.uic_house, v -> UnifiedTvHome.leaveForApps(this))', home)
-        self.assertIn("setNextFocusLeftId(routes.get(page).getId())", home)
+        self.assertIn("setNextFocusLeftId(route.getId())", home)
         self.assertIn("UnifiedCatalogRoute.open(this, media)", home)
         self.assertIn("UnifiedWatchNext.open(this, item)", home)
         self.assertIn('o.optString("overview", "")', api)
