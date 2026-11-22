@@ -65,6 +65,15 @@ class UnifiedTvTests(unittest.TestCase):
         self.assertIn('getString(KEY, "")', source)
         self.assertNotRegex(source, r"(?i)(?:sk|eyJ)[A-Za-z0-9._-]{35,}")
 
+    def test_movies_and_series_use_side_rail_without_hero_tabs(self):
+        home = (JAVA / "UnifiedCatalogActivity.java").read_text(encoding="utf-8")
+        self.assertIn('route(rail, Page.MOVIES, "Películas", R.drawable.uic_film)', home)
+        self.assertIn('route(rail, Page.SERIES, "Series", R.drawable.ic_livetv)', home)
+        self.assertIn('page == Page.SERIES ? "tv" : "movie"', home)
+        self.assertNotIn("addHomeTabs", home)
+        self.assertNotIn("R.id.moviesTab", home)
+        self.assertNotIn("R.id.seriesTab", home)
+
     def test_discovery_categories_are_separate_by_media_type(self):
         api = (JAVA / "UnifiedCatalogApi.java").read_text(encoding="utf-8")
         home = (JAVA / "UnifiedCatalogActivity.java").read_text(encoding="utf-8")
