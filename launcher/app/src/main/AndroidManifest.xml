@@ -2,6 +2,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
+    <uses-permission android:name="android.permission.INTERNET" />
     <uses-feature android:name="android.software.leanback" android:required="false" />
     <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
     <uses-feature android:name="android.hardware.wifi" android:required="false" />
@@ -25,6 +26,23 @@
     <!-- Android 11+ package visibility: lets the launcher list the TV apps it shows as tiles, and the
          apps that declare a module card (docs/specs/card.md). -->
     <queries>
+        <!-- Provider visibility, limited to supported Android TV packages (Android 11+). -->
+        <package android:name="com.netflix.ninja" />
+        <package android:name="com.netflix.mediaclient" />
+        <package android:name="com.amazon.amazonvideo.livingroom" />
+        <package android:name="com.amazon.avod.thirdpartyclient" />
+        <package android:name="com.amazon.avod" />
+        <package android:name="com.wbd.stream" />
+        <package android:name="com.hbo.hbonow" />
+        <package android:name="com.hbo.hbomax" />
+        <package android:name="com.disney.disneyplus" />
+        <package android:name="com.apple.atve.androidtv.appletv" />
+        <package android:name="com.skyshowtime.androidtv" />
+        <package android:name="com.skyshowtime.skyshowtime" />
+        <package android:name="com.movistarplus.androidtv" />
+        <package android:name="es.plus.yomvi" />
+        <package android:name="com.filmin.filmin" />
+        <package android:name="com.filmin.android" />
         <!-- The standard settings handlers, so package visibility doesn't hide them and send the pills to a vendor fallback by mistake. -->
         <intent>
             <action android:name="android.settings.SETTINGS" />
@@ -106,6 +124,14 @@
             </intent-filter>
         </activity>
 
+        <activity
+            android:name=".UnifiedCatalogActivity"
+            android:exported="false"
+            android:screenOrientation="landscape" />
+        <activity
+            android:name=".UnifiedCatalogSettingsActivity"
+            android:exported="false"
+            android:screenOrientation="landscape" />
         <activity
             android:name=".LauncherSettingsActivity"
             android:exported="false"
