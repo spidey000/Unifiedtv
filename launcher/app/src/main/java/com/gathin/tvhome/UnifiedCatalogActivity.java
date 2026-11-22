@@ -939,9 +939,7 @@ public final class UnifiedCatalogActivity extends Activity {
                                 ImageView poster, ImageView thumbnail,
                                 UnifiedWatchArtwork.Pair pair) {
         if (!live(stamp)) return;
-        if (pair.portrait != null && poster.getDrawable() == null
-                || pair.portrait != null && poster.getDrawable() instanceof android.graphics.drawable.BitmapDrawable
-                   && ((android.graphics.drawable.BitmapDrawable) poster.getDrawable()).getBitmap() != pair.portrait) {
+        if (pair.portrait != null && !showingBitmap(poster, pair.portrait)) {
             poster.setImageBitmap(pair.portrait);
             if (StreamUi.motionEnabled() && poster.isAttachedToWindow()) {
                 poster.animate().cancel();
@@ -952,12 +950,17 @@ public final class UnifiedCatalogActivity extends Activity {
             }
         }
         if (thumbnail != null && pair.landscape != null) {
-            if (!(thumbnail.getDrawable() instanceof android.graphics.drawable.BitmapDrawable)
-                    || ((android.graphics.drawable.BitmapDrawable) thumbnail.getDrawable()).getBitmap() != pair.landscape) {
+            if (!showingBitmap(thumbnail, pair.landscape)) {
                 thumbnail.setImageBitmap(pair.landscape);
                 if (card.isFocused()) revealThumbnail(thumbnail);
             }
         }
+    }
+
+    private static boolean showingBitmap(ImageView image, Bitmap bitmap) {
+        Drawable current = image.getDrawable();
+        return current instanceof android.graphics.drawable.BitmapDrawable
+                && ((android.graphics.drawable.BitmapDrawable) current).getBitmap() == bitmap;
     }
 
     private void watch(int stamp) {
