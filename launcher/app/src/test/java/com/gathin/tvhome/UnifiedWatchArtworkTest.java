@@ -38,6 +38,27 @@ public class UnifiedWatchArtworkTest {
         assertEquals("", unreviewed.ratingText());
     }
 
+    @Test public void fullTmdbDetailsHaveGenresRuntimeCrewAndCast() throws Exception {
+        org.json.JSONObject details = new org.json.JSONObject()
+                .put("title", "Marea")
+                .put("original_title", "The Tide")
+                .put("tagline", "Una aventura")
+                .put("release_date", "2026-05-09")
+                .put("runtime", 108)
+                .put("genres", new org.json.JSONArray().put(new org.json.JSONObject().put("name", "Aventura")))
+                .put("credits", new org.json.JSONObject()
+                        .put("crew", new org.json.JSONArray().put(new org.json.JSONObject()
+                                .put("job", "Director").put("name", "Ana Rivera")))
+                        .put("cast", new org.json.JSONArray().put(new org.json.JSONObject()
+                                .put("name", "Luis Gómez"))));
+        String sheet = UnifiedCatalogApi.fullDetailsText(details, "movie");
+        org.junit.Assert.assertTrue(sheet.contains("Título original: The Tide"));
+        org.junit.Assert.assertTrue(sheet.contains("Géneros: Aventura"));
+        org.junit.Assert.assertTrue(sheet.contains("Duración: 108 min"));
+        org.junit.Assert.assertTrue(sheet.contains("Dirección: Ana Rivera"));
+        org.junit.Assert.assertTrue(sheet.contains("Reparto: Luis Gómez"));
+    }
+
     @Test public void titleMatchingIgnoresAccentsCaseAndPunctuation() {
         assertEquals("la casa de papel", UnifiedWatchArtwork.normalizeTitle("La Casa de Papel"));
         assertEquals("la casa de papel", UnifiedWatchArtwork.normalizeTitle("la casa de papel!"));
