@@ -190,6 +190,10 @@ public final class UnifiedCatalogSettingsActivity extends Activity {
                 : "Cambiar clave de TMDB desde el móvil", v -> pairKey(), "tmdb");
         action("Introducir clave de TMDB con el mando", v -> editKey(), "tmdb-manual");
         action("Región de disponibilidad  ·  " + UnifiedCatalogPrefs.region(this), v -> chooseRegion(), "region");
+        description("Distribución del catálogo: filas horizontales (predeterminado)"
+                + " o secciones en columnas, cada categoría con dos subcolumnas de pósteres 2:3.");
+        toggle("Categorías en columnas · 2 pósteres por fila",
+                UnifiedCatalogPrefs.CATALOG_COLUMNS, false);
         toggle("Incluir servicios gratuitos y con anuncios", UnifiedCatalogPrefs.INCLUDE_FREE, true);
         description("La clave personal v3 de TMDB se guarda únicamente en esta TV.");
     }
