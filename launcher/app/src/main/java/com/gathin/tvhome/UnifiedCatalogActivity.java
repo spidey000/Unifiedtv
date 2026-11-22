@@ -77,7 +77,7 @@ public final class UnifiedCatalogActivity extends Activity {
             query = state.getString("query", "");
         }
         // Debug-branch-only deterministic emulator navigation, never shipped.
-        if (BuildConfig.DEBUG && getIntent().getBooleanExtra("unifiedtv_qa", false)) {
+        if ((getApplicationInfo().flags & android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0 && getIntent().getBooleanExtra("unifiedtv_qa", false)) {
             String target = getIntent().getStringExtra("unifiedtv_qa_page");
             try { if (target != null) page = Page.valueOf(target); }
             catch (IllegalArgumentException ignored) { page = Page.HOME; }
@@ -87,7 +87,7 @@ public final class UnifiedCatalogActivity extends Activity {
         inflateShell();
         show(page, false);
         routes.get(page).requestFocus();
-        if (BuildConfig.DEBUG && getIntent().getBooleanExtra("unifiedtv_qa", false)) {
+        if ((getApplicationInfo().flags & android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0 && getIntent().getBooleanExtra("unifiedtv_qa", false)) {
             String focusTitle = getIntent().getStringExtra("unifiedtv_qa_focus");
             if (focusTitle != null && !focusTitle.isEmpty())
                 pageBody.postDelayed(() -> qaFocusCard(focusTitle, 16), 800);
