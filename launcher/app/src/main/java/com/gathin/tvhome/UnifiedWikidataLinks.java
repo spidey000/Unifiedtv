@@ -1,7 +1,6 @@
 package com.gathin.tvhome;
 
 import android.content.Context;
-import android.util.LruCache;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -18,6 +17,7 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
@@ -29,7 +29,12 @@ import java.util.Set;
  */
 final class UnifiedWikidataLinks {
     private static final long TTL = 14L * 24 * 60 * 60 * 1000;
-    private static final LruCache<String, Map<String, String>> MEMORY = new LruCache<>(160);
+    private static final Map<String, Map<String, String>> MEMORY =
+            new LinkedHashMap<String, Map<String, String>>(160, .75f, true) {
+                @Override protected boolean removeEldestEntry(Map.Entry<String, Map<String, String>> eldest) {
+                    return size() > 160;
+                }
+            };
     private static final String USER_AGENT =
             "UnifiedTV/0.8 (https://github.com/spidey000/Unifiedtv; public movie links)";
 
