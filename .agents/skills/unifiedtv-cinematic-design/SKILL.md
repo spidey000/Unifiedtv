@@ -34,7 +34,7 @@ Tipografía: usa las fuentes ya incluidas en el proyecto; máximo dos pesos visi
 
 ## Geometría e interacción para TV
 - Rail izquierdo **colapsado a iconos**, ancho inicial aprox. 52 dp; al recibir foco, expandir a 140–160 dp con transición corta (180–220 ms); restaurarlo al salir. No desplazar el póster protagonista ni perder el foco en medio de la animación.
-- Las secciones **Películas / Series** son un selector compacto. Debajo, **Destacados / Más vistos / Novedades / Populares / Mejor valorados** forman una **única barra segmentada**, nunca cinco botones flotantes independientes.
+- Las secciones **Películas / Series** son el único selector superior del catálogo. **Destacados / Más vistos / Novedades / Populares / Mejor valorados** son cinco filas horizontales independientes **debajo de Seguir viendo**, nunca pestañas ni botones superiores.
 - Mantén el contenido dominante: bordes y controles muy discretos. Tarjetas no enfocadas en formato **póster 2:3**; el elemento con foco se presenta como **miniatura ampliada 16:9**, con información suficiente y animación corta, sin recortar bruscamente la fila ni provocar saltos al navegar.
 - No uses un zoom fuerte para suplir la señal de foco. Una elevación moderada, borde fino luminoso y cambio de tamaño/proporción suave deben indicar qué recibirá OK. Prevén el espaciado para que el foco no tape tarjetas vecinas.
 - Las valoraciones muestran **★ 8,2** junto al título, **sin la palabra TMDB**. Evita más de una línea de metadatos si las carátulas ya aportan el contexto.
@@ -44,7 +44,7 @@ Tipografía: usa las fuentes ya incluidas en el proyecto; máximo dos pesos visi
 - Respeta `prefers-reduced-motion` en web y los ajustes del sistema para animaciones en TV; no añadas animaciones gratuitas.
 
 ## Organización de pantallas
-**Inicio:** navegación izquierda; pestañas y filtros compactos arriba; un hero con arte 16:9 de la selección; filas de pósteres reales a continuación. No llenes el primer viewport de texto ni de botones. El arte manda.
+**Inicio:** navegación izquierda; selector compacto Películas / Series, un hero con arte 16:9 de Destacados, después Seguir viendo cuando corresponda y las cinco filas de categorías. No llenes el primer viewport de texto ni de botones. El arte manda.
 
 **Seguir viendo:** solo títulos que superen el umbral configurable (por defecto, **5 minutos o 5 %** reproducido, según la regla implementada), con progreso distinguible y plataforma asociada cuando el dato sea accesible. No inventes progreso ni atribuyas contenido a otra plataforma.
 
@@ -66,7 +66,7 @@ Tipografía: usa las fuentes ya incluidas en el proyecto; máximo dos pesos visi
 - ¿En un primer vistazo identifico película/serie, título, valoración y acción?
 - ¿Las imágenes ocupan más atención que la UI?
 - ¿Un solo elemento está inequívocamente enfocado?
-- ¿El rail se repliega y los filtros siguen en una barra?
+- ¿El rail se repliega y las cinco categorías aparecen como filas bajo Seguir viendo, sin botones de filtro?
 - ¿Los botones son glass oscuros, no gradientes?
 - ¿El póster mantiene 2:3 y el foco 16:9?
 - ¿Funciona el mando sin ratón ni teclado?
