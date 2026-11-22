@@ -40,6 +40,9 @@ final class UnifiedWatchNext {
         final String source;
         final String title;
         final String poster;
+        final String thumbnail;
+        final String mediaType;
+        final String releaseDate;
         final String intentUri;
         final long updated;
         final long duration;
@@ -48,10 +51,19 @@ final class UnifiedWatchNext {
         final String episode;
         Entry(String pkg, String source, String title, String poster, String intentUri,
               long updated, long position, long duration, boolean preview, String episode) {
+            this(pkg, source, title, poster, "", "", "", intentUri, updated, position,
+                    duration, preview, episode);
+        }
+        Entry(String pkg, String source, String title, String poster, String thumbnail,
+              String mediaType, String releaseDate, String intentUri,
+              long updated, long position, long duration, boolean preview, String episode) {
             this.providerPackage = pkg;
             this.source = source;
             this.title = title;
             this.poster = poster;
+            this.thumbnail = thumbnail;
+            this.mediaType = mediaType;
+            this.releaseDate = releaseDate;
             this.intentUri = intentUri;
             this.updated = updated;
             this.position = position;
@@ -99,10 +111,11 @@ final class UnifiedWatchNext {
 
     private static void readWatchNext(Context context, List<Entry> results, Set<String> seen) {
         String[] columns = {
-                "title", "package_name", "poster_art_uri", "intent_uri",
-                "last_engagement_time_utc_millis", "last_playback_position_millis",
-                "duration_millis", "watch_next_type", "browsable",
-                "season_display_number", "episode_display_number", "episode_title"
+                "title", "package_name", "poster_art_uri", "thumbnail_uri",
+                "type", "release_date", "intent_uri", "last_engagement_time_utc_millis",
+                "last_playback_position_millis", "duration_millis",
+                "watch_next_type", "browsable", "season_display_number",
+                "episode_display_number", "episode_title"
         };
         // Do not pass SQL selection: a non-privileged caller is forbidden to filter
         // inside the TV provider. Filter on the app side instead.
@@ -123,7 +136,9 @@ final class UnifiedWatchNext {
                         ? "T" + season + " · E" + episode
                         : string(cursor, "episode_title");
                 Entry e = new Entry(pkg, sourceName(pkg), string(cursor, "title"),
-                        string(cursor, "poster_art_uri"), string(cursor, "intent_uri"),
+                        string(cursor, "poster_art_uri"), string(cursor, "thumbnail_uri"),
+                        mediaType(cursor), string(cursor, "release_date"),
+                        string(cursor, "intent_uri"),
                         number(cursor, "last_engagement_time_utc_millis"),
                         number(cursor, "last_playback_position_millis"),
                         number(cursor, "duration_millis"), false, details);
@@ -157,7 +172,8 @@ final class UnifiedWatchNext {
         if (allowedChannels.isEmpty()) return;
 
         String[] columns = {
-                "channel_id", "title", "poster_art_uri", "intent_uri",
+                "channel_id", "title", "poster_art_uri", "thumbnail_uri",
+                "type", "release_date", "intent_uri",
                 "last_playback_position_millis", "duration_millis"
         };
         try (Cursor cursor = context.getContentResolver()
@@ -167,7 +183,9 @@ final class UnifiedWatchNext {
                 String pkg = allowedChannels.get(number(cursor, "channel_id"));
                 if (pkg == null) continue;
                 Entry item = new Entry(pkg, sourceName(pkg), string(cursor, "title"),
-                        string(cursor, "poster_art_uri"), string(cursor, "intent_uri"),
+                        string(cursor, "poster_art_uri"), string(cursor, "thumbnail_uri"),
+                        mediaType(cursor), string(cursor, "release_date"),
+                        string(cursor, "intent_uri"),
                         0, number(cursor, "last_playback_position_millis"),
                         number(cursor, "duration_millis"), true, "");
                 accept(context, item, results, seen);
@@ -191,6 +209,15 @@ final class UnifiedWatchNext {
         if (UnifiedCatalogPrefs.continueHideFinished(context) && percent >= 95) return;
         String key = entry.providerPackage + "|" + entry.title.toLowerCase(Locale.ROOT);
         if (seen.add(key)) list.add(entry);
+    }
+
+    private static String mediaType(Cursor cursor) {
+        int type = integer(cursor, "type", -1);
+        if (type == TvContract.Programs.TYPE_MOVIE) return "movie";
+        if (type == TvContract.Programs.TYPE_TV_SERIES
+                || type == TvContract.Programs.TYPE_TV_SEASON
+                || type == TvContract.Programs.TYPE_TV_EPISODE) return "tv";
+        return "";
     }
 
     private static String sourceName(String pkg) {
