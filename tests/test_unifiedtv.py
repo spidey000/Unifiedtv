@@ -65,6 +65,19 @@ class UnifiedTvTests(unittest.TestCase):
         self.assertIn('getString(KEY, "")', source)
         self.assertNotRegex(source, r"(?i)(?:sk|eyJ)[A-Za-z0-9._-]{35,}")
 
+    def test_catalog_layout_can_switch_to_two_column_category_groups(self):
+        home = (JAVA / "UnifiedCatalogActivity.java").read_text(encoding="utf-8")
+        prefs = (JAVA / "UnifiedCatalogPrefs.java").read_text(encoding="utf-8")
+        settings = (JAVA / "UnifiedCatalogSettingsActivity.java").read_text(encoding="utf-8")
+        self.assertIn("twoColumnSections(this)", home)
+        self.assertIn("private void columnCatalog(", home)
+        self.assertIn("posters.setColumnCount(2)", home)
+        self.assertIn("GridLayout.spec(i / 2), GridLayout.spec(i % 2)", home)
+        self.assertIn("UnifiedCatalogLayout.cardWidthDp(slotWidth)", home)
+        self.assertIn('CATALOG_COLUMNS = "catalog_two_column_sections"', prefs)
+        self.assertIn("getBoolean(CATALOG_COLUMNS, false)", prefs)
+        self.assertIn("2 pósteres por fila", settings)
+
     def test_movies_and_series_use_side_rail_without_hero_tabs(self):
         home = (JAVA / "UnifiedCatalogActivity.java").read_text(encoding="utf-8")
         self.assertIn('route(rail, Page.MOVIES, "Películas", R.drawable.uic_film)', home)
