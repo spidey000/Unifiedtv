@@ -57,7 +57,7 @@ final class UnifiedPlaybackApps {
             new Known("nuvio", "Nuvio", "com.nuvio.tv", "com.nuvio.app"),
             new Known("stremio", "Stremio", "com.stremio.one", "com.stremio.two"),
             new Known("kodi", "Kodi", "org.xbmc.kodi"),
-            new Known("plex", "Plex", "tv.plex"),
+            new Known("plex", "Plex", "com.plexapp.android", "tv.plex"),
             new Known("jellyfin", "Jellyfin", "org.jellyfin.androidtv"),
             new Known("emby", "Emby", "tv.emby.embyatv"),
             new Known("vlc", "VLC", "org.videolan.vlc"),
