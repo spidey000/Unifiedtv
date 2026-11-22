@@ -756,14 +756,15 @@ public final class UnifiedCatalogActivity extends Activity {
     private ImageView providerIcon(FrameLayout card) {
         ImageView icon = new ImageView(this);
         icon.setScaleType(ImageView.ScaleType.FIT_CENTER);
-        icon.setPadding(dp(3), dp(3), dp(3), dp(3));
+        icon.setPadding(dp(5), dp(3), dp(5), dp(3));
         icon.setBackground(StreamUi.shape(this, 0xE51A1A22, 7, 0x44FFFFFF));
         icon.setClipToOutline(true);
         icon.setVisibility(View.GONE);
         icon.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
-        FrameLayout.LayoutParams spot = new FrameLayout.LayoutParams(dp(29), dp(29),
+        // Horizontal wordmark badge: avoids the unreadable 29x29 TMDB icon.
+        FrameLayout.LayoutParams spot = new FrameLayout.LayoutParams(dp(70), dp(30),
                 Gravity.TOP | Gravity.START);
-        spot.setMargins(dp(6), dp(4), 0, 0);
+        spot.setMargins(dp(6), dp(5), 0, 0);
         card.addView(icon, spot);
         return icon;
     }
@@ -776,12 +777,20 @@ public final class UnifiedCatalogActivity extends Activity {
             catch (Exception ignored) { return; }
             UnifiedCatalogRoute.Target target = UnifiedCatalogRoute.resolve(this, media);
             if (target == null || revision != stamp) return;
-            Bitmap logo = UnifiedCatalogApi.logo(this,
-                    UnifiedCatalogApi.logoPath(media, target.provider));
-            if (logo == null) return;
+            // A packaged full wordmark is clearer than TMDB's square provider icon.
+            int wordmark = UnifiedProviderWordmarks.forKey(target.provider.key);
+            Bitmap logo = wordmark == 0 ? UnifiedCatalogApi.logo(this,
+                    UnifiedCatalogApi.logoPath(media, target.provider)) : null;
+            if (wordmark == 0 && logo == null) return;
             runOnUiThread(() -> {
                 if (!live(stamp)) return;
-                icon.setImageBitmap(logo);
+                if (wordmark != 0) {
+                    icon.setImageResource(wordmark);
+                    UnifiedProviderWordmarks.applyTint(icon, wordmark);
+                } else {
+                    icon.clearColorFilter();
+                    icon.setImageBitmap(logo);
+                }
                 icon.setVisibility(View.VISIBLE);
                 card.setContentDescription(media.title + " · Se abrirá en "
                         + target.provider.name + (media.hasRating()
@@ -1365,7 +1374,15 @@ public final class UnifiedCatalogActivity extends Activity {
                             dp(UnifiedCatalogLayout.APP_LABEL_HEIGHT_DP), Gravity.BOTTOM));
                     cards.add(card);
 
-                    loads.add(once(() -> art.execute(() -> {
+                    int wordmark = UnifiedProviderWordmarks.forPackage(packageName);
+                    if (wordmark != 0) {
+                        // Use a full-name branded banner even when Android only offers a square icon.
+                        artwork.setScaleType(ImageView.ScaleType.FIT_CENTER);
+                        artwork.setPadding(dp(14), dp(7), dp(14), dp(7));
+                        artwork.setImageResource(wordmark);
+                        UnifiedProviderWordmarks.applyTint(artwork, wordmark);
+                        loads.add(() -> { }); // Local bitmap: ready without an async fetch.
+                    } else loads.add(once(() -> art.execute(() -> {
                         if (revision != stamp) return;
                         Drawable loaded = null;
                         try {
