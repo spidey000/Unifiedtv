@@ -68,6 +68,16 @@ final class UnifiedCatalogApi {
         }
     }
 
+    /** Paths are fetched only when Android TV does not provide an image in the right ratio. */
+    static final class MediaArt {
+        final String poster, backdrop;
+        MediaArt(String poster, String backdrop) {
+            this.poster = poster;
+            this.backdrop = backdrop;
+        }
+    }
+
+    private static final LruCache<String, MediaArt> WATCH_ART = new LruCache<>(80);
     private static final long LIST_TTL = 6L * 60 * 60 * 1000;
     private static final long PROVIDER_TTL = 12L * 60 * 60 * 1000;
     private static final LruCache<String, Bitmap> POSTERS = new LruCache<String, Bitmap>(8 * 1024 * 1024) {
@@ -175,6 +185,62 @@ final class UnifiedCatalogApi {
                 PROVIDER_TTL, false);
         String id = ids.optString("imdb_id", "");
         return id.matches("tt[0-9]{5,12}") ? id : "";
+    }
+
+    /**
+     * Resolve poster and backdrop from TMDB for a Watch Next title. Exact normalized
+     * title match only; do not guess if multiple films/shows share the same title.
+     * The platform-supplied content type and release year disambiguate where available.
+     * Uses the existing bounded JSON cache, and never runs on the UI thread.
+     */
+    static MediaArt watchArtwork(Context context, String rawTitle, String typeHint,
+                                 String releaseDate) throws Exception {
+        String title = UnifiedWatchArtwork.searchTitle(rawTitle);
+        if (title.isEmpty() || UnifiedCatalogPrefs.apiKey(context).isEmpty()) return null;
+        int year = "tv".equals(typeHint) ? 0 : UnifiedWatchArtwork.year(releaseDate);
+        if (year == 0) year = UnifiedWatchArtwork.titleYear(rawTitle);
+        String cacheKey = typeHint + "|" + year + "|" + UnifiedWatchArtwork.normalizeTitle(title);
+        synchronized (WATCH_ART) {
+            MediaArt cached = WATCH_ART.get(cacheKey);
+            if (cached != null) return cached;
+        }
+        String endpoint = "/search/multi?language=es-ES&include_adult=false&query="
+                + URLEncoder.encode(title, "UTF-8");
+        JSONObject result = request(context, endpoint, PROVIDER_TTL, false);
+        JSONArray candidates = result.optJSONArray("results");
+        if (candidates == null) return null;
+        String target = UnifiedWatchArtwork.normalizeTitle(title);
+        List<JSONObject> matches = new ArrayList<>();
+        for (int i = 0; i < candidates.length(); i++) {
+            JSONObject item = candidates.optJSONObject(i);
+            if (item == null) continue;
+            String type = item.optString("media_type", "");
+            if (!"movie".equals(type) && !"tv".equals(type)) continue;
+            if (!typeHint.isEmpty() && !typeHint.equals(type)) continue;
+            String localized = item.optString("movie".equals(type) ? "title" : "name", "");
+            String original = item.optString("movie".equals(type) ? "original_title" : "original_name", "");
+            if (!target.equals(UnifiedWatchArtwork.normalizeTitle(localized))
+                    && !target.equals(UnifiedWatchArtwork.normalizeTitle(original))) continue;
+            String date = item.optString("movie".equals(type) ? "release_date" : "first_air_date", "");
+            int candidateYear = UnifiedWatchArtwork.year(date);
+            if (year > 0 && candidateYear > 0 && Math.abs(year - candidateYear) > 1) continue;
+            matches.add(item);
+        }
+        if (year > 0 && matches.size() > 1) {
+            List<JSONObject> exactYear = new ArrayList<>();
+            for (JSONObject item : matches) {
+                int candidateYear = UnifiedWatchArtwork.year(item.optString(
+                        "movie".equals(item.optString("media_type")) ? "release_date" : "first_air_date", ""));
+                if (candidateYear == year) exactYear.add(item);
+            }
+            if (!exactYear.isEmpty()) matches = exactYear;
+        }
+        if (matches.size() != 1) return null;
+        JSONObject match = matches.get(0);
+        MediaArt artwork = new MediaArt(match.optString("poster_path", ""),
+                match.optString("backdrop_path", ""));
+        synchronized (WATCH_ART) { WATCH_ART.put(cacheKey, artwork); }
+        return artwork;
     }
 
     private static void collect(JSONArray arr, Set<Integer> ids) {
