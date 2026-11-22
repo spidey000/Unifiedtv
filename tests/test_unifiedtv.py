@@ -90,6 +90,39 @@ class UnifiedTvTests(unittest.TestCase):
         self.assertIn('new Provider("stremio"', sources)
         self.assertIn('new Provider("nuvio"', sources)
 
+    def test_optional_app_updates_use_official_signed_releases(self):
+        updater = (JAVA / "UnifiedAppUpdater.java").read_text(encoding="utf-8")
+        settings = (JAVA / "UnifiedCatalogSettingsActivity.java").read_text(encoding="utf-8")
+        prefs = (JAVA / "UnifiedCatalogPrefs.java").read_text(encoding="utf-8")
+        home = (JAVA / "UnifiedCatalogActivity.java").read_text(encoding="utf-8")
+        original_home = (JAVA / "MainActivity.java").read_text(encoding="utf-8")
+        policy = (ROOT / "tools/unifiedtv_release.py").read_text(encoding="utf-8")
+        manifest = ET.parse(MAIN / "AndroidManifest.xml")
+        ns = "{http://schemas.android.com/apk/res/android}"
+        permissions = [p.get(ns + "name") for p in manifest.findall("./uses-permission")]
+        self.assertIn("android.permission.REQUEST_INSTALL_PACKAGES", permissions)
+        providers = manifest.findall("./application/provider")
+        matches = [p for p in providers if p.get(ns + "name") == "androidx.core.content.FileProvider"]
+        self.assertEqual(len(matches), 1)
+        self.assertEqual(matches[0].get(ns + "exported"), "false")
+        self.assertEqual(matches[0].get(ns + "grantUriPermissions"), "true")
+        file_paths = (MAIN / "res/xml/unifiedtv_update_paths.xml").read_text(encoding="utf-8")
+        self.assertIn('path="unifiedtv-updates/"', file_paths)
+        self.assertIn("getBoolean(UPDATE_AUTO_CHECK, true)", prefs)
+        self.assertIn("checkAutomatically(this)", home)
+        self.assertIn("checkAutomatically(this)", original_home)
+        self.assertIn("Buscar actualización ahora", settings)
+        self.assertIn("Permitir instalar APK desde UnifiedTV", settings)
+        self.assertIn("api.github.com/repos/spidey000/Unifiedtv/releases/latest", updater)
+        self.assertIn("SHA-256", updater)
+        self.assertIn("verifyPackage(activity, apk)", updater)
+        self.assertIn("Arrays.equals", updater)
+        self.assertIn("canRequestPackageInstalls()", updater)
+        self.assertIn("Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES", updater)
+        self.assertIn("FileProvider.getUriForFile", updater)
+        self.assertIn("Intent.ACTION_INSTALL_PACKAGE", updater)
+        self.assertIn('"REQUEST_INSTALL_PACKAGES"', policy)
+
     def test_transparent_readme(self):
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
         self.assertIn("UnifiedTV", readme)
