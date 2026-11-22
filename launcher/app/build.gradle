@@ -13,8 +13,23 @@ android {
         applicationId providers.gradleProperty('launcherApplicationId').getOrElse('com.gathin.tvhome')
         minSdk 26
         targetSdk 34
-        versionCode 16
-        versionName '3.6-unifiedtv.1'
+        // CI supplies a monotonically increasing code for installable updates.
+        // The developer build retains a distinct local version.
+        versionCode providers.gradleProperty('unifiedReleaseVersionCode').getOrElse('16').toInteger()
+        versionName providers.gradleProperty('unifiedReleaseVersionName').getOrElse('0.1.0-dev')
+    }
+
+    // Publishing never embeds a private key. On CI the keystore is reconstructed
+    // from repository Actions secrets into a temporary file.
+    signingConfigs {
+        if (System.getenv('UNIFIEDTV_KEYSTORE_FILE')) {
+            unifiedRelease {
+                storeFile file(System.getenv('UNIFIEDTV_KEYSTORE_FILE'))
+                storePassword System.getenv('UNIFIEDTV_KEYSTORE_PASSWORD')
+                keyAlias System.getenv('UNIFIEDTV_KEY_ALIAS')
+                keyPassword System.getenv('UNIFIEDTV_KEY_PASSWORD')
+            }
+        }
     }
 
     buildTypes {
@@ -23,8 +38,9 @@ android {
             minifyEnabled true
             shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
-            // Sideloaded over ADB, never published: sign with the debug key so it installs over a debug build.
-            signingConfig signingConfigs.debug
+            // Local builds use debug signing. CI publishes an APK only when a
+            // persistent release signing key is configured (needed for upgrades).
+            signingConfig System.getenv('UNIFIEDTV_KEYSTORE_FILE') ? signingConfigs.unifiedRelease : signingConfigs.debug
         }
     }
 
