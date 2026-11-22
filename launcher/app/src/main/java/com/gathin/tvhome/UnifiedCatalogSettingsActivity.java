@@ -123,7 +123,7 @@ public final class UnifiedCatalogSettingsActivity extends Activity {
     private void editKey() {
         EditText input = new EditText(this);
         input.setSingleLine(true);
-        input.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD);
+        input.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
         input.setText(UnifiedCatalogPrefs.apiKey(this));
         input.setHint("TMDB API Key v3");
         new AlertDialog.Builder(this)
