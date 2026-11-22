@@ -54,6 +54,7 @@
         <package android:name="com.nuvio.app" />
         <!-- Other optional installed media players. No broad QUERY_ALL_PACKAGES permission. -->
         <package android:name="org.xbmc.kodi" />
+        <package android:name="com.plexapp.android" />
         <package android:name="tv.plex" />
         <package android:name="org.jellyfin.androidtv" />
         <package android:name="tv.emby.embyatv" />
