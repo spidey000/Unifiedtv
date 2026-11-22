@@ -185,7 +185,7 @@ public final class UnifiedCatalogSettingsActivity extends Activity {
     }
 
     private void providers() {
-        description("Selecciona las plataformas que usas. Las de arriba se intentan primero cuando hay varias opciones.");
+        description("Selecciona las plataformas que usas y ordénalas para el selector «Ver en».");
         for (UnifiedCatalogPrefs.Provider provider : UnifiedCatalogPrefs.ordered(this)) {
             LinearLayout row = new LinearLayout(this);
             row.setGravity(Gravity.CENTER_VERTICAL);

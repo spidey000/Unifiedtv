@@ -153,14 +153,19 @@ final class UnifiedCatalogApi {
         media.availabilityReady = true;
     }
 
+    static String imdbId(Context context, Media media) throws Exception {
+        return request(context, "/" + media.type + "/" + media.id + "/external_ids", LIST_TTL, false)
+                .optString("imdb_id", "");
+    }
+
     static List<UnifiedCatalogPrefs.Provider> eligible(Context context, Media media) {
         List<UnifiedCatalogPrefs.Provider> result = new ArrayList<>();
         synchronized (media.providerIds) {
             for (UnifiedCatalogPrefs.Provider p : UnifiedCatalogPrefs.ordered(context)) {
-                if (!UnifiedCatalogPrefs.selected(context, p) || p.installedPackage(context) == null) continue;
+                if (p.tmdbIds.length == 0 || !UnifiedCatalogPrefs.selected(context, p)) continue;
                 for (int id : media.providerIds) {
                     if (p.supports(id)) {
-                        result.add(p);
+                        if (p.installedPackage(context) != null) result.add(p);
                         break;
                     }
                 }

@@ -47,11 +47,18 @@
         <package android:name="es.plus.yomvi" />
         <package android:name="com.filmin.filmin" />
         <package android:name="com.filmin.android" />
-        <!-- Optional continuation sources; not considered licensed TMDB streaming providers. -->
+        <!-- Catalog apps with direct title links and optional continuation support. -->
         <package android:name="com.stremio.one" />
         <package android:name="com.stremio.two" />
         <package android:name="com.nuvio.tv" />
         <package android:name="com.nuvio.app" />
+        <intent>
+            <action android:name="android.intent.action.MEDIA_SEARCH" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="content" android:mimeType="video/*" />
+        </intent>
         <!-- The standard settings handlers, so package visibility doesn't hide them and send the pills to a vendor fallback by mistake. -->
         <intent>
             <action android:name="android.settings.SETTINGS" />

@@ -17,17 +17,17 @@ UnifiedTV es un fork independiente de [CleanYourTV](https://github.com/Gathin23/
 - **Buscador global** de películas y series en TMDB.
 - **Disponibilidad por país:** por defecto España (`ES`), con otros países configurables.
 - **Marcas de plataforma:** muestra las plataformas compatibles que están **instaladas y seleccionadas**.
-- **Preferencias y fallback:** activar/desactivar Netflix, Prime Video, Max/HBO Max, Disney+, Apple TV+, SkyShowtime, Movistar Plus+ y Filmin, y cambiar su prioridad con el mando.
-- **Apertura:** prueba la búsqueda externa de la aplicación de mayor prioridad. Si no es compatible, abre la propia aplicación y te indica qué título buscar. Si la app falla al arrancar, prueba la siguiente plataforma.
-- **Error explícito** si el título no figura disponible en ninguna de tus apps seleccionadas; enlace a opciones online cuando TMDB lo proporciona.
+- **Preferencias:** activa, desactiva y ordena tus servicios en **Ajustes → Plataformas**, incluidos Nuvio y Stremio.
+- **Apertura:** elige la app desde **Ver en**. UnifiedTV abre la ficha mediante un enlace directo en Nuvio o Stremio, o intenta enviar la búsqueda del título a la aplicación elegida.
+- **Más opciones:** el selector incluye otras apps de vídeo detectadas, acceso al resto de apps instaladas y un enlace a las opciones online cuando TMDB lo proporciona.
 - **Caché:** últimas respuestas de catálogo, disponibilidad y carteles, para reducir consultas y mostrar datos previamente guardados sin conexión.
 - **Launcher clásico preservado:** «Aplicaciones → Abrir launcher clásico» o Atrás desde Inicio muestran la cuadrícula y el dock basados en CleanYourTV. Se puede desactivar el catálogo como Home desde Ajustes.
 
 ### Flujo de usuario
 
 1. Pulsas **Home**. Eliges **Películas**, **Series** o **Seguir viendo**.
-2. Abre Películas o Series desde el menú lateral y recorre las filas con el mando. A la izquierda de la primera tarjeta de cada fila puedes volver al menú. Las plataformas de la ficha se basan en disponibilidad TMDB y aplicaciones instaladas y activadas.
-3. Seleccionas un título. UnifiedTV intenta abrir la búsqueda de la primera app según tu prioridad; si no ofrece búsqueda externa, abre la aplicación para que busques el título. Cuando no hay plataforma compatible se informa del motivo.
+2. Abre Películas o Series desde el menú lateral y recorre las filas con el mando. A la izquierda de la primera tarjeta de cada fila puedes volver al menú. La ficha muestra las plataformas instaladas y activadas cuya disponibilidad indica TMDB.
+3. Selecciona **Ver en** para elegir una plataforma. Nuvio y Stremio aparecen cuando están instaladas y activadas, y pueden abrir la ficha directamente. UnifiedTV también detecta apps de vídeo y ofrece **Otras aplicaciones instaladas**. Cuando una app admite búsqueda externa, UnifiedTV le pasa el título. Si solo permite abrir su pantalla principal, puedes buscarlo allí.
 4. En **Seguir viendo** aparecen las entradas que las apps comparten voluntariamente con Android TV. Pulsar una abre su acción de continuación si funciona en la TV, o su app como alternativa.
 5. En **Ajustes → Seguir viendo** puedes filtrar fuentes, activar la fila en Home, incluir próximos episodios o canales de continuación, definir antigüedad máxima y ocultar títulos completados.
 

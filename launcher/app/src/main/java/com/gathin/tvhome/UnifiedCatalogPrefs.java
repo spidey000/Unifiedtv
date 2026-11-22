@@ -72,7 +72,7 @@ final class UnifiedCatalogPrefs {
 
 
     // Stremio and Nuvio are catalog/player apps rather than TMDB subscription providers.
-    // They are sources of Watch Next, not TMDB availability badges.
+    // Their title links and Watch Next entries do not depend on TMDB availability.
     static final List<Provider> CONTINUE_SOURCES;
     static {
         List<Provider> sources = new ArrayList<>(PROVIDERS);
@@ -168,12 +168,12 @@ final class UnifiedCatalogPrefs {
     }
 
     static List<Provider> ordered(Context c) {
-        List<Provider> result = new ArrayList<>(PROVIDERS);
+        List<Provider> result = new ArrayList<>(CONTINUE_SOURCES);
         String raw = prefs(c).getString(ORDER, "");
         List<String> keys = Arrays.asList(raw.split(","));
         result.sort(Comparator.comparingInt(p -> {
             int i = keys.indexOf(p.key);
-            return i < 0 ? 1000 + PROVIDERS.indexOf(p) : i;
+            return i < 0 ? 1000 + CONTINUE_SOURCES.indexOf(p) : i;
         }));
         return result;
     }

@@ -411,7 +411,7 @@ public final class UnifiedCatalogActivity extends Activity {
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-2, -2);
         lp.topMargin = dp(6);
         hero.copy.addView(actions, lp);
-        TextView watch = StreamUi.control(this, "Ver ahora", R.drawable.uic_play, true,
+        TextView watch = StreamUi.control(this, "Ver en", R.drawable.uic_play, true,
                 v -> openMedia(result.get(hero.index), (TextView) v, stamp));
         leftToRail(watch);
         styleHeroAction(watch);
@@ -489,22 +489,15 @@ public final class UnifiedCatalogActivity extends Activity {
     private void openMedia(UnifiedCatalogApi.Media media, TextView button, int stamp) {
         button.setEnabled(false);
         data.execute(() -> {
-            boolean available;
-            try {
-                UnifiedCatalogApi.availability(this, media);
-                available = true;
-            } catch (Exception ignored) {
-                available = false;
-            }
-            boolean loaded = available;
+            try { UnifiedCatalogApi.availability(this, media); }
+            catch (Exception ignored) { /* Installed apps remain available. */ }
             runOnUiThread(() -> {
                 if (!live(stamp) || !hasWindowFocus()) {
                     if (live(stamp)) button.setEnabled(true);
                     return;
                 }
                 button.setEnabled(true);
-                if (loaded) UnifiedCatalogRoute.open(this, media);
-                else details(media);
+                UnifiedCatalogRoute.open(this, media, data);
             });
         });
     }
@@ -852,16 +845,7 @@ public final class UnifiedCatalogActivity extends Activity {
         link("Abrir launcher clásico", R.drawable.uic_house, v -> UnifiedTvHome.leaveForApps(this));
         PackageManager manager = getPackageManager();
         data.execute(() -> {
-            Map<String, ResolveInfo> installed = new LinkedHashMap<>();
-            for (String category : new String[]{Intent.CATEGORY_LEANBACK_LAUNCHER, Intent.CATEGORY_LAUNCHER}) {
-                Intent launch = new Intent(Intent.ACTION_MAIN).addCategory(category);
-                for (ResolveInfo app : manager.queryIntentActivities(launch, 0)) {
-                    String pkg = app.activityInfo.packageName;
-                    if (!pkg.equals(getPackageName())) installed.putIfAbsent(pkg, app);
-                }
-            }
-            List<ResolveInfo> sorted = new ArrayList<>(installed.values());
-            sorted.sort(new ResolveInfo.DisplayNameComparator(manager));
+            List<ResolveInfo> sorted = UnifiedCatalogRoute.installedApps(this);
             runOnUiThread(() -> {
                 if (!live(stamp)) return;
                 for (int i = 0; i < sorted.size(); i++) {
@@ -913,10 +897,9 @@ public final class UnifiedCatalogActivity extends Activity {
         platforms.setMaxLines(2);
         platforms.setEllipsize(TextUtils.TruncateAt.END);
         copy.addView(platforms);
-        TextView open = StreamUi.control(this, "Ver opciones", R.drawable.uic_play, true, v -> {
-            if (!media.availabilityReady) return;
+        TextView open = StreamUi.control(this, "Ver en", R.drawable.uic_play, true, v -> {
             dialog.dismiss();
-            UnifiedCatalogRoute.open(this, media);
+            UnifiedCatalogRoute.open(this, media, data);
         });
         open.setEnabled(false);
         copy.addView(open, new LinearLayout.LayoutParams(-2, -2));
@@ -940,10 +923,10 @@ public final class UnifiedCatalogActivity extends Activity {
                 if (!dialog.isShowing() || isFinishing()) return;
                 List<String> names = new ArrayList<>();
                 if (loaded) for (UnifiedCatalogPrefs.Provider provider : UnifiedCatalogApi.eligible(this, media)) names.add(provider.name);
-                platforms.setText(!loaded ? "No se pudo consultar la disponibilidad"
-                        : names.isEmpty() ? "No está en tus plataformas seleccionadas" : TextUtils.join(" · ", names));
-                open.setEnabled(loaded);
-                if (!names.isEmpty()) open.setText("Abrir en " + names.get(0));
+                platforms.setText(!loaded ? "Disponibilidad de TMDB sin confirmar"
+                        : names.isEmpty() ? "TMDB no confirma disponibilidad en tus plataformas seleccionadas"
+                        : TextUtils.join(" · ", names));
+                open.setEnabled(true);
             });
         });
     }
