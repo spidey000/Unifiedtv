@@ -4,6 +4,7 @@ import android.app.Activity;
 import android.app.SearchManager;
 import android.content.Intent;
 import android.net.Uri;
+import android.provider.MediaStore;
 import android.widget.Toast;
 
 import java.util.ArrayList;
@@ -123,15 +124,19 @@ final class UnifiedCatalogRoute {
     }
 
     private static void openSearchOrApp(Activity activity, String pkg, String appName, String title) {
-        Intent search = new Intent(Intent.ACTION_SEARCH)
-                .setPackage(pkg).putExtra(SearchManager.QUERY, title)
-                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-        try {
-            if (search.resolveActivity(activity.getPackageManager()) != null) {
-                activity.startActivity(search);
-                return;
-            }
-        } catch (RuntimeException ignored) { /* Fall back to opening the selected app. */ }
+        // Some Android TV players implement MEDIA_SEARCH rather than standard SEARCH.
+        // Keep both intents scoped to the app explicitly selected by the viewer.
+        for (String action : new String[]{MediaStore.INTENT_ACTION_MEDIA_SEARCH, Intent.ACTION_SEARCH}) {
+            Intent search = new Intent(action).setPackage(pkg)
+                    .putExtra(SearchManager.QUERY, title)
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            try {
+                if (search.resolveActivity(activity.getPackageManager()) != null) {
+                    activity.startActivity(search);
+                    return;
+                }
+            } catch (RuntimeException ignored) { /* Try the next search action. */ }
+        }
         try {
             Intent launch = activity.getPackageManager().getLeanbackLaunchIntentForPackage(pkg);
             if (launch == null) launch = activity.getPackageManager().getLaunchIntentForPackage(pkg);

@@ -52,6 +52,10 @@
         <package android:name="com.stremio.two" />
         <package android:name="com.nuvio.tv" />
         <package android:name="com.nuvio.app" />
+        <!-- Android 11+ visibility for video players exposing search by title. -->
+        <intent>
+            <action android:name="android.intent.action.MEDIA_SEARCH" />
+        </intent>
         <!-- Other optional installed media players. No broad QUERY_ALL_PACKAGES permission. -->
         <package android:name="org.xbmc.kodi" />
         <package android:name="com.plexapp.android" />

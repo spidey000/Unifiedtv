@@ -14,7 +14,7 @@ Esta primera versión añade el catálogo unificado a la app nativa del fork. Im
 - Consulta de proveedores por título y país usando los endpoints de TMDB `/movie/{id}/watch/providers` y `/tv/{id}/watch/providers`.
 - Iconografía textual de plataformas compatibles solo cuando la aplicación está instalada, seleccionada y TMDB la identifica como opción de streaming.
 - Preferencias: país, prioridad, casillas por servicio y modo Home; clave v3 introducida localmente.
-- Selector de aplicaciones al pulsar **Ver ahora**: servicios identificados por TMDB y reproductores locales configurados de forma independiente. Nuvio puede abrir fichas por ID TMDB y Stremio por ID IMDb; otras apps usan búsqueda Android (`ACTION_SEARCH`) o apertura de inicio.
+- Selector de aplicaciones al pulsar **Ver ahora**: servicios identificados por TMDB y reproductores locales configurados de forma independiente. Nuvio puede abrir fichas por ID TMDB y Stremio por ID IMDb; otras apps intentan búsqueda Android (`MEDIA_SEARCH` o `ACTION_SEARCH`, limitada al paquete elegido) y, si no se admite, abren su inicio.
 - Salida «Aplicaciones» y Atrás para volver al dock del launcher original.
 
 **Pendiente:** compilar en un entorno con Android SDK 34, ejecutar las pruebas Android, verificar con mandos y TV reales los intent de búsqueda de cada proveedor, confirmar variantes de nombres de paquetes y ajustes de rendimiento/seguridad. Los identificadores de proveedores cambian según país y producto.
@@ -26,7 +26,7 @@ Los servicios comerciales y los reproductores locales son categorías distintas.
 1. Al pulsar **Ver ahora** aparece un selector compatible con el mando, en el orden de servicios seleccionados y reproductores locales instalados.
 2. **Nuvio**: intenta abrir la ficha exacta mediante `nuvio://tmdb/movie/{id}` o `nuvio://tmdb/tv/{id}`.
 3. **Stremio**: obtiene en segundo plano `imdb_id` a través de `/movie/{id}/external_ids` o `/tv/{id}/external_ids` y utiliza un enlace de detalle `stremio:///detail/...`. Si no está disponible, usa su enlace de búsqueda por título.
-4. **Otras apps**: busca con `ACTION_SEARCH` solo si la app lo admite o, en su defecto, abre la app seleccionada para que el usuario localice el título.
+4. **Otras apps**: intenta `MEDIA_SEARCH` y `ACTION_SEARCH` solo en la aplicación seleccionada; si ninguna acción funciona, abre la app para que el usuario localice el título.
 5. Una URL directa fallida solo pasa a búsqueda/apertura **en esa misma app**. Nunca lanza silenciosamente otra plataforma después de que el usuario haya elegido una.
 6. El selector sigue funcionando con Nuvio, Stremio u otros reproductores aunque la consulta de disponibilidad TMDB haya fallado.
 
