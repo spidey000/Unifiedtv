@@ -44,6 +44,7 @@ public final class UnifiedCatalogActivity extends Activity {
     private String tab = "movie";
     private String category = "featured";
     private boolean created;
+    private boolean returnFromProvider;
     private int generation;
     private String lastSettings;
     private final Set<UnifiedCatalogApi.Media> availabilityPending =
@@ -95,10 +96,17 @@ public final class UnifiedCatalogActivity extends Activity {
         super.onResume();
         if (!created) return;
         String current = fingerprint();
-        if (!current.equals(lastSettings)) {
+        if (!current.equals(lastSettings) || returnFromProvider) {
             lastSettings = current;
+            returnFromProvider = false;
             load(false);
         }
+    }
+
+    @Override protected void onStop() {
+        // Providers can update Watch Next on exit: do not keep stale progress.
+        returnFromProvider = true;
+        super.onStop();
     }
 
     private String fingerprint() {
