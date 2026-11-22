@@ -21,18 +21,20 @@ final class UnifiedCatalogRoute {
     static final class Target {
         final UnifiedCatalogPrefs.Provider provider;
         final String packageName, url;
-        Target(UnifiedCatalogPrefs.Provider provider, String pkg, String url) {
+        final boolean fromAndroidTv;
+        Target(UnifiedCatalogPrefs.Provider provider, String pkg, String url, boolean fromAndroidTv) {
             this.provider = provider;
             this.packageName = pkg;
             this.url = url;
+            this.fromAndroidTv = fromAndroidTv;
         }
     }
 
     /**
-     * Resolve an exact, provider-owned deep link in configured priority order.
-     * JustWatch supplies offers with content URLs; TMDB validates availability.
-     * Fall back to a separately verified Netflix ID when necessary.
-     * Network access is worker-thread only.
+     * TMDB is authoritative for regional availability; Wikidata resolves the
+     * service-specific title id. An exact on-device Preview/WatchNext intent
+     * is preferred inside each platform. Both are resolved in user priority
+     * order, never using the TMDB identifier as a provider's own identifier.
      */
     static Target resolve(Activity activity, UnifiedCatalogApi.Media media) {
         synchronized (media) {
@@ -43,34 +45,41 @@ final class UnifiedCatalogRoute {
                 media.autoTargetReady = true;
                 return null;
             }
-            java.util.Map<String, String> offers = UnifiedJustWatchLinks.offers(activity, media);
+            java.util.Map<String, String> wikidata = null;
             for (UnifiedCatalogPrefs.Provider provider : eligible) {
                 String pkg = provider.installedPackage(activity);
                 if (pkg == null) continue;
-                String url = offers.get(provider.key);
-                if (!UnifiedJustWatchLinks.safeUrl(provider.key, url)) {
-                    if ("netflix".equals(provider.key)) {
-                        String id = UnifiedCatalogApi.netflixTitleId(activity, media);
-                        url = UnifiedNetflixLinks.titleUrl(id);
-                    }
+                String local = UnifiedTvProgramLinks.find(activity, media, pkg);
+                if (!local.isEmpty()) {
+                    media.autoTarget = new Target(provider, pkg, local, true);
+                    media.autoTargetReady = true;
+                    return media.autoTarget;
                 }
-                if (!UnifiedJustWatchLinks.safeUrl(provider.key, url)) continue;
-                Target match = new Target(provider, pkg, url);
-                media.autoTarget = match;
+                if (wikidata == null) wikidata = UnifiedWikidataLinks.resolve(activity, media);
+                String url = wikidata.get(provider.key);
+                if (!UnifiedWikidataLinks.safeUrl(provider.key, url)) continue;
+                media.autoTarget = new Target(provider, pkg, url, false);
                 media.autoTargetReady = true;
-                return match;
+                return media.autoTarget;
             }
             media.autoTargetReady = true;
             return null;
         }
     }
 
+    /** A dispatch intent is always scoped to its publisher's installed package. */
     static boolean launchTarget(Activity activity, Target target) {
         if (target == null) return false;
         try {
-            Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(target.url))
-                    .setPackage(target.packageName).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-            if ("netflix".equals(target.provider.key)) intent.putExtra("source", "30");
+            Intent intent;
+            if (target.fromAndroidTv) {
+                intent = UnifiedTvProgramLinks.parse(target.url, target.packageName);
+                if (intent == null) return false;
+            } else {
+                if (!UnifiedWikidataLinks.safeUrl(target.provider.key, target.url)) return false;
+                intent = new Intent(Intent.ACTION_VIEW, Uri.parse(target.url))
+                        .setPackage(target.packageName).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            }
             activity.startActivity(intent);
             return true;
         } catch (RuntimeException ignored) { return false; }
