@@ -39,14 +39,13 @@ import java.util.concurrent.Executors;
 
 /** Streaming home. The independent CleanYourTV launcher is still reachable from Applications. */
 public final class UnifiedCatalogActivity extends Activity {
-    private enum Page { HOME, WATCH, SEARCH, APPS, LIVE }
+    private enum Page { HOME, MOVIES, SERIES, WATCH, SEARCH, APPS, LIVE }
     private static final String[] FILTERS = {"featured", "watched", "new", "popular", "rated"};
     private static final String[] LABELS = {"Destacados", "Más vistos", "Novedades", "Populares", "Mejor valorados"};
     private static final int CONTENT_START = 21;
     private static final int CONTENT_END = 12;
     private static final int CARD_GAP = 7;
     private static final int RAIL_COLLAPSED = 52;
-    private boolean series;
     private int accent;
 
     private final ExecutorService data = Executors.newFixedThreadPool(3);
@@ -71,23 +70,23 @@ public final class UnifiedCatalogActivity extends Activity {
         UnifiedTvHome.catalogCreated();
         if (state != null) {
             String savedPage = state.getString("catalogPage", Page.HOME.name());
-            page = Page.valueOf(savedPage);
+            try { page = Page.valueOf(savedPage); }
+            catch (IllegalArgumentException ignored) { page = Page.HOME; }
+            if (page == Page.HOME && state.getBoolean("series", false))
+                page = Page.SERIES; // Migrate the former top tab.
             query = state.getString("query", "");
-            series = state.getBoolean("series");
         }
         settingsSnapshot = snapshot();
         accent = StreamUi.accent(this);
         inflateShell();
         show(page, false);
-        if (page == Page.HOME) findViewById(series ? R.id.seriesTab : R.id.moviesTab).requestFocus();
-        else routes.get(page).requestFocus();
+        routes.get(page).requestFocus();
     }
 
     @Override protected void onSaveInstanceState(Bundle state) {
         super.onSaveInstanceState(state);
         state.putString("catalogPage", page.name());
         state.putString("query", query);
-        state.putBoolean("series", series);
     }
 
     @Override protected void onResume() {
@@ -138,6 +137,8 @@ public final class UnifiedCatalogActivity extends Activity {
         mark.setSingleLine(true);
         rail.addView(mark);
         route(rail, Page.HOME, "Inicio", R.drawable.uic_house);
+        route(rail, Page.MOVIES, "Películas", R.drawable.uic_film);
+        route(rail, Page.SERIES, "Series", R.drawable.ic_livetv);
         route(rail, Page.SEARCH, "Buscar", R.drawable.uic_search);
         route(rail, Page.WATCH, "Mi lista", R.drawable.uic_layers);
         route(rail, Page.APPS, "Apps y fuentes", R.drawable.ic_apps);
@@ -240,7 +241,7 @@ public final class UnifiedCatalogActivity extends Activity {
         scroll.addView(pageBody);
         viewport.addView(scroll, new FrameLayout.LayoutParams(-1, -1));
         switch (page) {
-            case HOME: home(stamp, refresh); break;
+            case HOME: case MOVIES: case SERIES: home(stamp, refresh); break;
             case WATCH: title("Seguir viendo", "Todos los títulos compartidos con Android TV"); watch(stamp); break;
             case LIVE:
                 title("TV en directo", "Sintonizador y entradas de la TV");
@@ -255,56 +256,29 @@ public final class UnifiedCatalogActivity extends Activity {
 
     private void home(int stamp, boolean refresh) {
         boolean connected = hasKey();
-        String kind = series ? "tv" : "movie";
+        String kind = page == Page.SERIES ? "tv" : "movie";
         FrameLayout spotlight = hero("DESTACADO", connected ? "Descubrir" : "Tu cine empieza aquí",
                 connected ? "" : "Conecta TMDB para descubrir películas y series.");
-        addHomeTabs(spotlight);
+        addHeroClock(spotlight);
         if (!connected) connect();
-        if (UnifiedCatalogPrefs.continueEnabled(this) && UnifiedCatalogPrefs.continueOnHome(this)) watch(stamp);
+        if (page == Page.HOME && UnifiedCatalogPrefs.continueEnabled(this)
+                && UnifiedCatalogPrefs.continueOnHome(this)) watch(stamp);
         if (connected) {
             // All five shelves coexist; the featured shelf also drives the hero.
             for (int i = 0; i < FILTERS.length; i++) {
                 shelf(stamp, LABELS[i], kind, FILTERS[i], "", refresh, i == 0 ? spotlight : null);
             }
             link("Recargar catálogo", R.drawable.uic_refresh_cw, v -> {
-                show(Page.HOME, true);
-                findViewById(series ? R.id.seriesTab : R.id.moviesTab).requestFocus();
+                Page current = page;
+                show(current, true);
+                routes.get(current).requestFocus();
             });
             note(pageBody, "Datos de TMDB y JustWatch · Más vistos usa la tendencia semanal de TMDB");
         }
     }
 
-    private void addHomeTabs(FrameLayout spotlight) {
-        LinearLayout toolbar = StreamUi.column(this);
-        toolbar.setGravity(Gravity.CENTER_HORIZONTAL);
-        LinearLayout tabs = new LinearLayout(this);
-        tabs.setBackground(StreamUi.panel(this));
-        tabs.setPadding(dp(3), dp(3), dp(3), dp(3));
-        for (int i = 0; i < 2; i++) {
-            boolean showSeries = i == 1;
-            TextView tab = StreamUi.control(this, showSeries ? "Series" : "Películas",
-                    showSeries ? R.drawable.ic_livetv : R.drawable.uic_film, false, v -> {
-                        if (series == showSeries) return;
-                        series = showSeries;
-                        show(Page.HOME, false);
-                        findViewById(showSeries ? R.id.seriesTab : R.id.moviesTab).requestFocus();
-                    });
-            tab.setId(showSeries ? R.id.seriesTab : R.id.moviesTab);
-            tab.setSelected(showSeries == series);
-            tab.setGravity(Gravity.CENTER);
-            tab.setMinimumWidth(dp(116));
-            tab.setMinHeight(dp(28));
-            tab.setTextSize(12);
-            tab.setPadding(dp(14), 0, dp(14), 0);
-            StreamUi.background(tab, false, true);
-            if (i == 0) leftToRail(tab);
-            tabs.addView(tab);
-        }
-        toolbar.addView(tabs, new LinearLayout.LayoutParams(-2, -2));
-        FrameLayout.LayoutParams top = new FrameLayout.LayoutParams(-1, -2, Gravity.TOP);
-        top.setMargins(dp(CONTENT_START), dp(7), dp(CONTENT_END), 0);
-        spotlight.addView(toolbar, top);
-        routes.get(Page.HOME).setNextFocusRightId(series ? R.id.seriesTab : R.id.moviesTab);
+    /** Media type is selected in the left navigation, never with hero tabs. */
+    private void addHeroClock(FrameLayout spotlight) {
         TextClock clock = new TextClock(this);
         ClockFormat.apply(clock, getSharedPreferences(Config.SETTINGS_NAME, MODE_PRIVATE)
                 .getString(Config.CLOCK_FORMAT_KEY, "system"));
