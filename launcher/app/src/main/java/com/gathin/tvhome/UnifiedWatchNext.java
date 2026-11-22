@@ -1,6 +1,5 @@
 package com.gathin.tvhome;
 
-import android.Manifest;
 import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
@@ -20,7 +19,6 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -47,8 +45,9 @@ final class UnifiedWatchNext {
         final long duration;
         final long position;
         final boolean fromPreview;
+        final String episode;
         Entry(String pkg, String source, String title, String poster, String intentUri,
-              long updated, long position, long duration, boolean preview) {
+              long updated, long position, long duration, boolean preview, String episode) {
             this.providerPackage = pkg;
             this.source = source;
             this.title = title;
@@ -58,6 +57,7 @@ final class UnifiedWatchNext {
             this.position = position;
             this.duration = duration;
             this.fromPreview = preview;
+            this.episode = episode == null ? "" : episode;
         }
         int progress() {
             return duration > 0 ? (int) Math.max(0, Math.min(100, position * 100.0 / duration)) : -1;
@@ -80,15 +80,22 @@ final class UnifiedWatchNext {
             readContinuePreviews(context, list, seen);
 
         list.sort((a, b) -> Long.compare(b.updated, a.updated));
-        if (list.size() > 60) return new ArrayList<>(list.subList(0, 60));
-        return list;
+        // Showcase the newest item from each platform first; then fill with the
+        // remaining recent titles, so one provider cannot crowd out the others.
+        List<Entry> balanced = new ArrayList<>(list.size());
+        Set<String> firstPackages = new HashSet<>();
+        for (Entry item : list) if (firstPackages.add(item.providerPackage)) balanced.add(item);
+        for (Entry item : list) if (!balanced.contains(item)) balanced.add(item);
+        if (balanced.size() > 60) return new ArrayList<>(balanced.subList(0, 60));
+        return balanced;
     }
 
     private static void readWatchNext(Context context, List<Entry> results, Set<String> seen) {
         String[] columns = {
                 "title", "package_name", "poster_art_uri", "intent_uri",
                 "last_engagement_time_utc_millis", "last_playback_position_millis",
-                "duration_millis", "watch_next_type", "browsable"
+                "duration_millis", "watch_next_type", "browsable",
+                "season_display_number", "episode_display_number", "episode_title"
         };
         // Do not pass SQL selection: a non-privileged caller is forbidden to filter
         // inside the TV provider. Filter on the app side instead.
@@ -99,13 +106,20 @@ final class UnifiedWatchNext {
                 String pkg = string(cursor, "package_name");
                 if (!UnifiedCatalogPrefs.allowedContinuePackage(context, pkg)) continue;
                 int kind = integer(cursor, "watch_next_type", -1);
-                if (kind != 0 && !(kind == 1 && UnifiedCatalogPrefs.continueNext(context))) continue;
+                if (kind != TvContract.WatchNextPrograms.WATCH_NEXT_TYPE_CONTINUE
+                        && !(kind == TvContract.WatchNextPrograms.WATCH_NEXT_TYPE_NEXT
+                                && UnifiedCatalogPrefs.continueNext(context))) continue;
                 if (integer(cursor, "browsable", 1) == 0) continue;
+                String season = string(cursor, "season_display_number");
+                String episode = string(cursor, "episode_display_number");
+                String details = !season.isEmpty() && !episode.isEmpty()
+                        ? "T" + season + " · E" + episode
+                        : string(cursor, "episode_title");
                 Entry e = new Entry(pkg, sourceName(pkg), string(cursor, "title"),
                         string(cursor, "poster_art_uri"), string(cursor, "intent_uri"),
                         number(cursor, "last_engagement_time_utc_millis"),
                         number(cursor, "last_playback_position_millis"),
-                        number(cursor, "duration_millis"), false);
+                        number(cursor, "duration_millis"), false, details);
                 accept(context, e, results, seen);
             }
         } catch (Exception ignored) {
@@ -148,7 +162,7 @@ final class UnifiedWatchNext {
                 Entry item = new Entry(pkg, sourceName(pkg), string(cursor, "title"),
                         string(cursor, "poster_art_uri"), string(cursor, "intent_uri"),
                         0, number(cursor, "last_playback_position_millis"),
-                        number(cursor, "duration_millis"), true);
+                        number(cursor, "duration_millis"), true, "");
                 accept(context, item, results, seen);
             }
         } catch (Exception ignored) {
@@ -158,6 +172,8 @@ final class UnifiedWatchNext {
 
     private static void accept(Context context, Entry entry, List<Entry> list, Set<String> seen) {
         if (entry.title.isEmpty() || entry.intentUri.isEmpty()) return;
+        if (context.getPackageManager().getLeanbackLaunchIntentForPackage(entry.providerPackage) == null)
+            return;
         if (entry.updated > 0) {
             long age = System.currentTimeMillis() - entry.updated;
             if (age > UnifiedCatalogPrefs.continueMaxAge(context) * 86400000L) return;
