@@ -1,5 +1,6 @@
 package com.gathin.tvhome;
 
+import android.animation.ValueAnimator;
 import android.app.AlertDialog;
 import android.content.Context;
 import android.content.res.ColorStateList;
@@ -25,12 +26,17 @@ final class StreamUi {
     static final int DEFAULT_ACCENT = 0xFFE3293F;
     static final int BORDER = 0xFF34343E;
     static final int RATING = 0xFF99E3B6;
+    static final long FOCUS_ANIM_MS = 210;
+    static final long ART_ANIM_MS = 190;
     private static final String ACCENT_KEY = "accent_color";
     private static final int[] FOCUS = {android.R.attr.state_focused};
     private static final int[] SELECTED = {android.R.attr.state_selected};
     private static final int[] DEFAULT = {};
 
     private StreamUi() {}
+
+    /** Honor the system-wide animator duration scale, including animations disabled. */
+    static boolean motionEnabled() { return ValueAnimator.areAnimatorsEnabled(); }
 
     static int accent(Context context) {
         return UnifiedCatalogPrefs.prefs(context).getInt(ACCENT_KEY, DEFAULT_ACCENT);
