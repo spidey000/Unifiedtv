@@ -28,7 +28,7 @@ import java.util.Set;
 final class UnifiedCatalogApi {
     static final class Media {
         final int id;
-        final String type, title, poster, year;
+        final String type, title, poster, year, backdrop;
         final double voteAverage;
         final int voteCount;
         volatile boolean availabilityReady;
@@ -38,7 +38,13 @@ final class UnifiedCatalogApi {
 
         Media(int id, String type, String title, String poster, String year,
               double voteAverage, int voteCount) {
+            this(id, type, title, poster, year, voteAverage, voteCount, "");
+        }
+
+        Media(int id, String type, String title, String poster, String year,
+              double voteAverage, int voteCount, String backdrop) {
             this.id = id;
+            this.backdrop = backdrop;
             this.type = type;
             this.title = title;
             this.poster = poster;
@@ -119,7 +125,7 @@ final class UnifiedCatalogApi {
             double voteAverage = o.optDouble("vote_average", 0.0);
             int voteCount = o.optInt("vote_count", 0);
             if (id > 0) media.add(new Media(id, type, name, poster, year,
-                    voteAverage, voteCount));
+                    voteAverage, voteCount, o.optString("backdrop_path", "")));
         }
         return media;
     }
@@ -208,15 +214,20 @@ final class UnifiedCatalogApi {
         }
     }
 
-    static Bitmap poster(Context c, String path) {
+    static Bitmap poster(Context c, String path) { return artwork(c, path, "w342"); }
+
+    static Bitmap backdrop(Context c, String path) { return artwork(c, path, "w780"); }
+
+    private static Bitmap artwork(Context c, String path, String size) {
         if (path == null || !path.startsWith("/") || path.contains("..")) return null;
+        String key = size + path;
         synchronized (POSTERS) {
-            Bitmap cached = POSTERS.get(path);
+            Bitmap cached = POSTERS.get(key);
             if (cached != null) return cached;
         }
         File dir = new File(c.getCacheDir(), "unifiedtv_posters");
         if (!dir.exists()) dir.mkdirs();
-        File cache = new File(dir, Integer.toHexString(path.hashCode()) + ".jpg");
+        File cache = new File(dir, Integer.toHexString(key.hashCode()) + ".jpg");
         byte[] data = null;
         try {
             if (cache.isFile()) {
@@ -225,7 +236,7 @@ final class UnifiedCatalogApi {
                 }
             } else {
                 HttpURLConnection connection = (HttpURLConnection)
-                        new URL("https://image.tmdb.org/t/p/w342" + path).openConnection();
+                        new URL("https://image.tmdb.org/t/p/" + key).openConnection();
                 connection.setConnectTimeout(7000);
                 connection.setReadTimeout(10000);
                 try {
@@ -236,7 +247,7 @@ final class UnifiedCatalogApi {
             }
             Bitmap poster = BitmapFactory.decodeByteArray(data, 0, data.length);
             if (poster != null) {
-                synchronized (POSTERS) { POSTERS.put(path, poster); }
+                synchronized (POSTERS) { POSTERS.put(key, poster); }
             }
             return poster;
         } catch (Exception ignored) { return null; }
