@@ -3,6 +3,8 @@
     xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Opt-in Android TV Watch Next reading. Requested only when user enters Continue Watching. -->
+    <uses-permission android:name="android.permission.READ_TV_LISTINGS" />
     <uses-feature android:name="android.software.leanback" android:required="false" />
     <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
     <uses-feature android:name="android.hardware.wifi" android:required="false" />
@@ -43,6 +45,11 @@
         <package android:name="es.plus.yomvi" />
         <package android:name="com.filmin.filmin" />
         <package android:name="com.filmin.android" />
+        <!-- Optional continuation sources; not considered licensed TMDB streaming providers. -->
+        <package android:name="com.stremio.one" />
+        <package android:name="com.stremio.two" />
+        <package android:name="com.nuvio.tv" />
+        <package android:name="com.nuvio.app" />
         <!-- The standard settings handlers, so package visibility doesn't hide them and send the pills to a vendor fallback by mistake. -->
         <intent>
             <action android:name="android.settings.SETTINGS" />
