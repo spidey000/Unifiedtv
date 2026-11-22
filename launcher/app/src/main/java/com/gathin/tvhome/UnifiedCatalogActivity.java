@@ -2,6 +2,9 @@ package com.gathin.tvhome;
 
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.content.pm.PackageManager;
+import android.widget.ProgressBar;
+import android.os.Build;
 import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.graphics.Typeface;
@@ -36,6 +39,10 @@ public final class UnifiedCatalogActivity extends Activity {
     private final ExecutorService worker = Executors.newFixedThreadPool(4);
     private LinearLayout shelves;
     private TextView status;
+    private LinearLayout tabBar;
+    private LinearLayout categoryBar;
+    private String tab = "movie";
+    private String category = "featured";
     private boolean created;
     private int generation;
     private String lastSettings;
@@ -73,6 +80,9 @@ public final class UnifiedCatalogActivity extends Activity {
     @Override protected void onCreate(Bundle state) {
         super.onCreate(state);
         UnifiedTvHome.catalogCreated();
+        tab = UnifiedCatalogPrefs.prefs(this).getString(UnifiedCatalogPrefs.LAST_TAB, "movie");
+        if (!"movie".equals(tab) && !"tv".equals(tab) && !"continue".equals(tab)) tab = "movie";
+        if (!UnifiedCatalogPrefs.continueEnabled(this) && "continue".equals(tab)) tab = "movie";
         getWindow().setStatusBarColor(Color.BLACK);
         getWindow().setNavigationBarColor(Color.BLACK);
         buildLayout();
@@ -99,35 +109,91 @@ public final class UnifiedCatalogActivity extends Activity {
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
         root.setBackgroundColor(Color.rgb(10, 12, 18));
-        root.setPadding(dp(28), dp(12), dp(18), dp(10));
+        root.setPadding(dp(28), dp(10), dp(18), dp(10));
         setContentView(root);
 
         LinearLayout bar = new LinearLayout(this);
         bar.setOrientation(LinearLayout.HORIZONTAL);
         bar.setGravity(Gravity.CENTER_VERTICAL);
-        TextView title = label("UnifiedTV", 29, Color.WHITE);
-        title.setTypeface(null, Typeface.BOLD);
-        bar.addView(title, new LinearLayout.LayoutParams(0, dp(70), 1));
+        TextView brand = label("UnifiedTV", 29, Color.WHITE);
+        brand.setTypeface(null, Typeface.BOLD);
+        bar.addView(brand, new LinearLayout.LayoutParams(0, dp(62), 1));
         bar.addView(action("Aplicaciones", v -> UnifiedTvHome.leaveForApps(this)));
         bar.addView(action("Buscar", v -> search()));
         bar.addView(action("Ajustes", v -> startActivity(new Intent(this, UnifiedCatalogSettingsActivity.class))));
         bar.addView(action("Actualizar", v -> load(true)));
         root.addView(bar);
 
-        // Title metadata is TMDB content; watch-provider data is supplied through JustWatch.
+        tabBar = new LinearLayout(this);
+        tabBar.setGravity(Gravity.CENTER_VERTICAL);
+        root.addView(tabBar, new LinearLayout.LayoutParams(-1, dp(58)));
+        categoryBar = new LinearLayout(this);
+        categoryBar.setGravity(Gravity.CENTER_VERTICAL);
+        root.addView(categoryBar, new LinearLayout.LayoutParams(-1, dp(56)));
+
         status = label("", 15, 0xFF9BAFBD);
-        root.addView(status, new LinearLayout.LayoutParams(-1, dp(28)));
+        root.addView(status, new LinearLayout.LayoutParams(-1, dp(30)));
 
         ScrollView scroll = new ScrollView(this);
         scroll.setFillViewport(true);
         shelves = new LinearLayout(this);
         shelves.setOrientation(LinearLayout.VERTICAL);
-        shelves.setPadding(0, dp(10), dp(10), dp(20));
+        shelves.setPadding(0, dp(8), dp(10), dp(24));
         scroll.addView(shelves);
         root.addView(scroll, new LinearLayout.LayoutParams(-1, 0, 1));
-        TextView credit = label("Datos: TMDB / JustWatch · Consulta la disponibilidad final en la app", 12, 0xFF788B9B);
+        TextView credit = label("Datos: TMDB / JustWatch · Seguir viendo: Android TV Watch Next", 12, 0xFF788B9B);
         root.addView(credit, new LinearLayout.LayoutParams(-1, dp(24)));
-        title.requestFocus();
+        renderNavigation();
+    }
+
+    private void switchTab(String chosen) {
+        if (chosen.equals(tab)) return;
+        tab = chosen;
+        UnifiedCatalogPrefs.prefs(this).edit().putString(UnifiedCatalogPrefs.LAST_TAB, tab).apply();
+        lastSettings = fingerprint();
+        load(false);
+    }
+
+    private void renderNavigation() {
+        tabBar.removeAllViews();
+        tabBar.addView(navigationButton("Películas", "movie".equals(tab),
+                v -> switchTab("movie")));
+        tabBar.addView(navigationButton("Series", "tv".equals(tab),
+                v -> switchTab("tv")));
+        if (UnifiedCatalogPrefs.continueEnabled(this))
+            tabBar.addView(navigationButton("Seguir viendo", "continue".equals(tab),
+                    v -> switchTab("continue")));
+
+        categoryBar.removeAllViews();
+        boolean browsing = !"continue".equals(tab);
+        categoryBar.setVisibility(browsing ? View.VISIBLE : View.GONE);
+        if (browsing) {
+            categoryButton("Destacados", "featured");
+            categoryButton("Más vistos", "watched");
+            categoryButton("Novedades", "new");
+            categoryButton("Populares", "popular");
+            categoryButton("Mejor valorados (histórico)", "rated");
+        }
+    }
+
+    private Button navigationButton(String title, boolean selected, View.OnClickListener listener) {
+        Button button = action(title, listener);
+        button.setTextColor(selected ? Color.BLACK : Color.WHITE);
+        button.setBackground(shape(selected ? 0xFFE8F1FA : 0xFF252D3A,
+                selected ? 0xFFE8F1FA : 0xFF3A4859));
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(0, dp(46), 1);
+        params.setMargins(0, 0, dp(12), 0);
+        button.setLayoutParams(params);
+        return button;
+    }
+
+    private void categoryButton(String name, String id) {
+        Button button = navigationButton(name, id.equals(category), v -> {
+            if (id.equals(category)) return;
+            category = id;
+            load(false);
+        });
+        categoryBar.addView(button);
     }
 
     private void load(boolean refresh) {
@@ -137,22 +203,41 @@ public final class UnifiedCatalogActivity extends Activity {
             availabilityPending.clear();
             callbacks.clear();
         }
+        if ("continue".equals(tab) && !UnifiedCatalogPrefs.continueEnabled(this)) tab = "movie";
+        renderNavigation();
+        if ("continue".equals(tab)) {
+            status.setText("Tu lista desde las aplicaciones que comparten Watch Next");
+            addContinueShelf(version, false);
+            return;
+        }
+
+        if (UnifiedCatalogPrefs.continueEnabled(this) && UnifiedCatalogPrefs.continueOnHome(this))
+            addContinueShelf(version, true);
+
         if (UnifiedCatalogPrefs.apiKey(this).isEmpty()) {
-            status.setText("Configuración necesaria");
-            TextView text = label("Configura tu clave gratuita de TMDB en Ajustes para cargar películas, series y disponibilidad por país.", 22, Color.WHITE);
-            text.setPadding(dp(16), dp(40), dp(16), dp(26));
-            shelves.addView(text);
+            status.setText("Configura TMDB para ver películas y series");
+            TextView message = label("Configura tu clave personal de TMDB en Ajustes. Seguir viendo funciona por separado con Android TV.", 21, Color.WHITE);
+            message.setPadding(dp(15), dp(18), dp(15), dp(15));
+            shelves.addView(message);
             shelves.addView(action("Configurar TMDB", v ->
                     startActivity(new Intent(this, UnifiedCatalogSettingsActivity.class))));
             return;
         }
-        status.setText(refresh ? "Actualizando catálogo…" : "Tendencias y disponibilidad en " + UnifiedCatalogPrefs.region(this));
-        addShelf(version, "Tendencias de la semana", "trending", "", refresh);
-        addShelf(version, "Últimas películas en cartelera", "movies", "", refresh);
-        addShelf(version, "Series del momento", "series", "", refresh);
+
+        String[] names = {"Destacados", "Más vistos", "Novedades", "Populares", "Mejor valorados (histórico)"};
+        String[] keys = {"featured", "watched", "new", "popular", "rated"};
+        String heading = "featured";
+        for (int i = 0; i < keys.length; i++) if (keys[i].equals(category)) heading = names[i];
+        String typeName = "tv".equals(tab) ? "Series" : "Películas";
+        String subtitle = "watched".equals(category)
+                ? " · Tendencia semanal como aproximación; no son visualizaciones reales"
+                : "";
+        status.setText(typeName + " · " + heading + subtitle + " · " + UnifiedCatalogPrefs.region(this));
+        addShelf(version, typeName + " · " + heading, tab, category, "", refresh);
     }
 
-    private void addShelf(int version, String heading, String kind, String query, boolean refresh) {
+    private void addShelf(int version, String heading, String type, String category,
+                          String query, boolean refresh) {
         TextView headingView = label(heading, 24, Color.WHITE);
         headingView.setTypeface(null, Typeface.BOLD);
         headingView.setPadding(dp(2), dp(20), 0, dp(12));
@@ -168,7 +253,8 @@ public final class UnifiedCatalogActivity extends Activity {
         contents.addView(label("Cargando…", 17, 0xFF99A4B1));
         worker.execute(() -> {
             try {
-                List<UnifiedCatalogApi.Media> result = UnifiedCatalogApi.list(this, kind, query, refresh);
+                List<UnifiedCatalogApi.Media> result =
+                        UnifiedCatalogApi.list(this, type, category, query, refresh);
                 runOnUiThread(() -> {
                     if (isFinishing() || version != generation) return;
                     contents.removeAllViews();
@@ -177,16 +263,14 @@ public final class UnifiedCatalogActivity extends Activity {
                         return;
                     }
                     int index = 0;
-                    for (UnifiedCatalogApi.Media media : result) {
+                    for (UnifiedCatalogApi.Media media : result)
                         addTile(contents, media, index++ < 12);
-                    }
-                    status.setText("Catálogo disponible · " + UnifiedCatalogPrefs.region(this));
                 });
             } catch (Exception e) {
                 runOnUiThread(() -> {
                     if (isFinishing() || version != generation) return;
                     contents.removeAllViews();
-                    contents.addView(label("Error: " + e.getMessage() + " · Comprueba la conexión o la clave", 17, 0xFFFFAE87));
+                    contents.addView(label("Error: " + e.getMessage(), 17, 0xFFFFAE87));
                 });
             }
         });
