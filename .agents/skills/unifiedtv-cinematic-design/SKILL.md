@@ -49,7 +49,7 @@ Tipografía: usa las fuentes ya incluidas en el proyecto; máximo dos pesos visi
 
 **Seguir viendo:** en Inicio es horizontal con hasta seis títulos visibles; «Ver todo» es un grid de seis columnas con scroll vertical y todas las entradas disponibles. Solo títulos que superen el umbral configurable (por defecto, **5 minutos o 5 %** reproducido, según la regla implementada), con progreso distinguible y plataforma asociada cuando el dato sea accesible. No inventes progreso ni atribuyas contenido a otra plataforma.
 
-**Ver en:** Nuvio, Stremio y otras apps instaladas forman parte de las opciones de reproducción. Las opciones que no admiten deep link directo deben explicarlo sin prometer reproducción automática.
+**Ver en:** al pulsar una carátula del catálogo se prioriza automáticamente la primera plataforma instalada, seleccionada y con oferta válida en TMDB que disponga de un enlace a la ficha: primero `intent_uri` del proveedor Android TV con coincidencia verificada; si no, enlace a partir de las propiedades de Wikidata enlazadas por el ID TMDB. El logotipo superpuesto muestra esa plataforma elegida solo con enlace verificable. Nuvio, Stremio y otras apps instaladas siguen en el selector. Si falta un enlace directo, explica la limitación sin prometer que la app abrirá la ficha y no presenta abrir su portada como equivalente.
 
 **Ajustes:** panel lateral estable + columna principal con controles agrupados. Usa etiquetas concretas, estados elegidos visualmente distintos y explicación corta. La clave TMDB ha de poderse introducir con el mando como alternativa de accesibilidad.
 
