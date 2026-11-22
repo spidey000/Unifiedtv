@@ -19,7 +19,7 @@ final class UnifiedTvHome {
         launchPending = true;
         try {
             launcher.startActivity(new Intent(launcher, UnifiedCatalogActivity.class)
-                    .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP));
+                    .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_CLEAR_TOP));
             return true;
         } catch (RuntimeException e) {
             launchPending = false;
