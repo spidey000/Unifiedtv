@@ -328,7 +328,7 @@ final class UnifiedCatalogApi {
                     if (!name.isEmpty() && !directors.contains(name)) directors.add(name);
                 }
             }
-            if (!directors.isEmpty()) lines.add("Dirección: " + android.text.TextUtils.join(", ", directors));
+            if (!directors.isEmpty()) lines.add("Dirección: " + String.join(", ", directors));
             String cast = names(credits.optJSONArray("cast"), 9);
             if (!cast.isEmpty()) lines.add("Reparto: " + cast);
         }
@@ -338,7 +338,7 @@ final class UnifiedCatalogApi {
         if (!countries.isEmpty()) lines.add("Países: " + countries);
         int votes = info.optInt("vote_count", 0);
         if (votes > 0) lines.add("Votos registrados: " + votes);
-        return android.text.TextUtils.join("\n", lines);
+        return String.join("\n", lines);
     }
 
     private static String names(JSONArray items, int max) {
@@ -349,7 +349,7 @@ final class UnifiedCatalogApi {
             String name = item == null ? "" : item.optString("name", "");
             if (!name.isEmpty() && !result.contains(name)) result.add(name);
         }
-        return android.text.TextUtils.join(", ", result);
+        return String.join(", ", result);
     }
 
     /** The TMDB external IDs endpoint supplies Wikidata QIDs, not service content IDs. */
