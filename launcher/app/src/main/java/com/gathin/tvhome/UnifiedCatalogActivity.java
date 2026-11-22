@@ -276,6 +276,119 @@ public final class UnifiedCatalogActivity extends Activity {
         });
     }
 
+    private void addContinueShelf(int version, boolean compact) {
+        if (!UnifiedCatalogPrefs.continueEnabled(this)) return;
+        TextView heading = label("Seguir viendo · Todas tus plataformas", 24, Color.WHITE);
+        heading.setTypeface(null, Typeface.BOLD);
+        heading.setPadding(dp(2), dp(22), 0, dp(10));
+        shelves.addView(heading);
+
+        if (!UnifiedWatchNext.hasPermission(this)) {
+            TextView info = label("Para mostrar el progreso, permite leer las entradas Watch Next que las apps comparten con Android TV.", 16, 0xFFB8C8D8);
+            info.setPadding(dp(4), dp(6), 0, dp(6));
+            shelves.addView(info);
+            shelves.addView(action("Permitir acceso a Seguir viendo", v -> {
+                if (Build.VERSION.SDK_INT >= 26)
+                    requestPermissions(new String[]{UnifiedWatchNext.PERMISSION},
+                            UnifiedWatchNext.PERMISSION_REQUEST);
+            }));
+            return;
+        }
+
+        HorizontalScrollView scroll = new HorizontalScrollView(this);
+        scroll.setHorizontalScrollBarEnabled(false);
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        scroll.addView(row);
+        shelves.addView(scroll);
+        row.addView(label("Leyendo Watch Next…", 16, 0xFF9BAFBD));
+
+        worker.execute(() -> {
+            List<UnifiedWatchNext.Entry> list = UnifiedWatchNext.load(this);
+            runOnUiThread(() -> {
+                if (isFinishing() || version != generation) return;
+                row.removeAllViews();
+                if (list.isEmpty()) {
+                    LinearLayout empty = new LinearLayout(this);
+                    empty.setOrientation(LinearLayout.VERTICAL);
+                    empty.addView(label("No hay progreso compartido por tus apps. Esto no significa que no hayas visto nada.", 18, 0xFFB3C2D2));
+                    empty.addView(action("Revisar fuentes en Ajustes", v ->
+                            startActivity(new Intent(this, UnifiedCatalogSettingsActivity.class))));
+                    row.addView(empty);
+                    return;
+                }
+                int count = 0;
+                for (UnifiedWatchNext.Entry item : list) {
+                    addContinueTile(row, item);
+                    if (++count >= (compact ? 10 : 24)) break;
+                }
+            });
+        });
+    }
+
+    private void addContinueTile(LinearLayout row, UnifiedWatchNext.Entry item) {
+        LinearLayout tile = new LinearLayout(this);
+        tile.setOrientation(LinearLayout.VERTICAL);
+        tile.setPadding(dp(8), dp(8), dp(8), dp(8));
+        tile.setBackground(shape(0xFF181C24, 0xFF181C24));
+        tile.setFocusable(true);
+        tile.setClickable(true);
+        tile.setContentDescription(item.title + " · " + item.source
+                + (item.progress() >= 0 ? " · " + item.progress() + "%" : ""));
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(dp(184), dp(268));
+        params.setMargins(0, 0, dp(12), dp(8));
+        row.addView(tile, params);
+
+        ImageView image = new ImageView(this);
+        image.setScaleType(ImageView.ScaleType.CENTER_CROP);
+        image.setBackgroundColor(0xFF293342);
+        tile.addView(image, new LinearLayout.LayoutParams(-1, dp(172)));
+
+        TextView title = label(item.title, 15, Color.WHITE);
+        title.setTypeface(null, Typeface.BOLD);
+        title.setMaxLines(2);
+        title.setEllipsize(TextUtils.TruncateAt.END);
+        tile.addView(title);
+
+        String percentage = item.progress() >= 0 ? " · " + item.progress() + "%" : "";
+        TextView source = label(item.source + percentage, 13, 0xFF9DE4B8);
+        source.setSingleLine(true);
+        source.setEllipsize(TextUtils.TruncateAt.END);
+        tile.addView(source);
+
+        if (item.progress() >= 0) {
+            ProgressBar progress = new ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal);
+            progress.setMax(100);
+            progress.setProgress(item.progress());
+            LinearLayout.LayoutParams progressParams = new LinearLayout.LayoutParams(-1, dp(5));
+            progressParams.topMargin = dp(6);
+            tile.addView(progress, progressParams);
+        }
+
+        tile.setOnFocusChangeListener((view, focused) -> {
+            tile.setBackground(shape(focused ? 0xFF263446 : 0xFF181C24,
+                    focused ? Color.WHITE : 0xFF181C24));
+            tile.setScaleX(focused ? 1.04f : 1f);
+            tile.setScaleY(focused ? 1.04f : 1f);
+        });
+        tile.setOnClickListener(v -> UnifiedWatchNext.open(this, item));
+        worker.execute(() -> {
+            Bitmap bitmap = UnifiedWatchNext.artwork(this, item.poster);
+            if (bitmap != null)
+                runOnUiThread(() -> { if (!isFinishing()) image.setImageBitmap(bitmap); });
+        });
+    }
+
+    @Override public void onRequestPermissionsResult(int requestCode,
+            String[] permissions, int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == UnifiedWatchNext.PERMISSION_REQUEST) {
+            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED)
+                load(false);
+            else status.setText("Sin permiso para leer Watch Next: puedes activarlo en los ajustes de Android TV");
+        }
+    }
+
     private void addTile(LinearLayout row, UnifiedCatalogApi.Media media, boolean prefetch) {
         LinearLayout tile = new LinearLayout(this);
         tile.setOrientation(LinearLayout.VERTICAL);
@@ -399,7 +512,12 @@ public final class UnifiedCatalogActivity extends Activity {
                     int version = ++generation;
                     shelves.removeAllViews();
                     status.setText("Resultados para «" + query + "»");
-                    addShelf(version, "Resultados de búsqueda", "search", query, false);
+                    if (UnifiedCatalogPrefs.apiKey(this).isEmpty()) {
+                        shelves.addView(label("Configura la clave TMDB para buscar títulos.", 18, Color.WHITE));
+                        return;
+                    }
+                    addShelf(version, "Películas · " + query, "movie", "search", query, false);
+                    addShelf(version, "Series · " + query, "tv", "search", query, false);
                 })
                 .setNegativeButton("Cancelar", null).show();
     }
