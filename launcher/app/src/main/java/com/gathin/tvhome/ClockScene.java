@@ -15,6 +15,7 @@ import android.os.Looper;
 import android.util.DisplayMetrics;
 import android.view.View;
 import android.widget.ImageView;
+import android.widget.TextClock;
 
 import java.io.File;
 import java.time.LocalDateTime;
@@ -86,8 +87,10 @@ final class ClockScene {
         ambient.setBackground(glow);
         ambient.addOnLayoutChangeListener((v, l, t, r, b, ol, ot, or, ob) ->
                 glow.setGradientRadius((r - l) * 0.55f));
+        TextClock date = root.findViewById(R.id.dreamDate);
+        date.setTextColor(StreamUi.readableAccent(root.getContext()));
         colorIndex = random.nextInt(PALETTE.length);
-        setGlow(PALETTE[colorIndex]);
+        setGlow(StreamUi.accent(root.getContext()));
     }
 
     void start() {
