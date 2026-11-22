@@ -41,6 +41,24 @@ public class UnifiedCatalogLayoutTest {
         assertEquals(5, UnifiedCatalogLayout.column(59));
     }
 
+    @Test public void sixSixteenByNineAppBannersFitWithoutHorizontalScroll() {
+        for (int screen : new int[]{320, 720, 960, 1280, 1920}) {
+            int usable = screen - 52 - 21 - 12;
+            int width = UnifiedCatalogLayout.appBannerWidthDp(screen, 52, 21, 12);
+            int height = UnifiedCatalogLayout.appBannerHeightDp(width);
+            int cellWidth = width + 2 * UnifiedCatalogLayout.APP_FOCUS_INSET_X_DP
+                    + UnifiedCatalogLayout.APP_CELL_GAP_DP;
+            assertTrue(6 * cellWidth <= usable);
+            assertTrue(7 * cellWidth > usable);
+            assertEquals(Math.round(width * 9f / 16f), height);
+            assertTrue(UnifiedCatalogLayout.appCardHeightDp(width) > height);
+            assertEquals(UnifiedCatalogLayout.appCardHeightDp(width)
+                    + UnifiedCatalogLayout.APP_FOCUS_INSET_TOP_DP
+                    + UnifiedCatalogLayout.APP_FOCUS_INSET_BOTTOM_DP,
+                    UnifiedCatalogLayout.appRowStrideDp(width));
+        }
+    }
+
     @Test public void geometryRemainsPositiveOnNarrowScreens() {
         int poster = UnifiedCatalogLayout.posterWidthDp(320, 52, 21, 12, 7);
         assertTrue(poster > 0);
