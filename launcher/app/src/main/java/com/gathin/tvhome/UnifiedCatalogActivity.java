@@ -11,6 +11,9 @@ import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
 import android.text.TextUtils;
+import android.text.SpannableString;
+import android.text.Spanned;
+import android.text.style.ForegroundColorSpan;
 import android.view.Gravity;
 import android.view.View;
 import android.widget.Button;
@@ -405,7 +408,8 @@ public final class UnifiedCatalogActivity extends Activity {
         tile.setBackground(shape(0xFF181C24, 0xFF181C24));
         tile.setFocusable(true);
         tile.setClickable(true);
-        tile.setContentDescription(media.title + ", " + (media.type.equals("tv") ? "serie" : "película"));
+        tile.setContentDescription(media.title + ", " + (media.type.equals("tv") ? "serie" : "película")
+                + (media.hasRating() ? ", valoración TMDB " + media.ratingText() + " sobre 10" : ""));
         LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(dp(154), dp(270));
         params.setMargins(0, 0, dp(13), dp(8));
         row.addView(tile, params);
@@ -415,12 +419,34 @@ public final class UnifiedCatalogActivity extends Activity {
         poster.setBackgroundColor(0xFF293342);
         tile.addView(poster, new LinearLayout.LayoutParams(-1, dp(190)));
 
+        // Title and a tiny TMDB rating share one row: no badges, circles or extra
+        // vertical space. The title retains two lines and truncates gracefully.
+        LinearLayout titleRow = new LinearLayout(this);
+        titleRow.setOrientation(LinearLayout.HORIZONTAL);
+        titleRow.setGravity(Gravity.TOP);
+        tile.addView(titleRow, new LinearLayout.LayoutParams(-1, dp(48)));
+
         TextView title = label(media.title, 15, Color.WHITE);
         title.setTypeface(null, Typeface.BOLD);
         title.setMaxLines(2);
         title.setEllipsize(TextUtils.TruncateAt.END);
         title.setPadding(0, dp(6), 0, 0);
-        tile.addView(title);
+        titleRow.addView(title, new LinearLayout.LayoutParams(0, -2, 1));
+
+        if (media.hasRating()) {
+            // Gold only for the star; the score remains neutral white.
+            String score = "★ " + media.ratingText();
+            SpannableString styled = new SpannableString(score);
+            styled.setSpan(new ForegroundColorSpan(0xFFE9C46A),
+                    0, 1, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+            TextView rating = label("", 13, 0xFFE7EDF3);
+            rating.setTypeface(null, Typeface.BOLD);
+            rating.setText(styled);
+            rating.setGravity(Gravity.RIGHT | Gravity.TOP);
+            rating.setPadding(dp(5), dp(7), 0, 0);
+            rating.setContentDescription("TMDB: " + media.ratingText() + " sobre 10");
+            titleRow.addView(rating, new LinearLayout.LayoutParams(-2, dp(43)));
+        }
 
         TextView badge = label("Comprobando…", 12, 0xFF95A7B7);
         badge.setSingleLine(true);
