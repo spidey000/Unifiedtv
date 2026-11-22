@@ -25,6 +25,7 @@ import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.EditText;
 import android.widget.FrameLayout;
+import android.widget.GridLayout;
 import android.widget.HorizontalScrollView;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
@@ -65,6 +66,7 @@ public final class UnifiedCatalogActivity extends Activity {
     private String settingsSnapshot;
     private String query = "";
     private boolean returning;
+    private boolean focusWatchGrid;
 
     @Override protected void onCreate(Bundle state) {
         super.onCreate(state);
@@ -219,6 +221,7 @@ public final class UnifiedCatalogActivity extends Activity {
 
     private void show(Page destination, boolean refresh) {
         page = destination;
+        if (page != Page.WATCH) focusWatchGrid = false;
         int stamp = ++revision;
         for (Map.Entry<Page, TextView> entry : routes.entrySet()) {
             entry.getValue().setSelected(entry.getKey() == page);
@@ -234,7 +237,7 @@ public final class UnifiedCatalogActivity extends Activity {
         viewport.addView(scroll, new FrameLayout.LayoutParams(-1, -1));
         switch (page) {
             case HOME: home(stamp, refresh); break;
-            case WATCH: title("Mi lista", "Progreso compartido con Android TV"); watch(stamp); break;
+            case WATCH: title("Seguir viendo", "Todos los títulos compartidos con Android TV"); watch(stamp); break;
             case LIVE:
                 title("TV en directo", "Sintonizador y entradas de la TV");
                 link("Ver entradas disponibles", R.drawable.ic_input, v -> UnifiedTvHome.openInputs(this));
@@ -538,6 +541,7 @@ public final class UnifiedCatalogActivity extends Activity {
         header.addView(text(label, 16, StreamUi.WHITE, true), new LinearLayout.LayoutParams(0, -2, 1));
         if (page == Page.HOME && label.equals("Seguir viendo")) {
             TextView more = StreamUi.control(this, "Ver todo", R.drawable.uic_arrow_right, false, v -> {
+                focusWatchGrid = true;
                 show(Page.WATCH, false);
                 routes.get(Page.WATCH).requestFocus();
             });
@@ -618,16 +622,17 @@ public final class UnifiedCatalogActivity extends Activity {
         });
     }
 
-    private int tileHeight() {
-        int screenHeight = getResources().getConfiguration().screenHeightDp;
-        return Math.max(94, Math.min(142, screenHeight * 19 / 100));
-    }
-
     private int coverWidth() {
-        return tileHeight() * 2 / 3;
+        return UnifiedCatalogLayout.posterWidthDp(
+                getResources().getConfiguration().screenWidthDp,
+                RAIL_COLLAPSED, CONTENT_START, CONTENT_END, CARD_GAP);
     }
 
-    private FrameLayout mediaTile(LinearLayout row, int index, Runnable click) {
+    private int tileHeight() {
+        return UnifiedCatalogLayout.posterHeightDp(coverWidth());
+    }
+
+    private FrameLayout mediaCard(Runnable click) {
         FrameLayout card = new FrameLayout(this);
         card.setId(View.generateViewId());
         card.setFocusable(true);
@@ -636,10 +641,40 @@ public final class UnifiedCatalogActivity extends Activity {
         card.setClipToOutline(true);
         card.setForeground(StreamUi.state(this, Color.TRANSPARENT, Color.TRANSPARENT,
                 Color.TRANSPARENT, StreamUi.WHITE));
+        return card;
+    }
+
+    private FrameLayout mediaTile(LinearLayout row, int index, Runnable click) {
+        FrameLayout card = mediaCard(click);
         if (index == 0) leftToRail(card);
         LinearLayout.LayoutParams tile = new LinearLayout.LayoutParams(dp(coverWidth()), dp(tileHeight()));
         tile.setMarginEnd(dp(CARD_GAP));
         row.addView(card, tile);
+        return card;
+    }
+
+    /** Six fixed columns: only the parent ScrollView scrolls, never a horizontal carousel. */
+    private GridLayout watchGrid() {
+        GridLayout grid = new GridLayout(this);
+        grid.setColumnCount(UnifiedCatalogLayout.COLUMNS);
+        grid.setOrientation(GridLayout.HORIZONTAL);
+        grid.setPadding(dp(CONTENT_START), dp(4), dp(CONTENT_END), dp(12));
+        grid.setClipChildren(false);
+        pageBody.addView(grid, new LinearLayout.LayoutParams(-1, -2));
+        return grid;
+    }
+
+    private FrameLayout gridTile(GridLayout grid, int index, Runnable click) {
+        FrameLayout card = mediaCard(click);
+        int column = UnifiedCatalogLayout.column(index);
+        GridLayout.LayoutParams tile = new GridLayout.LayoutParams(
+                GridLayout.spec(UnifiedCatalogLayout.row(index)), GridLayout.spec(column));
+        tile.width = dp(coverWidth());
+        tile.height = dp(tileHeight());
+        tile.setMargins(0, 0, dp(column == UnifiedCatalogLayout.COLUMNS - 1 ? 0 : CARD_GAP),
+                dp(UnifiedCatalogLayout.GRID_ROW_GAP_DP));
+        grid.addView(card, tile);
+        if (column == 0) leftToRail(card);
         return card;
     }
 
@@ -790,6 +825,54 @@ public final class UnifiedCatalogActivity extends Activity {
         });
     }
 
+    /** Fetch only artwork in and near the viewport, including when scrolling by D-pad. */
+    private void loadGridOnScroll(GridLayout grid, List<Runnable> loads) {
+        Runnable preload = () -> {
+            if (grid.getParent() == null) return;
+            int stride = dp(tileHeight() + UnifiedCatalogLayout.GRID_ROW_GAP_DP);
+            int top = scroll.getScrollY() - grid.getTop();
+            int firstRow = Math.max(0, top / stride - 1);
+            int lastRow = Math.max(firstRow,
+                    (top + scroll.getHeight()) / stride + 1);
+            int end = Math.min(loads.size(), (lastRow + 1) * UnifiedCatalogLayout.COLUMNS);
+            for (int i = firstRow * UnifiedCatalogLayout.COLUMNS; i < end; i++) loads.get(i).run();
+        };
+        scroll.setOnScrollChangeListener((view, x, y, oldX, oldY) -> preload.run());
+        grid.post(preload);
+    }
+
+    private void connectGridFocus(List<FrameLayout> cards, List<Runnable> loads) {
+        for (int i = 0; i < cards.size(); i++) {
+            FrameLayout card = cards.get(i);
+            int column = UnifiedCatalogLayout.column(i);
+            if (column > 0) card.setNextFocusLeftId(cards.get(i - 1).getId());
+            if (column < UnifiedCatalogLayout.COLUMNS - 1 && i + 1 < cards.size())
+                card.setNextFocusRightId(cards.get(i + 1).getId());
+            if (i >= UnifiedCatalogLayout.COLUMNS)
+                card.setNextFocusUpId(cards.get(i - UnifiedCatalogLayout.COLUMNS).getId());
+            if (i + UnifiedCatalogLayout.COLUMNS < cards.size())
+                card.setNextFocusDownId(cards.get(i + UnifiedCatalogLayout.COLUMNS).getId());
+            final int index = i;
+            card.setOnFocusChangeListener((view, focused) -> {
+                view.animate().cancel();
+                if (StreamUi.motionEnabled()) {
+                    view.animate().scaleX(focused ? 1.015f : 1f).scaleY(focused ? 1.015f : 1f)
+                            .translationZ(focused ? dp(3) : 0)
+                            .setDuration(StreamUi.FOCUS_ANIM_MS).start();
+                } else {
+                    view.setScaleX(1f);
+                    view.setScaleY(1f);
+                    view.setTranslationZ(focused ? dp(3) : 0);
+                }
+                if (focused) {
+                    loads.get(index).run();
+                    int end = Math.min(loads.size(), index + UnifiedCatalogLayout.COLUMNS + 1);
+                    for (int next = index + 1; next < end; next++) loads.get(next).run();
+                }
+            });
+        }
+    }
+
     private TextView singleLine(String value, int size, int color, boolean bold) {
         TextView text = text(value, size, color, bold);
         text.setSingleLine(true);
@@ -840,29 +923,48 @@ public final class UnifiedCatalogActivity extends Activity {
             link("Activar Seguir viendo en Ajustes", v -> startActivity(new Intent(this, UnifiedCatalogSettingsActivity.class)));
             return;
         }
-        LinearLayout line = row("Seguir viendo");
-        line.setMinimumHeight(dp(tileHeight() + 9));
+        boolean fullGrid = page == Page.WATCH;
+        LinearLayout line = fullGrid ? null : row("Seguir viendo");
+        GridLayout grid = fullGrid ? watchGrid() : null;
+        if (line != null) line.setMinimumHeight(dp(tileHeight() + 9));
         if (!UnifiedWatchNext.hasPermission(this)) {
             TextView allow = StreamUi.control(this, "Permitir acceso a Watch Next", true,
                     v -> requestPermissions(new String[]{UnifiedWatchNext.PERMISSION}, UnifiedWatchNext.PERMISSION_REQUEST));
             leftToRail(allow);
-            line.addView(allow);
+            if (fullGrid) {
+                pageBody.addView(allow);
+                if (focusWatchGrid) allow.requestFocus();
+            } else {
+                line.addView(allow);
+            }
             return;
         }
-        line.addView(text("Cargando…", 15, StreamUi.DIM, false));
+        TextView status = text("Cargando…", 15, StreamUi.DIM, false);
+        if (fullGrid) pageBody.addView(status);
+        else line.addView(status);
         data.execute(() -> {
             if (revision != stamp) return;
             List<UnifiedWatchNext.Entry> items = UnifiedWatchNext.load(this);
             runOnUiThread(() -> {
                 if (!live(stamp)) return;
-                line.removeAllViews();
-                if (items.isEmpty()) line.addView(text("Ningún título disponible cumple los ajustes de Seguir viendo.", 15, StreamUi.DIM, false));
+                if (fullGrid) pageBody.removeView(status);
+                else line.removeAllViews();
+                if (items.isEmpty()) {
+                    if (fullGrid) note(pageBody, "Ningún título disponible cumple los ajustes de Seguir viendo.");
+                    else line.addView(text("Ningún título disponible cumple los ajustes de Seguir viendo.", 15, StreamUi.DIM, false));
+                    return;
+                }
                 List<Runnable> loads = new ArrayList<>();
-                loadOnScroll(line, loads, coverWidth() + CARD_GAP);
-                for (int i = 0; i < Math.min(24, items.size()); i++) {
+                List<FrameLayout> cards = new ArrayList<>();
+                int count = fullGrid ? items.size() : Math.min(24, items.size());
+                if (!fullGrid) loadOnScroll(line, loads, coverWidth() + CARD_GAP);
+                for (int i = 0; i < count; i++) {
                     UnifiedWatchNext.Entry item = items.get(i);
-                    FrameLayout card = mediaTile(line, i, () -> UnifiedWatchNext.open(this, item));
-                    ImageView art = tileArt(card);
+                    FrameLayout card = fullGrid
+                            ? gridTile(grid, i, () -> UnifiedWatchNext.open(this, item))
+                            : mediaTile(line, i, () -> UnifiedWatchNext.open(this, item));
+                    cards.add(card);
+                    ImageView artwork = tileArt(card);
                     LinearLayout copy = caption(card);
                     TextView title = singleLine(item.title, 9, StreamUi.WHITE, true);
                     copy.addView(title);
@@ -890,8 +992,16 @@ public final class UnifiedCatalogActivity extends Activity {
                     } else if (!item.episode.isEmpty()) {
                         copy.addView(singleLine(item.episode, 9, StreamUi.DIM, false));
                     }
-                    loads.add(once(() -> image(stamp, art, () -> UnifiedWatchNext.artwork(this, item.poster))));
-                    bindTileFocus(card, loads, i, null, null, title, episode);
+                    loads.add(once(() -> image(stamp, artwork, () -> UnifiedWatchNext.artwork(this, item.poster))));
+                    if (!fullGrid) bindTileFocus(card, loads, i, null, null, title, episode);
+                }
+                if (fullGrid) {
+                    connectGridFocus(cards, loads);
+                    loadGridOnScroll(grid, loads);
+                    if (focusWatchGrid && !cards.isEmpty()) {
+                        focusWatchGrid = false;
+                        cards.get(0).requestFocus();
+                    }
                 }
             });
         });
