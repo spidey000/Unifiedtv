@@ -351,7 +351,7 @@ public final class UnifiedCatalogActivity extends Activity {
                 new int[]{StreamUi.BLACK, Color.TRANSPARENT}));
         panel.addView(fade, new FrameLayout.LayoutParams(-1, dp(52), Gravity.BOTTOM));
         LinearLayout copy = StreamUi.column(this);
-        copy.setPadding(dp(CONTENT_START + 15), dp(43), dp(24), dp(10));
+        copy.setPadding(dp(CONTENT_START + 15), dp(36), dp(24), dp(10));
         copy.setGravity(Gravity.BOTTOM);
         panel.addView(copy, new FrameLayout.LayoutParams(-1, -1));
         TextView kicker = text(badge, 9, StreamUi.readableAccent(this), true);
