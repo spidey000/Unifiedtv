@@ -1289,6 +1289,7 @@ public final class UnifiedCatalogActivity extends Activity {
         revision++;
         data.shutdownNow();
         art.shutdownNow();
+        providerArt.shutdownNow();
         super.onDestroy();
     }
 }
