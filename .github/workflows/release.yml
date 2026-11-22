@@ -1,15 +1,17 @@
 name: Publish UnifiedTV releases
 
-# Every merge (or direct push) to main produces the next version, but only
-# after Android tests, lint and APK compilation succeed. A signed APK is
-# attached only when a persistent signing key has been configured.
 on:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      publish:
+        description: Publish to GitHub instead of retaining a signed validation artifact only
+        type: boolean
+        default: false
 
 concurrency:
-  group: unifiedtv-release
+  group: unifiedtv-release-main
   cancel-in-progress: false
 
 permissions:
@@ -17,16 +19,21 @@ permissions:
 
 jobs:
   build:
-    name: Validate and build Android TV
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     outputs:
-      signed: ${{ steps.signing.outputs.signed }}
+      tag: ${{ steps.plan.outputs.tag }}
+      base: ${{ steps.plan.outputs.base }}
+      already_released: ${{ steps.plan.outputs.already_released }}
+      has_previous_apk: ${{ steps.plan.outputs.has_previous_apk }}
     env:
-      UNIFIEDTV_KEYSTORE_PASSWORD: ${{ secrets.UNIFIEDTV_KEYSTORE_PASSWORD }}
-      UNIFIEDTV_KEY_ALIAS: ${{ secrets.UNIFIEDTV_KEY_ALIAS }}
-      UNIFIEDTV_KEY_PASSWORD: ${{ secrets.UNIFIEDTV_KEY_PASSWORD }}
+      GH_REPO: ${{ github.repository }}
+      SIGNER_SHA256: ${{ vars.UNIFIEDTV_SIGNER_SHA256 }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+          persist-credentials: false
       - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4.9.1
         with:
           distribution: temurin
@@ -35,91 +42,128 @@ jobs:
         with:
           packages: platforms;android-34 build-tools;34.0.0
       - uses: gradle/actions/setup-gradle@748248ddd2a24f49513d8f472f81c3a07d4d50e1 # v4.4.4
-      - name: Verify UnifiedTV integration
-        run: python3 -m unittest discover -s tests -p 'test_unifiedtv.py' -v
-      - name: Load a persistent signing key when configured
-        id: signing
-        shell: bash
+      - name: Plan versions from published releases
+        id: plan
         env:
-          KEYSTORE_BASE64: ${{ secrets.UNIFIEDTV_KEYSTORE_BASE64 }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          if [[ -n "$KEYSTORE_BASE64" && -n "$UNIFIEDTV_KEYSTORE_PASSWORD" && -n "$UNIFIEDTV_KEY_ALIAS" && -n "$UNIFIEDTV_KEY_PASSWORD" ]]; then
-            printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/unifiedtv-release.jks"
-            chmod 600 "$RUNNER_TEMP/unifiedtv-release.jks"
-            echo "UNIFIEDTV_KEYSTORE_FILE=$RUNNER_TEMP/unifiedtv-release.jks" >> "$GITHUB_ENV"
-            echo "signed=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "signed=false" >> "$GITHUB_OUTPUT"
-            echo "::notice::No persistent release signing key configured: source-only release if build passes."
-          fi
-      - name: Build, test and lint
+          tools="$ANDROID_HOME/build-tools/34.0.0"
+          python3 tools/unifiedtv_release.py --aapt "$tools/aapt" --apksigner "$tools/apksigner" \
+            --fingerprint "$SIGNER_SHA256" plan
+      - name: Verify UnifiedTV integration and release policy
+        if: steps.plan.outputs.already_released == 'false'
+        run: python3 -m unittest discover -s tests -p 'test_unifiedtv*.py' -v
+      - name: Compile, test and lint the official package without signing credentials
+        if: steps.plan.outputs.already_released == 'false'
         working-directory: launcher
-        shell: bash
+        env:
+          TAG: ${{ steps.plan.outputs.tag }}
+          VERSION_CODE: ${{ steps.plan.outputs.code }}
         run: |
           set -euo pipefail
-          code=$((10000 + GITHUB_RUN_NUMBER))
-          chmod +x gradlew
-          ./gradlew --no-daemon \
+          bash gradlew --no-daemon \
             -PlauncherApplicationId=io.github.spidey000.unifiedtv \
-            -PunifiedReleaseVersionCode="$code" \
-            -PunifiedReleaseVersionName="0.1.${GITHUB_RUN_NUMBER}" \
+            -PunifiedReleaseVersionCode="$VERSION_CODE" \
+            -PunifiedReleaseVersionName="${TAG#v}" \
+            -PunifiedUnsignedRelease=true \
             testReleaseUnitTest lintRelease assembleRelease
-      - name: Verify release signature and stage APK
-        if: steps.signing.outputs.signed == 'true'
-        shell: bash
+      - name: Sign with the permanent key
+        if: steps.plan.outputs.already_released == 'false'
+        env:
+          TAG: ${{ steps.plan.outputs.tag }}
+          KEYSTORE_BASE64: ${{ secrets.UNIFIEDTV_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.UNIFIEDTV_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.UNIFIEDTV_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.UNIFIEDTV_KEY_PASSWORD }}
         run: |
           set -euo pipefail
-          apk=launcher/app/build/outputs/apk/release/app-release.apk
-          "$ANDROID_HOME/build-tools/34.0.0/apksigner" verify --verbose "$apk"
+          if [[ -z "$KEYSTORE_BASE64" || -z "$KEYSTORE_PASSWORD" || -z "$KEY_ALIAS" || -z "$KEY_PASSWORD" || -z "$SIGNER_SHA256" ]]; then
+            echo '::error::Configure the four signing secrets and UNIFIEDTV_SIGNER_SHA256; nothing will be published.'
+            exit 1
+          fi
+          umask 077
+          signing_dir=$(mktemp -d "$RUNNER_TEMP/unifiedtv-signing.XXXXXX")
+          trap 'rm -rf -- "$signing_dir"' EXIT
+          printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$signing_dir/release.jks"
+          unset KEYSTORE_BASE64
+          tools="$ANDROID_HOME/build-tools/34.0.0"
           mkdir -p dist
-          cp "$apk" "dist/UnifiedTV-v0.1.${GITHUB_RUN_NUMBER}.apk"
+          "$tools/zipalign" -f 4 launcher/app/build/outputs/apk/release/app-release-unsigned.apk "$signing_dir/aligned.apk"
+          "$tools/apksigner" sign --ks "$signing_dir/release.jks" --ks-key-alias "$KEY_ALIAS" \
+            --ks-pass env:KEYSTORE_PASSWORD --key-pass env:KEY_PASSWORD \
+            --out "dist/UnifiedTV-$TAG.apk" "$signing_dir/aligned.apk"
+      - name: Verify the signed APK and generate SHA256SUMS
+        if: steps.plan.outputs.already_released == 'false'
+        env:
+          TAG: ${{ steps.plan.outputs.tag }}
+          VERSION_CODE: ${{ steps.plan.outputs.code }}
+        run: |
+          set -euo pipefail
+          tools="$ANDROID_HOME/build-tools/34.0.0"
+          python3 tools/unifiedtv_release.py --aapt "$tools/aapt" --apksigner "$tools/apksigner" \
+            --fingerprint "$SIGNER_SHA256" verify "dist/UnifiedTV-$TAG.apk" "${TAG#v}" "$VERSION_CODE"
           cd dist
-          sha256sum *.apk > SHA256SUMS
-      - name: Upload signed release asset
-        if: steps.signing.outputs.signed == 'true'
-        uses: actions/upload-artifact@v4
+          sha256sum "UnifiedTV-$TAG.apk" > SHA256SUMS
+      - name: Retain validated APK and checksum
+        if: steps.plan.outputs.already_released == 'false'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: unifiedtv-signed-release
-          path: dist/
+          path: |
+            dist/*.apk
+            dist/SHA256SUMS
           if-no-files-found: error
           retention-days: 7
 
   publish:
-    name: Create versioned GitHub Release
     needs: build
+    if: >-
+      needs.build.outputs.already_released == 'false' &&
+      vars.UNIFIEDTV_PUBLISH_ENABLED == 'true' &&
+      ((github.event_name == 'push' && needs.build.outputs.has_previous_apk == 'true') ||
+      (github.event_name == 'workflow_dispatch' && inputs.publish))
     runs-on: ubuntu-latest
     permissions:
       contents: write
     env:
       GH_TOKEN: ${{ github.token }}
       GH_REPO: ${{ github.repository }}
+      TAG: ${{ needs.build.outputs.tag }}
+      BASE: ${{ needs.build.outputs.base }}
     steps:
-      - name: Download signed APK (when configured)
-        if: needs.build.outputs.signed == 'true'
-        uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: unifiedtv-signed-release
           path: dist/
-      - name: Publish release for this main update
-        shell: bash
-        env:
-          IS_SIGNED: ${{ needs.build.outputs.signed }}
+      - name: Publish only after verifying assets on the draft
         run: |
           set -euo pipefail
-          tag="v0.1.${GITHUB_RUN_NUMBER}"
-          if gh release view "$tag" >/dev/null 2>&1; then
-            echo "Release already exists: $tag"
+          if [[ "$(gh api "repos/$GH_REPO/git/ref/heads/main" --jq .object.sha)" != "$GITHUB_SHA" ]]; then
+            echo 'A newer main commit superseded this run; its release will include these changes.'
             exit 0
           fi
-          if [[ "$IS_SIGNED" == "true" ]]; then
-            gh release create "$tag" dist/*.apk dist/SHA256SUMS \
-              --target "$GITHUB_SHA" \
-              --title "UnifiedTV $tag" \
-              --generate-notes
-          else
-            gh release create "$tag" \
-              --target "$GITHUB_SHA" \
-              --title "UnifiedTV $tag (source only)" \
-              --notes "Validated source release. APK publication requires repository secrets UNIFIEDTV_KEYSTORE_BASE64, UNIFIEDTV_KEYSTORE_PASSWORD, UNIFIEDTV_KEY_ALIAS and UNIFIEDTV_KEY_PASSWORD. The APK must have a stable signing key to be upgradable."
-          fi
+          apk="UnifiedTV-$TAG.apk"
+          (cd dist && sha256sum --check --strict SHA256SUMS)
+          # Creating the exact tag atomically fails if another writer already used it.
+          gh api --method POST "repos/$GH_REPO/git/refs" -f ref="refs/tags/$TAG" -f sha="$GITHUB_SHA" >/dev/null
+          test "$(gh api "repos/$GH_REPO/git/ref/tags/$TAG" --jq .object.sha)" = "$GITHUB_SHA"
+          gh release create "$TAG" --draft --verify-tag --title "UnifiedTV $TAG" \
+            --notes-start-tag "$BASE" --generate-notes "dist/$apk" dist/SHA256SUMS
+          verified=$(mktemp -d)
+          gh release download "$TAG" --pattern "$apk" --pattern SHA256SUMS --dir "$verified"
+          cmp dist/SHA256SUMS "$verified/SHA256SUMS"
+          (cd "$verified" && sha256sum --check --strict SHA256SUMS)
+          gh release edit "$TAG" --draft=false --latest
+          test "$(gh api "repos/$GH_REPO/git/ref/tags/$TAG" --jq .object.sha)" = "$GITHUB_SHA"
+          public=$(mktemp -d)
+          url="$GITHUB_SERVER_URL/$GH_REPO/releases/download/$TAG"
+          for file in "$apk" SHA256SUMS; do
+            curl --fail --silent --show-error --location --retry 4 --retry-all-errors \
+              --max-time 60 --output "$public/$file" "$url/$file"
+          done
+          cmp dist/SHA256SUMS "$public/SHA256SUMS"
+          (cd "$public" && sha256sum --check --strict SHA256SUMS)
+          gh release view "$TAG" --json url,assets,isDraft --jq \
+            'select(.isDraft == false) | .url, (.assets[] | [.name, .size, .url] | @tsv)' >> "$GITHUB_STEP_SUMMARY"
+          printf '\nSHA-256: `%s`\n' "$(cut -d ' ' -f 1 dist/SHA256SUMS)" >> "$GITHUB_STEP_SUMMARY"

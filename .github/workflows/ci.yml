@@ -18,7 +18,7 @@ jobs:
         with:
           python-version: "3.12"
       - name: Fork-specific static tests
-        run: python3 -m unittest discover -s tests -p 'test_unifiedtv.py' -v
+        run: python3 -m unittest discover -s tests -p 'test_unifiedtv*.py' -v
         # The upstream "no network"/576 KB README checks describe a different app.
         # Keep the upstream test sources for reference without treating their product
         # constraints as requirements for this intentional streaming-focused fork.
@@ -40,9 +40,10 @@ jobs:
         working-directory: launcher
         run: |
           chmod +x gradlew
-          ./gradlew --no-daemon testReleaseUnitTest lintRelease assembleRelease
+          ./gradlew --no-daemon -PlauncherApplicationId=io.github.spidey000.unifiedtv \
+            -PunifiedUnsignedRelease=true testReleaseUnitTest lintRelease assembleRelease
       - name: Report size (UnifiedTV includes network catalog and art)
         run: |
-          size=$(stat -c %s launcher/app/build/outputs/apk/release/app-release.apk)
+          size=$(stat -c %s launcher/app/build/outputs/apk/release/app-release-unsigned.apk)
           echo "UnifiedTV release APK: $((size / 1024)) KiB"
           test "$size" -lt 5242880 || { echo "::error::APK is over 5 MiB; investigate"; exit 1; }

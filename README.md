@@ -37,13 +37,22 @@ UnifiedTV es un fork independiente de [CleanYourTV](https://github.com/Gathin23/
 
 ## Versiones y descargas
 
-Los cambios fusionados en `main` generan **una nueva versión por merge** mediante [GitHub Actions](.github/workflows/release.yml), siempre que pasen la compilación Android, las pruebas y lint. Los tags serán `v0.1.N` y las notas se publicarán en [GitHub Releases](https://github.com/spidey000/Unifiedtv/releases).
+**[Descargar la última versión de UnifiedTV](https://github.com/spidey000/Unifiedtv/releases/latest)**
 
-- Con una clave de firma estable configurada en los secretos del repositorio se adjunta una APK de Android TV junto con su SHA-256.
-- Si falta la clave de firma, se publica **únicamente el código fuente**, evitando APKs que no puedan actualizarse entre versiones.
-- GitHub Actions puede estar desactivado inicialmente en un fork; habilítalo antes de esperar un release automático.
+Busca `UnifiedTV-vX.Y.Z.apk` y `SHA256SUMS` en **Assets**. `v0.1.2` es una edición histórica de solo código fuente. No uses los ZIP o tarballs de GitHub como instaladores.
 
-[Instrucciones completas de publicación y firma](docs/RELEASES.md).
+Cuando la publicación está habilitada, los cambios en `main` generan una release SemVer después de pasar las pruebas, Android Lint y la verificación de firma. Si faltan las credenciales o falla una comprobación, no se publica nada. Consulta la [guía de firma y publicación](docs/RELEASES.md).
+
+### Instalar o actualizar la APK oficial
+
+Descarga ambos archivos en la misma carpeta y verifica el hash antes de instalar. Con ADB conectado al televisor:
+
+```bash
+sha256sum -c SHA256SUMS
+adb install -r UnifiedTV-vX.Y.Z.apk  # sustituye X.Y.Z por la versión descargada
+```
+
+Usa el mismo comando para actualizar **sin desinstalar**: el paquete oficial `io.github.spidey000.unifiedtv` conserva su firma y aumenta `versionCode`. Android mantiene los datos de la app, incluidos los ajustes de TMDB y plataformas. Si rechaza la actualización por firma incompatible, no desinstales la versión existente: comprueba si era un build de desarrollo.
 
 ## Requisitos
 
@@ -57,20 +66,14 @@ Los cambios fusionados en `main` generan **una nueva versión por merge** median
 ```bash
 git clone https://github.com/spidey000/Unifiedtv.git
 cd Unifiedtv
-git checkout feature/unified-catalog
 cd launcher
-./gradlew testReleaseUnitTest assembleRelease
+./gradlew -PlauncherApplicationId=io.github.spidey000.unifiedtv.dev testReleaseUnitTest assembleRelease
 adb install -r app/build/outputs/apk/release/app-release.apk
 ```
 
-Si ya tienes otra versión de CleanYourTV con una firma distinta, evita sustituirla involuntariamente. Puedes usar un identificador de paquete propio durante la compilación:
+Los builds de desarrollo usan firma debug. El sufijo `.dev` evita sustituir CleanYourTV o crear una instalación incompatible con la APK oficial.
 
-```bash
-./gradlew -PlauncherApplicationId=io.github.spidey000.unifiedtv assembleRelease
-adb install -r app/build/outputs/apk/release/app-release.apk
-```
-
-Selecciona UnifiedTV como launcher predeterminado desde Android TV cuando corresponda. **No deshabilites el Home original sin comprobar antes que UnifiedTV abre correctamente**, especialmente si instalas desde un dispositivo diferente. El script de instalación original puede asumir el nombre del paquete original; revísalo antes de usarlo con un identificador distinto.
+Prueba UnifiedTV desde la lista de apps de tu televisor. No es necesario deshabilitar el launcher original.
 
 ### Primer arranque
 

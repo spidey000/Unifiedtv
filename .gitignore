@@ -19,5 +19,14 @@ bench-results/
 # Generated install bundles and JVM crash reports stay out of contributions.
 *.apk
 *.aab
+*.jks
+*.keystore
+*.p12
+*.pfx
+*.pkcs12
+*.jks.*
+*.keystore.*
+keystore.properties
+key.properties
 launcher/hs_err_pid*.log
 launcher/replay_pid*.log
