@@ -117,11 +117,24 @@ final class UnifiedWatchNext {
                 "watch_next_type", "browsable", "season_display_number",
                 "episode_display_number", "episode_title"
         };
-        // Do not pass SQL selection: a non-privileged caller is forbidden to filter
-        // inside the TV provider. Filter on the app side instead.
+        // A few OEM TV providers reject newer projection columns. Retry the
+        // original public projection so existing Continue Watching never vanishes.
+        if (!readWatchNextRows(context, results, seen, columns)) {
+            readWatchNextRows(context, results, seen, new String[]{
+                    "title", "package_name", "poster_art_uri", "intent_uri",
+                    "last_engagement_time_utc_millis", "last_playback_position_millis",
+                    "duration_millis", "watch_next_type", "browsable",
+                    "season_display_number", "episode_display_number", "episode_title"
+            });
+        }
+    }
+
+    private static boolean readWatchNextRows(Context context, List<Entry> results, Set<String> seen,
+                                             String[] columns) {
+        // No SQL selection: unprivileged callers must filter locally.
         try (Cursor cursor = context.getContentResolver()
                 .query(TvContract.WatchNextPrograms.CONTENT_URI, columns, null, null, null)) {
-            if (cursor == null) return;
+            if (cursor == null) return false;
             while (cursor.moveToNext()) {
                 String pkg = string(cursor, "package_name");
                 if (!UnifiedCatalogPrefs.allowedContinuePackage(context, pkg)) continue;
@@ -144,9 +157,9 @@ final class UnifiedWatchNext {
                         number(cursor, "duration_millis"), false, details);
                 accept(context, e, results, seen);
             }
+            return true;
         } catch (Exception ignored) {
-            // No TV provider on this ROM, permission restricted by manufacturer,
-            // or missing columns. Leave the rest of UnifiedTV usable.
+            return false; // Provider unavailable or projection unsupported.
         }
     }
 
@@ -158,7 +171,7 @@ final class UnifiedWatchNext {
         String[] channelColumns = {"_id", "display_name", "package_name"};
         try (Cursor cursor = context.getContentResolver()
                 .query(TvContract.Channels.CONTENT_URI, channelColumns, null, null, null)) {
-            if (cursor == null) return;
+            if (cursor == null) return false;
             while (cursor.moveToNext()) {
                 String pkg = string(cursor, "package_name");
                 String name = string(cursor, "display_name").toLowerCase(Locale.ROOT);
@@ -176,6 +189,16 @@ final class UnifiedWatchNext {
                 "type", "release_date", "intent_uri",
                 "last_playback_position_millis", "duration_millis"
         };
+        if (!readContinuePreviewRows(context, results, seen, allowedChannels, columns)) {
+            readContinuePreviewRows(context, results, seen, allowedChannels, new String[]{
+                    "channel_id", "title", "poster_art_uri", "intent_uri",
+                    "last_playback_position_millis", "duration_millis"
+            });
+        }
+    }
+
+    private static boolean readContinuePreviewRows(Context context, List<Entry> results, Set<String> seen,
+                                                    Map<Long, String> allowedChannels, String[] columns) {
         try (Cursor cursor = context.getContentResolver()
                 .query(TvContract.PreviewPrograms.CONTENT_URI, columns, null, null, null)) {
             if (cursor == null) return;
@@ -190,8 +213,9 @@ final class UnifiedWatchNext {
                         number(cursor, "duration_millis"), true, "");
                 accept(context, item, results, seen);
             }
+            return true;
         } catch (Exception ignored) {
-            // Some manufacturer providers do not expose preview rows.
+            return false;
         }
     }
 
