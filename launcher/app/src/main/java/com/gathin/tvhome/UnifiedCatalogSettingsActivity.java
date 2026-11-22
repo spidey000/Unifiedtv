@@ -196,6 +196,16 @@ public final class UnifiedCatalogSettingsActivity extends Activity {
 
     private void providers() {
         description("Servicios disponibles según TMDB en tu región. Solo aparecen al abrir un título si TMDB indica que está disponible.");
+        description("UnifiedTV puede reutilizar enlaces directos a fichas publicados por las apps"
+                + " en los canales de Android TV, también en Destacados, Más vistos y Novedades.");
+        if (!UnifiedWatchNext.hasPermission(this)) {
+            action("Permitir enlaces de fichas de Android TV", v ->
+                    requestPermissions(new String[]{UnifiedWatchNext.PERMISSION},
+                            UnifiedWatchNext.PERMISSION_REQUEST), "tv-program-links");
+        } else {
+            description("Enlaces de Android TV autorizados. Se usan solo con coincidencias fiables"
+                    + " del título y de la plataforma.");
+        }
         for (UnifiedCatalogPrefs.Provider provider : UnifiedCatalogPrefs.ordered(this)) {
             LinearLayout row = new LinearLayout(this);
             row.setGravity(Gravity.CENTER_VERTICAL);

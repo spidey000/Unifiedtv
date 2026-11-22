@@ -19,8 +19,10 @@ import java.net.URL;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Locale;
 import java.util.Set;
 
@@ -32,9 +34,12 @@ final class UnifiedCatalogApi {
         final double voteAverage;
         final int voteCount;
         volatile boolean availabilityReady;
+        volatile boolean autoTargetReady;
+        volatile UnifiedCatalogRoute.Target autoTarget;
         volatile String watchLink = "";
         volatile String availabilityError = "";
         final Set<Integer> providerIds = new HashSet<>();
+        final Map<Integer, String> providerLogos = new HashMap<>();
 
         Media(int id, String type, String title, String poster, String year,
               double voteAverage, int voteCount) {
@@ -148,17 +153,20 @@ final class UnifiedCatalogApi {
         JSONObject countries = response.optJSONObject("results");
         JSONObject country = countries == null ? null : countries.optJSONObject(UnifiedCatalogPrefs.region(context));
         Set<Integer> ids = new HashSet<>();
+        Map<Integer, String> logos = new HashMap<>();
         if (country != null) {
-            collect(country.optJSONArray("flatrate"), ids);
+            collect(country.optJSONArray("flatrate"), ids, logos);
             if (UnifiedCatalogPrefs.allowsFree(context)) {
-                collect(country.optJSONArray("free"), ids);
-                collect(country.optJSONArray("ads"), ids);
+                collect(country.optJSONArray("free"), ids, logos);
+                collect(country.optJSONArray("ads"), ids, logos);
             }
             media.watchLink = country.optString("link", "");
         }
         synchronized (media.providerIds) {
             media.providerIds.clear();
             media.providerIds.addAll(ids);
+            media.providerLogos.clear();
+            media.providerLogos.putAll(logos);
         }
         media.availabilityReady = true;
     }
@@ -243,13 +251,38 @@ final class UnifiedCatalogApi {
         return artwork;
     }
 
-    private static void collect(JSONArray arr, Set<Integer> ids) {
+    /** The TMDB external IDs endpoint supplies Wikidata QIDs, not service content IDs. */
+    static String wikidataId(Context context, Media media) throws Exception {
+        JSONObject ids = request(context, "/" + media.type + "/" + media.id
+                + "/external_ids", PROVIDER_TTL, false);
+        String qid = ids.optString("wikidata_id", "");
+        return qid.matches("Q[1-9][0-9]{0,11}") ? qid : "";
+    }
+
+    private static void collect(JSONArray arr, Set<Integer> ids, Map<Integer, String> logos) {
         if (arr == null) return;
         for (int i = 0; i < arr.length(); i++) {
             JSONObject item = arr.optJSONObject(i);
-            if (item != null) ids.add(item.optInt("provider_id"));
+            if (item == null) continue;
+            int id = item.optInt("provider_id", 0);
+            if (id <= 0) continue;
+            ids.add(id);
+            String path = item.optString("logo_path", "");
+            if (path.startsWith("/") && !path.contains("..")) logos.put(id, path);
         }
     }
+
+    static String logoPath(Media media, UnifiedCatalogPrefs.Provider provider) {
+        synchronized (media.providerIds) {
+            for (int id : provider.tmdbIds) {
+                String path = media.providerLogos.get(id);
+                if (path != null) return path;
+            }
+        }
+        return "";
+    }
+
+    static Bitmap logo(Context context, String path) { return artwork(context, path, "w92"); }
 
     private static JSONObject request(Context c, String endpoint, long ttl, boolean refresh) throws Exception {
         File dir = new File(c.getCacheDir(), "unifiedtv_json");

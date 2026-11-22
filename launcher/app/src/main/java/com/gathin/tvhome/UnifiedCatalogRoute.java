@@ -18,6 +18,73 @@ import java.util.Set;
  * catalog/media apps are separate local launch targets, never availability claims.
  */
 final class UnifiedCatalogRoute {
+    static final class Target {
+        final UnifiedCatalogPrefs.Provider provider;
+        final String packageName, url;
+        final boolean fromAndroidTv;
+        Target(UnifiedCatalogPrefs.Provider provider, String pkg, String url, boolean fromAndroidTv) {
+            this.provider = provider;
+            this.packageName = pkg;
+            this.url = url;
+            this.fromAndroidTv = fromAndroidTv;
+        }
+    }
+
+    /**
+     * TMDB is authoritative for regional availability; Wikidata resolves the
+     * service-specific title id. An exact on-device Preview/WatchNext intent
+     * is preferred inside each platform. Both are resolved in user priority
+     * order, never using the TMDB identifier as a provider's own identifier.
+     */
+    static Target resolve(Activity activity, UnifiedCatalogApi.Media media) {
+        synchronized (media) {
+            if (media.autoTargetReady) return media.autoTarget;
+            if (!media.availabilityReady) return null;
+            List<UnifiedCatalogPrefs.Provider> eligible = UnifiedCatalogApi.eligible(activity, media);
+            if (eligible.isEmpty()) {
+                media.autoTargetReady = true;
+                return null;
+            }
+            java.util.Map<String, String> wikidata = null;
+            for (UnifiedCatalogPrefs.Provider provider : eligible) {
+                String pkg = provider.installedPackage(activity);
+                if (pkg == null) continue;
+                String local = UnifiedTvProgramLinks.find(activity, media, pkg);
+                if (!local.isEmpty()) {
+                    media.autoTarget = new Target(provider, pkg, local, true);
+                    media.autoTargetReady = true;
+                    return media.autoTarget;
+                }
+                if (wikidata == null) wikidata = UnifiedWikidataLinks.resolve(activity, media);
+                String url = wikidata.get(provider.key);
+                if (!UnifiedWikidataLinks.safeUrl(provider.key, url)) continue;
+                media.autoTarget = new Target(provider, pkg, url, false);
+                media.autoTargetReady = true;
+                return media.autoTarget;
+            }
+            media.autoTargetReady = true;
+            return null;
+        }
+    }
+
+    /** A dispatch intent is always scoped to its publisher's installed package. */
+    static boolean launchTarget(Activity activity, Target target) {
+        if (target == null) return false;
+        try {
+            Intent intent;
+            if (target.fromAndroidTv) {
+                intent = UnifiedTvProgramLinks.parse(target.url, target.packageName);
+                if (intent == null) return false;
+            } else {
+                if (!UnifiedWikidataLinks.safeUrl(target.provider.key, target.url)) return false;
+                intent = new Intent(Intent.ACTION_VIEW, Uri.parse(target.url))
+                        .setPackage(target.packageName).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            }
+            activity.startActivity(intent);
+            return true;
+        } catch (RuntimeException ignored) { return false; }
+    }
+
     private static final class Choice {
         final String label;
         final String packageName;
@@ -79,6 +146,20 @@ final class UnifiedCatalogRoute {
     }
 
     private static void launch(Activity activity, UnifiedCatalogApi.Media media, Choice choice) {
+        if ("provider".equals(choice.kind)) {
+            if (media.autoTarget != null
+                    && choice.packageName.equals(media.autoTarget.packageName)
+                    && launchTarget(activity, media.autoTarget)) return;
+            StreamUi.dialog(activity).setTitle("Enlace directo no disponible")
+                    .setMessage("TMDB confirma la oferta, pero no hay un enlace verificable a la ficha"
+                            + " de «" + media.title + "» en esta aplicación. Puedes buscarla"
+                            + " manualmente; no se abrirá la portada como si fuera la película.")
+                    .setPositiveButton("Buscar en la app",
+                            (dialog, which) -> openSearchOrApp(activity,
+                                    choice.packageName, choice.label, media.title))
+                    .setNegativeButton("Cancelar", null).show();
+            return;
+        }
         if ("nuvio".equals(choice.kind)) {
             if (openUri(activity, choice.packageName, nuvioUri(media.type, media.id))) return;
         } else if ("stremio".equals(choice.kind)) {

@@ -55,6 +55,7 @@ public final class UnifiedCatalogActivity extends Activity {
 
     private final ExecutorService data = Executors.newFixedThreadPool(3);
     private final ExecutorService art = Executors.newFixedThreadPool(2);
+    private final ExecutorService providerArt = Executors.newFixedThreadPool(2);
     private final Map<Page, TextView> routes = new LinkedHashMap<>();
     private FrameLayout viewport;
     private ViewTreeObserver.OnGlobalFocusChangeListener railFocus;
@@ -231,7 +232,9 @@ public final class UnifiedCatalogActivity extends Activity {
         scroll = new ScrollView(this);
         scroll.setFillViewport(true);
         scroll.setVerticalScrollBarEnabled(false);
+        scroll.setClipToPadding(false);
         pageBody = StreamUi.column(this);
+        pageBody.setClipChildren(false);
         pageBody.setPadding(0, 0, 0, dp(24));
         scroll.addView(pageBody);
         viewport.addView(scroll, new FrameLayout.LayoutParams(-1, -1));
@@ -509,17 +512,20 @@ public final class UnifiedCatalogActivity extends Activity {
         resizeLeadingIcon(button, 15);
     }
 
-    private void openMedia(UnifiedCatalogApi.Media media, TextView button, int stamp) {
-        button.setEnabled(false);
+    private void openMedia(UnifiedCatalogApi.Media media, View button, int stamp) {
+        if (button != null) button.setEnabled(false);
         data.execute(() -> {
             try { UnifiedCatalogApi.availability(this, media); }
-            catch (Exception ignored) { /* Local players still work without availability data. */ }
+            catch (Exception ignored) { /* Local players work without the catalog network. */ }
+            UnifiedCatalogRoute.Target target = UnifiedCatalogRoute.resolve(this, media);
             runOnUiThread(() -> {
                 if (!live(stamp) || !hasWindowFocus()) {
-                    if (live(stamp)) button.setEnabled(true);
+                    if (live(stamp) && button != null) button.setEnabled(true);
                     return;
                 }
-                button.setEnabled(true);
+                if (button != null) button.setEnabled(true);
+                // Exact provider content deep link, not merely a launcher home intent.
+                if (UnifiedCatalogRoute.launchTarget(this, target)) return;
                 UnifiedCatalogRoute.open(this, media);
             });
         });
@@ -558,8 +564,11 @@ public final class UnifiedCatalogActivity extends Activity {
         HorizontalScrollView horizontal = new HorizontalScrollView(this);
         horizontal.setHorizontalScrollBarEnabled(false);
         horizontal.setFocusable(false);
+        horizontal.setClipChildren(false);
+        horizontal.setClipToPadding(false);
         LinearLayout line = new LinearLayout(this);
-        line.setPadding(dp(CONTENT_START), dp(1), dp(CONTENT_END), dp(8));
+        line.setClipChildren(false);
+        line.setPadding(dp(CONTENT_START), dp(9), dp(CONTENT_END), dp(16));
         horizontal.addView(line);
         pageBody.addView(horizontal, new LinearLayout.LayoutParams(-1, -2));
         return line;
@@ -588,7 +597,7 @@ public final class UnifiedCatalogActivity extends Activity {
                        boolean refresh, FrameLayout spotlight) {
         LinearLayout row = row(heading);
         // Keep shelf positions stable while all five TMDB requests resolve independently.
-        row.setMinimumHeight(dp(tileHeight() + 9));
+        row.setMinimumHeight(dp(tileHeight() + 25));
         row.addView(text("Cargando…", 15, StreamUi.DIM, false));
         requestList(stamp, kind, category, search, refresh, result -> {
             row.removeAllViews();
@@ -599,7 +608,8 @@ public final class UnifiedCatalogActivity extends Activity {
             int first = spotlight != null && result.size() > 5 ? 1 : 0;
             for (int i = 0; i < result.size() - first; i++) {
                 UnifiedCatalogApi.Media media = result.get(i + first);
-                FrameLayout card = mediaTile(row, i, () -> details(media));
+                FrameLayout card = mediaTile(row, i, () -> openMedia(media, null, stamp));
+                card.setOnLongClickListener(v -> { details(media); return true; });
                 ImageView cover = tileArt(card);
                 ImageView thumbnail = tileArt(card);
                 thumbnail.setScaleType(ImageView.ScaleType.FIT_CENTER);
@@ -609,18 +619,78 @@ public final class UnifiedCatalogActivity extends Activity {
                 TextView facts = singleLine(kindAndYear(media), 10, StreamUi.DIM, false);
                 caption.addView(facts);
                 if (media.hasRating()) rating(card, media.ratingText());
+                ImageView providerIcon = providerIcon(card);
                 card.setContentDescription(media.title + (media.hasRating() ? ", valoración TMDB " + media.ratingText() : ""));
-                loads.add(once(() -> image(stamp, cover, () -> UnifiedCatalogApi.poster(this, media.poster))));
+                loads.add(once(() -> {
+                    image(stamp, cover, () -> UnifiedCatalogApi.poster(this, media.poster));
+                    loadProviderIcon(stamp, media, card, providerIcon);
+                }));
                 Runnable loadThumbnail = once(() -> image(stamp, thumbnail, () -> {
                     Bitmap wide = UnifiedCatalogApi.shelfArtwork(this, media.backdrop);
                     return wide != null ? wide : UnifiedCatalogApi.poster(this, media.poster);
                 }, () -> { if (card.isFocused()) revealThumbnail(thumbnail); }));
                 bindTileFocus(card, loads, i, thumbnail, loadThumbnail, title, facts);
             }
+            finishCarousel(row);
         }, () -> {
             row.removeAllViews();
             row.addView(text("No disponible. Revisa tu conexión o la configuración de TMDB.", 15, StreamUi.DIM, false));
         });
+    }
+
+    /** Dark-glass provider logo belongs to the service that will open automatically. */
+    private ImageView providerIcon(FrameLayout card) {
+        ImageView icon = new ImageView(this);
+        icon.setScaleType(ImageView.ScaleType.FIT_CENTER);
+        icon.setPadding(dp(3), dp(3), dp(3), dp(3));
+        icon.setBackground(StreamUi.shape(this, 0xE51A1A22, 7, 0x44FFFFFF));
+        icon.setClipToOutline(true);
+        icon.setVisibility(View.GONE);
+        icon.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+        FrameLayout.LayoutParams spot = new FrameLayout.LayoutParams(dp(29), dp(29),
+                Gravity.TOP | Gravity.START);
+        spot.setMargins(dp(6), dp(4), 0, 0);
+        card.addView(icon, spot);
+        return icon;
+    }
+
+    private void loadProviderIcon(int stamp, UnifiedCatalogApi.Media media, FrameLayout card,
+                                  ImageView icon) {
+        providerArt.execute(() -> {
+            if (revision != stamp) return;
+            try { UnifiedCatalogApi.availability(this, media); }
+            catch (Exception ignored) { return; }
+            UnifiedCatalogRoute.Target target = UnifiedCatalogRoute.resolve(this, media);
+            if (target == null || revision != stamp) return;
+            Bitmap logo = UnifiedCatalogApi.logo(this,
+                    UnifiedCatalogApi.logoPath(media, target.provider));
+            if (logo == null) return;
+            runOnUiThread(() -> {
+                if (!live(stamp)) return;
+                icon.setImageBitmap(logo);
+                icon.setVisibility(View.VISIBLE);
+                card.setContentDescription(media.title + " · Se abrirá en "
+                        + target.provider.name + (media.hasRating()
+                        ? " · ★ " + media.ratingText() : ""));
+            });
+        });
+    }
+
+    /** End space allows even the last card to settle in the stationary focus slot. */
+    private void finishCarousel(LinearLayout line) {
+        int room = getResources().getConfiguration().screenWidthDp - RAIL_COLLAPSED;
+        int focusWidth = Math.round(tileHeight() * 16f / 9f);
+        int trailing = Math.max(0, room - CONTENT_START - focusWidth - CONTENT_END);
+        line.addView(new View(this), new LinearLayout.LayoutParams(dp(trailing), dp(1)));
+    }
+
+    private void pinCarouselFocus(View focused) {
+        if (!(focused.getParent() instanceof LinearLayout)) return;
+        View candidate = (View) focused.getParent().getParent();
+        if (!(candidate instanceof HorizontalScrollView)) return;
+        HorizontalScrollView shelf = (HorizontalScrollView) candidate;
+        int position = Math.max(0, focused.getLeft() - dp(CONTENT_START));
+        shelf.smoothScrollTo(position, 0);
     }
 
     private int coverWidth() {
@@ -787,9 +857,7 @@ public final class UnifiedCatalogActivity extends Activity {
                 });
                 resize[0].addListener(new AnimatorListenerAdapter() {
                     @Override public void onAnimationEnd(Animator animation) {
-                        if (view.isFocused()) {
-                            view.requestRectangleOnScreen(new Rect(0, 0, view.getWidth(), view.getHeight()), false);
-                        }
+                        if (view.isFocused()) pinCarouselFocus(view);
                     }
                 });
                 resize[0].start();
@@ -800,7 +868,7 @@ public final class UnifiedCatalogActivity extends Activity {
                 title.setTextSize(focused ? 12 : 9);
                 card.setScaleY(1f);
                 card.setTranslationZ(0f);
-                if (focused) view.requestRectangleOnScreen(new Rect(0, 0, targetWidth, view.getHeight()), true);
+                if (focused) view.post(() -> { if (view.isFocused()) pinCarouselFocus(view); });
             }
             if (thumbnail != null) {
                 thumbnail.animate().cancel();
@@ -813,6 +881,7 @@ public final class UnifiedCatalogActivity extends Activity {
                 }
             }
             if (!focused) return;
+            view.post(() -> { if (view.isFocused()) pinCarouselFocus(view); });
             for (int i = Math.max(0, index - 1); i < Math.min(index + 4, loads.size()); i++) loads.get(i).run();
         });
     }
@@ -971,7 +1040,7 @@ public final class UnifiedCatalogActivity extends Activity {
         boolean fullGrid = page == Page.WATCH;
         LinearLayout line = fullGrid ? null : row("Seguir viendo");
         GridLayout grid = fullGrid ? watchGrid() : null;
-        if (line != null) line.setMinimumHeight(dp(tileHeight() + 9));
+        if (line != null) line.setMinimumHeight(dp(tileHeight() + 25));
         if (!UnifiedWatchNext.hasPermission(this)) {
             TextView allow = StreamUi.control(this, "Permitir acceso a Watch Next", true,
                     v -> requestPermissions(new String[]{UnifiedWatchNext.PERMISSION}, UnifiedWatchNext.PERMISSION_REQUEST));
@@ -1046,6 +1115,7 @@ public final class UnifiedCatalogActivity extends Activity {
                     loads.add(loadArtwork);
                     if (!fullGrid) bindTileFocus(card, loads, i, thumbnail, loadArtwork, title, episode);
                 }
+                if (!fullGrid) finishCarousel(line);
                 if (fullGrid) {
                     connectGridFocus(cards, loads);
                     loadGridOnScroll(grid, loads);
@@ -1169,9 +1239,9 @@ public final class UnifiedCatalogActivity extends Activity {
         platforms.setMaxLines(4);
         platforms.setEllipsize(TextUtils.TruncateAt.END);
         copy.addView(platforms);
-        TextView open = StreamUi.control(this, "Ver opciones", R.drawable.uic_play, true, v -> {
+        TextView open = StreamUi.control(this, "Ver ahora", R.drawable.uic_play, true, v -> {
             dialog.dismiss();
-            UnifiedCatalogRoute.open(this, media);
+            openMedia(media, null, revision);
         });
         copy.addView(open, new LinearLayout.LayoutParams(-2, -2));
         TextView close = StreamUi.control(this, "Cerrar ficha", R.drawable.uic_x, false, v -> dialog.dismiss());
@@ -1200,7 +1270,7 @@ public final class UnifiedCatalogActivity extends Activity {
                         : "Según TMDB: " + TextUtils.join(" · ", names);
                 platforms.setText(tmdb + (players.isEmpty() ? ""
                         : "\nApps de reproducción: " + TextUtils.join(" · ", players)));
-                open.setText("Ver opciones de reproducción");
+                open.setText("Ver ahora");
             });
         });
     }
@@ -1219,6 +1289,7 @@ public final class UnifiedCatalogActivity extends Activity {
         revision++;
         data.shutdownNow();
         art.shutdownNow();
+        providerArt.shutdownNow();
         super.onDestroy();
     }
 }
