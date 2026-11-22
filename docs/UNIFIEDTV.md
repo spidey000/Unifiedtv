@@ -44,6 +44,9 @@ En **Ajustes → Plataformas** pueden activarse/desactivarse reproductores conoc
 
 **Límite:** Android no proporciona un contrato universal para abrir fichas de cualquier servicio ni comprobar que haya fuentes de reproducción, cuentas o suscripciones activas. Los deep links pueden variar entre versiones. No se inicia automáticamente ningún vídeo ni se eluden DRM, permisos o suscripciones.
 
+### Diseño opcional por columnas
+En **Ajustes → Catálogo** se puede activar **Categorías en columnas · 2 pósteres por fila**. La opción está desactivada por defecto; las cinco filas horizontales actuales siguen funcionando igual. Con ella, las categorías Destacados / Más vistos / Novedades / Populares / Mejor valorados se disponen como **columnas de sección desplazables horizontalmente**, cada una con **dos subcolumnas de pósteres 2:3** y desplazamiento vertical global. Todas conservan el título, puntuación TMDB, logotipo de plataforma y comportamiento de pulsación corta/larga. El enfoque usa una escala uniforme del 2,5 % sin alterar la proporción. Las imágenes se precargan al entrar en la parte visible para no descargar 120 pósteres de golpe.
+
 ## Seguir viendo (Android TV)
 
 Se usa `android.permission.READ_TV_LISTINGS`, solicitado de forma explícita al entrar en Seguir viendo. La consulta se realiza con proyección de columnas concreta y **sin selección SQL** para respetar las restricciones del TV Provider de Android. No se requiere acceso privilegiado, root, servicios de accesibilidad ni credenciales de Netflix/Max.

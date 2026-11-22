@@ -264,9 +264,14 @@ public final class UnifiedCatalogActivity extends Activity {
         if (page == Page.HOME && UnifiedCatalogPrefs.continueEnabled(this)
                 && UnifiedCatalogPrefs.continueOnHome(this)) watch(stamp);
         if (connected) {
-            // All five shelves coexist; the featured shelf also drives the hero.
-            for (int i = 0; i < FILTERS.length; i++) {
-                shelf(stamp, LABELS[i], kind, FILTERS[i], "", refresh, i == 0 ? spotlight : null);
+            if (UnifiedCatalogPrefs.twoColumnSections(this)) {
+                columnCatalog(stamp, kind, refresh, spotlight);
+            } else {
+                // Default: all five horizontally scrolling shelves coexist.
+                for (int i = 0; i < FILTERS.length; i++) {
+                    shelf(stamp, LABELS[i], kind, FILTERS[i], "", refresh,
+                            i == 0 ? spotlight : null);
+                }
             }
             link("Recargar catálogo", R.drawable.uic_refresh_cw, v -> {
                 Page current = page;
@@ -607,6 +612,132 @@ public final class UnifiedCatalogActivity extends Activity {
             row.removeAllViews();
             row.addView(text("No disponible. Revisa tu conexión o la configuración de TMDB.", 15, StreamUi.DIM, false));
         });
+    }
+
+    /**
+     * Optional catalogue mode: category groups become horizontal columns.
+     * Every group has two inner poster columns (2:3 cards); the whole page
+     * scrolls vertically and categories scroll sideways. No 16:9 previews.
+     */
+    private void columnCatalog(int stamp, String kind, boolean refresh, FrameLayout spotlight) {
+        HorizontalScrollView horizontal = new HorizontalScrollView(this);
+        horizontal.setHorizontalScrollBarEnabled(false);
+        horizontal.setClipChildren(false);
+        horizontal.setClipToPadding(false);
+        horizontal.setFocusable(false);
+        LinearLayout categories = new LinearLayout(this);
+        categories.setOrientation(LinearLayout.HORIZONTAL);
+        categories.setClipChildren(false);
+        categories.setClipToPadding(false);
+        categories.setPadding(dp(CONTENT_START), dp(9), dp(CONTENT_END), dp(18));
+        horizontal.addView(categories);
+        pageBody.addView(horizontal, new LinearLayout.LayoutParams(-1, -2));
+
+        final int slotWidth = Math.max(96, Math.min(145, coverWidth()));
+        final int sectionWidth = 2 * (slotWidth + CARD_GAP) + 14;
+        List<FrameLayout> cards = new ArrayList<>();
+        List<Runnable> loaders = new ArrayList<>();
+        Runnable preload = () -> {
+            for (int i = 0; i < cards.size(); i++) {
+                android.graphics.Rect visible = new android.graphics.Rect();
+                if (cards.get(i).getGlobalVisibleRect(visible)) loaders.get(i).run();
+            }
+        };
+        horizontal.setOnScrollChangeListener((v, x, y, oldX, oldY) -> preload.run());
+        scroll.setOnScrollChangeListener((v, x, y, oldX, oldY) -> preload.run());
+
+        for (int categoryIndex = 0; categoryIndex < FILTERS.length; categoryIndex++) {
+            final int category = categoryIndex;
+            LinearLayout section = StreamUi.column(this);
+            section.setClipChildren(false);
+            section.setClipToPadding(false);
+            section.setPadding(dp(5), 0, dp(5), dp(6));
+            LinearLayout.LayoutParams sectionParams =
+                    new LinearLayout.LayoutParams(dp(sectionWidth), -2);
+            sectionParams.setMarginEnd(dp(CARD_GAP));
+            categories.addView(section, sectionParams);
+            TextView heading = text(LABELS[category], 16, StreamUi.WHITE, true);
+            heading.setPadding(dp(6), dp(4), 0, dp(11));
+            section.addView(heading);
+
+            GridLayout posters = new GridLayout(this);
+            posters.setColumnCount(2);
+            posters.setOrientation(GridLayout.HORIZONTAL);
+            posters.setClipChildren(false);
+            posters.setClipToPadding(false);
+            section.addView(posters);
+            TextView status = text("Cargando…", 12, StreamUi.DIM, false);
+            posters.addView(status);
+            requestList(stamp, kind, FILTERS[category], "", refresh, result -> {
+                posters.removeAllViews();
+                if (result.isEmpty()) {
+                    posters.addView(text("Sin títulos", 12, StreamUi.DIM, false));
+                    return;
+                }
+                if (category == 0 && spotlight != null) bindHero(spotlight, result, stamp);
+                for (int i = 0; i < result.size(); i++) {
+                    UnifiedCatalogApi.Media media = result.get(i);
+                    FrameLayout card = mediaCard(() -> openMedia(media, null, stamp));
+                    card.setOnLongClickListener(v -> { details(media); return true; });
+                    if (i == 0) leftToRail(card);
+                    GridLayout.LayoutParams layout = new GridLayout.LayoutParams(
+                            GridLayout.spec(i / 2), GridLayout.spec(i % 2));
+                    layout.width = dp(UnifiedCatalogLayout.cardWidthDp(slotWidth));
+                    layout.height = dp(UnifiedCatalogLayout.cardHeightDp(slotWidth));
+                    layout.setMargins(dp(UnifiedCatalogLayout.FOCUS_INSET_X_DP),
+                            dp(UnifiedCatalogLayout.FOCUS_INSET_TOP_DP),
+                            dp(UnifiedCatalogLayout.FOCUS_INSET_X_DP + CARD_GAP),
+                            dp(UnifiedCatalogLayout.focusBottomInsetDp(slotWidth) + 8));
+                    posters.addView(card, layout);
+                    ImageView cover = tileArt(card);
+                    LinearLayout caption = caption(card);
+                    TextView title = singleLine(media.title, 9, StreamUi.WHITE, true);
+                    caption.addView(title);
+                    caption.addView(singleLine(kindAndYear(media), 9, StreamUi.DIM, false));
+                    if (media.hasRating()) rating(card, media.ratingText());
+                    ImageView icon = providerIcon(card);
+                    card.setContentDescription(media.title + (media.hasRating()
+                            ? " · ★ " + media.ratingText() : ""));
+                    Runnable load = once(() -> {
+                        image(stamp, cover, () -> UnifiedCatalogApi.poster(this, media.poster));
+                        loadProviderIcon(stamp, media, card, icon);
+                    });
+                    cards.add(card);
+                    loaders.add(load);
+                    card.setOnFocusChangeListener((view, focused) -> {
+                        view.animate().cancel();
+                        if (StreamUi.motionEnabled()) {
+                            view.animate().scaleX(focused ? 1.025f : 1f)
+                                    .scaleY(focused ? 1.025f : 1f)
+                                    .translationZ(focused ? dp(3) : 0)
+                                    .setDuration(StreamUi.FOCUS_ANIM_MS).start();
+                        } else {
+                            view.setScaleX(focused ? 1.025f : 1f);
+                            view.setScaleY(focused ? 1.025f : 1f);
+                            view.setTranslationZ(focused ? dp(3) : 0);
+                        }
+                        if (focused) {
+                            load.run();
+                            view.post(() -> {
+                                if (!view.isFocused()) return;
+                                int left = section.getLeft();
+                                int right = section.getRight();
+                                int visibleLeft = horizontal.getScrollX();
+                                int visibleRight = visibleLeft + horizontal.getWidth();
+                                if (left < visibleLeft)
+                                    horizontal.smoothScrollTo(Math.max(0, left - dp(9)), 0);
+                                else if (right > visibleRight)
+                                    horizontal.smoothScrollTo(right - horizontal.getWidth() + dp(9), 0);
+                            });
+                        }
+                    });
+                }
+                posters.post(preload);
+            }, () -> {
+                posters.removeAllViews();
+                posters.addView(text("No disponible", 12, StreamUi.DIM, false));
+            });
+        }
     }
 
     /** Dark-glass provider logo belongs to the service that will open automatically. */

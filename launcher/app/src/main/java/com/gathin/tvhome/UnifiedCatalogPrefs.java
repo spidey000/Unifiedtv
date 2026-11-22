@@ -19,6 +19,7 @@ final class UnifiedCatalogPrefs {
     static final String ON_HOME = "catalog_on_home";
     static final String INCLUDE_FREE = "include_free";
     static final String ORDER = "provider_priority";
+    static final String CATALOG_COLUMNS = "catalog_two_column_sections";
 
     static final class Provider {
         final String key, name;
@@ -92,6 +93,11 @@ final class UnifiedCatalogPrefs {
 
     static boolean continueEnabled(Context c) {
         return prefs(c).getBoolean(CONTINUE_ENABLED, true);
+    }
+
+    /** Default: compact horizontal shelves. Optional layout uses category columns with two poster subcolumns. */
+    static boolean twoColumnSections(Context c) {
+        return prefs(c).getBoolean(CATALOG_COLUMNS, false);
     }
 
     static boolean continueOnHome(Context c) {
