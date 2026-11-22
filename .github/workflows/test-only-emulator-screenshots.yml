@@ -13,6 +13,11 @@ jobs:
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
       - uses: android-actions/setup-android@v3
         with:
           packages: platforms;android-34 build-tools;34.0.0 platform-tools
@@ -23,6 +28,11 @@ jobs:
           mkdir -p shots
           curl --fail --location --retry 3 --silent --show-error -o before.apk 'https://github.com/spidey000/Unifiedtv/releases/download/v0.7.7/UnifiedTV-v0.7.7.apk'
           curl --fail --location --retry 3 --silent --show-error -o after.apk 'https://github.com/spidey000/Unifiedtv/releases/download/v0.7.10/UnifiedTV-v0.7.10.apk'
+      - name: Compile a separate QA-only debug build for synthetic poster screenshots
+        run: |
+          cd launcher
+          chmod +x gradlew
+          ./gradlew --no-daemon assembleDebug
       - name: Capture both releases using a real Android TV emulator
         uses: reactivecircus/android-emulator-runner@v2
         with:
@@ -34,24 +44,11 @@ jobs:
           emulator-options: -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect
           disable-animations: true
           script: |
-            set -eux
-            adb shell wm size 1280x720
-            adb shell wm density 160
-            adb install -r before.apk
-            adb shell am start -a android.intent.action.MAIN -c android.intent.category.LEANBACK_LAUNCHER -n io.github.spidey000.unifiedtv/com.gathin.tvhome.MainActivity
-            sleep 8
-            adb shell screencap -p /sdcard/unifiedtv-before.png
-            adb pull /sdcard/unifiedtv-before.png shots/v0.7.7-before.png
-            adb uninstall io.github.spidey000.unifiedtv
-            adb install after.apk
-            adb shell am start -a android.intent.action.MAIN -c android.intent.category.LEANBACK_LAUNCHER -n io.github.spidey000.unifiedtv/com.gathin.tvhome.MainActivity
-            sleep 8
-            adb shell screencap -p /sdcard/unifiedtv-after.png
-            adb pull /sdcard/unifiedtv-after.png shots/v0.7.10-after.png
+            bash qa/scripts/capture_tv_emulator.sh
       - name: Archive real emulator screenshots
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: unifiedtv-androidtv-emulator-shots
-          path: shots/*.png
+          path: shots/**
           if-no-files-found: warn
