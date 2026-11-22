@@ -51,6 +51,7 @@ public final class UnifiedCatalogActivity extends Activity {
 
     private final ExecutorService data = Executors.newFixedThreadPool(3);
     private final ExecutorService art = Executors.newFixedThreadPool(2);
+    private final ExecutorService watchMeta = Executors.newFixedThreadPool(2);
     private final ExecutorService providerArt = Executors.newFixedThreadPool(2);
     private final Map<Page, TextView> routes = new LinkedHashMap<>();
     private FrameLayout viewport;
@@ -962,28 +963,32 @@ public final class UnifiedCatalogActivity extends Activity {
             if (revision != stamp) return;
             Bitmap platform = UnifiedWatchArtwork.platformPoster(getApplicationContext(), item);
             runOnUiThread(() -> showWatchImage(stamp, poster, platform));
-            if (revision != stamp) return;
-            UnifiedCatalogApi.MediaArt match = null;
-            try {
-                match = UnifiedCatalogApi.watchArtwork(getApplicationContext(),
-                        item.title, item.mediaType, item.releaseDate);
-            } catch (Exception ignored) { /* No false rating when offline or ambiguous. */ }
-            if (revision != stamp) return;
-            Bitmap enhanced = UnifiedWatchArtwork.withTmdbPoster(
-                    getApplicationContext(), platform, match);
-            if (enhanced != platform)
-                runOnUiThread(() -> showWatchImage(stamp, poster, enhanced));
-            if (match != null && match.hasRating()) {
-                String rating = match.ratingText();
-                runOnUiThread(() -> {
-                    if (!live(stamp)) return;
-                    score.setText("★ " + rating);
-                    score.setVisibility(View.VISIBLE);
-                    card.setContentDescription(item.title + " · " + item.source
-                            + " · ★ " + rating
-                            + (item.progress() < 0 ? "" : " · " + item.progress() + "%"));
-                });
-            }
+            // TMDB is intentionally isolated: slow rating/search requests must not
+            // queue behind other images or delay their first paint on low-end TVs.
+            watchMeta.execute(() -> {
+                if (revision != stamp) return;
+                UnifiedCatalogApi.MediaArt match = null;
+                try {
+                    match = UnifiedCatalogApi.watchArtwork(getApplicationContext(),
+                            item.title, item.mediaType, item.releaseDate);
+                } catch (Exception ignored) { /* No false rating when offline or ambiguous. */ }
+                if (revision != stamp) return;
+                Bitmap enhanced = UnifiedWatchArtwork.withTmdbPoster(
+                        getApplicationContext(), platform, match);
+                if (enhanced != platform)
+                    runOnUiThread(() -> showWatchImage(stamp, poster, enhanced));
+                if (match != null && match.hasRating()) {
+                    String rating = match.ratingText();
+                    runOnUiThread(() -> {
+                        if (!live(stamp)) return;
+                        score.setText("★ " + rating);
+                        score.setVisibility(View.VISIBLE);
+                        card.setContentDescription(item.title + " · " + item.source
+                                + " · ★ " + rating
+                                + (item.progress() < 0 ? "" : " · " + item.progress() + "%"));
+                    });
+                }
+            });
         });
     }
 
@@ -1258,6 +1263,7 @@ public final class UnifiedCatalogActivity extends Activity {
         revision++;
         data.shutdownNow();
         art.shutdownNow();
+        watchMeta.shutdownNow();
         providerArt.shutdownNow();
         super.onDestroy();
     }
