@@ -148,13 +148,13 @@ final class TvSpatialNavigation {
         Rect origin = bounds(from, false);
         if (origin == null) return null;
         Result choice = new Result();
-        search(group, from, origin, direction, beamOnly, choice);
+        search(group, group, from, origin, direction, beamOnly, choice);
         return choice.view;
     }
 
-    private static void search(View node, View from, Rect source, int direction,
-                               boolean beamOnly, Result choice) {
-        if (node != from && node.isFocusable() && node.isEnabled() && node.isShown()) {
+    private static void search(View node, ViewGroup root, View from, Rect source,
+                               int direction, boolean beamOnly, Result choice) {
+        if (node != root && node != from && node.isFocusable() && node.isEnabled() && node.isShown()) {
             Rect target = bounds(node, true);
             if (target != null && SpatialScore.inDirection(source.left, source.top, source.right,
                     source.bottom, target.left, target.top, target.right, target.bottom, direction)) {
@@ -178,7 +178,7 @@ final class TvSpatialNavigation {
             for (int i = 0; i < group.getChildCount(); i++) {
                 View child = group.getChildAt(i);
                 if (child.getVisibility() == View.VISIBLE) {
-                    search(child, from, source, direction, beamOnly, choice);
+                    search(child, root, from, source, direction, beamOnly, choice);
                 }
             }
         }
