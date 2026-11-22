@@ -110,7 +110,8 @@ También encontrarás «UnifiedTV · Streaming y preferencias» en los ajustes d
 | `UnifiedWatchNext.java` | Lectura autorizada de Android TV Watch Next y canales de continuación |
 | `UnifiedCatalogPrefs.java` | Servicios instalados, país, preferencias y orden |
 | `UnifiedCatalogSettingsActivity.java` | Ajustes utilizables con el mando |
-| `UnifiedCatalogRoute.java` | Selector de apps, enlaces Nuvio/Stremio, búsqueda y fallback |\n| `UnifiedPlaybackApps.java` | Detecta reproductores instalados y apps adicionales elegidas por el usuario |
+| `UnifiedCatalogRoute.java` | Selector de apps, enlaces Nuvio/Stremio, búsqueda y fallback |
+| `UnifiedPlaybackApps.java` | Detecta reproductores instalados y apps adicionales elegidas por el usuario |
 | `UnifiedTvHome.java` | Entrada desde Home y salida al launcher clásico |
 | `MainActivity.java` | Integración mínima con el launcher original |
 
