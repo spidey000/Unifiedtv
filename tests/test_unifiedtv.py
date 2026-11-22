@@ -13,7 +13,8 @@ class UnifiedTvTests(unittest.TestCase):
     def test_feature_files_exist(self):
         for name in (
             "UnifiedCatalogApi.java", "UnifiedCatalogActivity.java", "UnifiedCatalogPrefs.java",
-            "UnifiedCatalogRoute.java", "UnifiedCatalogSettingsActivity.java", "UnifiedTvHome.java"
+            "UnifiedCatalogRoute.java", "UnifiedCatalogSettingsActivity.java", "UnifiedTvHome.java",
+            "UnifiedWatchNext.java"
         ):
             with self.subTest(file=name):
                 self.assertTrue((JAVA / name).exists())
@@ -24,6 +25,7 @@ class UnifiedTvTests(unittest.TestCase):
         permissions = [p.get("{http://schemas.android.com/apk/res/android}name")
                        for p in tree.findall("./uses-permission", ns)]
         self.assertIn("android.permission.INTERNET", permissions)
+        self.assertIn("android.permission.READ_TV_LISTINGS", permissions)
         self.assertNotIn("android.permission.QUERY_ALL_PACKAGES", permissions)
         activities = [p.get("{http://schemas.android.com/apk/res/android}name")
                       for p in tree.findall("./application/activity", ns)]
@@ -48,6 +50,32 @@ class UnifiedTvTests(unittest.TestCase):
         source = (JAVA / "UnifiedCatalogPrefs.java").read_text(encoding="utf-8")
         self.assertIn('getString(KEY, "")', source)
         self.assertNotRegex(source, r"(?i)(?:sk|eyJ)[A-Za-z0-9._-]{35,}")
+
+    def test_discovery_categories_are_separate_by_media_type(self):
+        api = (JAVA / "UnifiedCatalogApi.java").read_text(encoding="utf-8")
+        home = (JAVA / "UnifiedCatalogActivity.java").read_text(encoding="utf-8")
+        for kind in ("featured", "watched", "new", "popular", "rated"):
+            self.assertIn(f'"{kind}"', api if kind != "featured" else home)
+            self.assertIn(f'"{kind}"', home)
+        self.assertIn('"/trending/" + type + "/week', api)
+        self.assertIn('"/" + type + "/top_rated', api)
+        self.assertIn('"/" + type + "/popular', api)
+        self.assertIn('"movie"', home)
+        self.assertIn('"tv"', home)
+
+    def test_continue_watching_is_explicit_opt_in(self):
+        source = (JAVA / "UnifiedWatchNext.java").read_text(encoding="utf-8")
+        settings = (JAVA / "UnifiedCatalogSettingsActivity.java").read_text(encoding="utf-8")
+        self.assertIn("READ_TV_LISTINGS", source)
+        self.assertIn("hasPermission(context)", source)
+        self.assertIn("TvContract.WatchNextPrograms.CONTENT_URI", source)
+        self.assertIn("TvContract.PreviewPrograms.CONTENT_URI", source)
+        self.assertIn("null, null, null", source)
+        self.assertIn("UnifiedCatalogPrefs.CONTINUE_SOURCES", settings)
+        self.assertNotIn("ACCESS_ALL_EPG_DATA", source)
+        sources = (JAVA / "UnifiedCatalogPrefs.java").read_text(encoding="utf-8")
+        self.assertIn('new Provider("stremio"', sources)
+        self.assertIn('new Provider("nuvio"', sources)
 
     def test_transparent_readme(self):
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
