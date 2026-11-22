@@ -5,7 +5,10 @@
 Esta primera versión añade el catálogo unificado a la app nativa del fork. Implementado:
 
 - Entrada a UnifiedTV desde el Home de Android TV, configurable.
-- Secciones de tendencias semanales, películas recientes en cartelera y series en tendencia.
+- Pestañas **Películas**, **Series** y **Seguir viendo**. Las primeras ofrecen **Destacados**, **Más vistos**, **Novedades**, **Populares** y **Mejor valorados (histórico)**.
+- Destacados = tendencia del día; Más vistos = tendencia semanal como aproximación, **no** reproducciones agregadas reales; Novedades = cartelera actual de cine o series actualmente en emisión; Populares y Mejor valorados = listas TMDB.
+- Seguir viendo integrado mediante Android TV `Watch Next` (lectura con permiso) y canales `Continue Watching` disponibles, con origen, progreso y apertura de la acción de la app.
+- Fuentes independientes por aplicación: Netflix, Max, Prime, Disney+, Apple TV+, SkyShowtime, Movistar, Filmin, Stremio, Nuvio y apps adicionales opcionales.
 - Búsqueda por título en TMDB, idioma español.
 - Carteles descargados en segundo plano y caché en el dispositivo.
 - Consulta de proveedores por título y país usando los endpoints de TMDB `/movie/{id}/watch/providers` y `/tv/{id}/watch/providers`.
@@ -29,6 +32,33 @@ No existe un estándar Android TV que permita abrir la ficha de cualquier pelíc
 **No se garantiza la ficha exacta ni se lanza vídeo automáticamente.** No se utilizan servicios de descarga, scraping de cuentas, reproducción sin autorización, ni bypass de DRM.
 
 La disponibilidad está indicada por TMDB/JustWatch y no demuestra que la persona tenga cuenta activa o plan compatible.
+
+## Seguir viendo (Android TV)
+
+Se usa `android.permission.READ_TV_LISTINGS`, solicitado de forma explícita al entrar en Seguir viendo. La consulta se realiza con proyección de columnas concreta y **sin selección SQL** para respetar las restricciones del TV Provider de Android. No se requiere acceso privilegiado, root, servicios de accesibilidad ni credenciales de Netflix/Max.
+
+- Se leen filas visibles de `TvContract.WatchNextPrograms` con tipo *continue* y opcionalmente *next episode*.
+- Opcionalmente se consultan `TvContract.Channels` y `TvContract.PreviewPrograms` para canales cuyo nombre anuncie claramente continuidad (algunas versiones de Stremio).
+- Se muestra un elemento solo si está instalado el proveedor que publica la fila y el usuario lo ha activado. Se pueden habilitar otras apps no enumeradas explícitamente.
+- Se ordenan primero las filas con actividad reciente, se pueden descartar filas antiguas (30–365 días) y progreso completo (≥95%), y se deduplican por aplicación/título.
+- Se usan las URLs de póster y acción declaradas por el propio TV Provider. Los recursos se limitan a https, content o android.resource y su tamaño se acota.
+- Si el enlace de continuar falla se abre el inicio de la app que lo publicó. El sistema no finge poder saber si se abrió el episodio exacto.
+- Un canal de recomendaciones que no se declare de continuidad **no** se presenta como historial.
+- La ausencia de filas no prueba ausencia de reproducciones. Algunos fabricantes y aplicaciones nunca publican su progreso a terceros o solo lo publican a la experiencia de Google TV.
+
+Estos datos **no** se sincronizan con servidores del proyecto. El permiso puede revocarse desde Ajustes de Android TV.
+
+## Significado de los filtros
+
+| Tipo | Películas | Series |
+| --- | --- | --- |
+| Destacados | Tendencias TMDB del día | Tendencias TMDB del día |
+| Más vistos | Tendencias TMDB de la semana, aproximación | Tendencias TMDB de la semana, aproximación |
+| Novedades | En cartelera ahora | Series actualmente en emisión |
+| Populares | Lista TMDB de películas populares | Lista TMDB de series populares |
+| Mejor valorados | Lista histórica TMDB por valoración | Lista histórica TMDB por valoración |
+
+**Las cinco categorías son de descubrimiento general** y no necesariamente filtran por un servicio. La disponibilidad efectiva se consulta por título y país en TMDB; se muestra como insignia solo para proveedores instalados y seleccionados. Stremio y Nuvio son fuentes de progreso, no proveedores de suscripción en TMDB.
 
 ## Claves, privacidad y red
 
