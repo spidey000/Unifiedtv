@@ -583,6 +583,8 @@ public final class UnifiedCatalogActivity extends Activity {
     private void shelf(int stamp, String heading, String kind, String category, String search,
                        boolean refresh, FrameLayout spotlight) {
         LinearLayout row = row(heading);
+        // Keep shelf positions stable while all five TMDB requests resolve independently.
+        row.setMinimumHeight(dp(tileHeight() + 9));
         row.addView(text("Cargando…", 15, StreamUi.DIM, false));
         requestList(stamp, kind, category, search, refresh, result -> {
             row.removeAllViews();
@@ -839,6 +841,7 @@ public final class UnifiedCatalogActivity extends Activity {
             return;
         }
         LinearLayout line = row("Seguir viendo");
+        line.setMinimumHeight(dp(tileHeight() + 9));
         if (!UnifiedWatchNext.hasPermission(this)) {
             TextView allow = StreamUi.control(this, "Permitir acceso a Watch Next", true,
                     v -> requestPermissions(new String[]{UnifiedWatchNext.PERMISSION}, UnifiedWatchNext.PERMISSION_REQUEST));
