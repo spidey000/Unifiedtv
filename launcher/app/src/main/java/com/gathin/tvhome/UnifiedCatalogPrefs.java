@@ -38,7 +38,8 @@ final class UnifiedCatalogPrefs {
             PackageManager manager = context.getPackageManager();
             for (String candidate : packages) {
                 try {
-                    if (manager.getLaunchIntentForPackage(candidate) != null) return candidate;
+                    if (manager.getLeanbackLaunchIntentForPackage(candidate) != null
+                            || manager.getLaunchIntentForPackage(candidate) != null) return candidate;
                 } catch (RuntimeException ignored) { /* Vendor package manager may be restrictive. */ }
             }
             return null;
@@ -124,7 +125,8 @@ final class UnifiedCatalogPrefs {
         Provider provider = sourceForPackage(pkg);
         if (provider == null) {
             if (!continueOtherApps(c)) return false;
-            try { return c.getPackageManager().getLaunchIntentForPackage(pkg) != null; }
+            try { return c.getPackageManager().getLeanbackLaunchIntentForPackage(pkg) != null
+                    || c.getPackageManager().getLaunchIntentForPackage(pkg) != null; }
             catch (RuntimeException e) { return false; }
         }
         return continueSourceSelected(c, provider)
