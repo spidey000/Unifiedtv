@@ -171,7 +171,7 @@ final class UnifiedWatchNext {
         String[] channelColumns = {"_id", "display_name", "package_name"};
         try (Cursor cursor = context.getContentResolver()
                 .query(TvContract.Channels.CONTENT_URI, channelColumns, null, null, null)) {
-            if (cursor == null) return false;
+            if (cursor == null) return;
             while (cursor.moveToNext()) {
                 String pkg = string(cursor, "package_name");
                 String name = string(cursor, "display_name").toLowerCase(Locale.ROOT);
@@ -201,7 +201,7 @@ final class UnifiedWatchNext {
                                                     Map<Long, String> allowedChannels, String[] columns) {
         try (Cursor cursor = context.getContentResolver()
                 .query(TvContract.PreviewPrograms.CONTENT_URI, columns, null, null, null)) {
-            if (cursor == null) return;
+            if (cursor == null) return false;
             while (cursor.moveToNext()) {
                 String pkg = allowedChannels.get(number(cursor, "channel_id"));
                 if (pkg == null) continue;
