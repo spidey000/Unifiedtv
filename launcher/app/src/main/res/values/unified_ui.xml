@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <item name="moviesTab" type="id" />
+    <item name="seriesTab" type="id" />
+    <string name="spotlight_position" translatable="false">%1$d/%2$d</string>
+</resources>

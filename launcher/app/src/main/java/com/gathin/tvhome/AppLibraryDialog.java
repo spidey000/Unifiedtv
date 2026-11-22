@@ -163,7 +163,7 @@ final class AppLibraryDialog {
         panel.setLayoutDirection(rtl ? View.LAYOUT_DIRECTION_RTL : View.LAYOUT_DIRECTION_LTR);
         panel.setOrientation(LinearLayout.VERTICAL);
         panel.setPadding(dp(12), dp(8), dp(12), dp(12));
-        panel.setBackgroundResource(R.drawable.glass_panel);
+        panel.setBackground(StreamUi.panel(activity));
         View decor = activity.getWindow().getDecorView();
         catalogWidth = Math.min(dp(800), Math.max(dp(200), decor.getWidth() - dp(64)));
         int width = catalogWidth;
@@ -535,12 +535,12 @@ final class AppLibraryDialog {
             if (actionPopup == menu) actionPopup = null;
             restoreCardFocus();
         });
-        addAction(rows, R.string.library_open, () -> open(app));
+        addAction(rows, R.string.library_open, R.drawable.uic_play, () -> open(app));
         boolean home = onHome.test(pkg);
         addAction(rows, home ? R.string.library_remove_shortcut : R.string.library_add_home,
-                () -> changeHome(app, !home));
+                home ? R.drawable.uic_x : R.drawable.uic_house, () -> changeHome(app, !home));
         Intent info = SystemSettings.appInfo(activity, pkg);
-        if (info != null) addAction(rows, R.string.library_app_info, () -> {
+        if (info != null) addAction(rows, R.string.library_app_info, R.drawable.uic_info, () -> {
             close();
             try {
                 activity.startActivity(info);
@@ -575,11 +575,12 @@ final class AppLibraryDialog {
         rows.getChildAt(0).requestFocus();
     }
 
-    private void addAction(LinearLayout rows, int label, Runnable action) {
+    private void addAction(LinearLayout rows, int label, int icon, Runnable action) {
         View row = activity.getLayoutInflater().inflate(R.layout.item_input, rows, false);
         ((TextView) row.findViewById(R.id.title)).setText(label);
         row.setFocusableInTouchMode(true);
-        row.findViewById(R.id.icon).setVisibility(View.GONE);
+        ((ImageView) row.findViewById(R.id.icon)).setImageResource(icon);
+        StreamUi.background(row, false, true);
         row.findViewById(R.id.dot).setVisibility(View.GONE);
         row.findViewById(R.id.status).setVisibility(View.GONE);
         row.setOnClickListener(v -> action.run());
@@ -655,12 +656,16 @@ final class AppLibraryDialog {
             boolean recent = !selectionMode && LibraryApps.recent(installTimes.getOrDefault(pkg, 0L), catalogTime);
             status.setText(home ? R.string.library_on_home : recent ? R.string.library_recent : R.string.library_add_home);
             status.setVisibility(home || !okOpens ? View.VISIBLE : View.INVISIBLE);
-            holder.itemView.setBackground(surface(home ? 0x1475BBA4 : 0x0CFFFFFF, 18));
+            StreamUi.background(holder.itemView, false, false);
+            holder.itemView.setSelected(home);
             View check = holder.itemView.findViewById(R.id.dot);
             check.getLayoutParams().width = dp(home ? 18 : 8);
             check.getLayoutParams().height = dp(home ? 18 : 8);
-            if (home) check.setBackgroundResource(R.drawable.library_check);
-            else check.setBackground(surface(0xFF70D9A0, 8));
+            if (home) {
+                Drawable selected = activity.getDrawable(R.drawable.uic_check).mutate();
+                selected.setTint(StreamUi.readableAccent(activity));
+                check.setBackground(selected);
+            } else check.setBackground(surface(0xFF70D9A0, 8));
             check.setVisibility(home || recent ? View.VISIBLE : View.GONE);
             holder.itemView.setOnClickListener(v -> {
                 boolean onHomeNow = onHome.test(pkg);

@@ -31,9 +31,16 @@ final class UnifiedTvHome {
 
     static void leaveForApps(Activity catalog) {
         // Back reveals the unchanged original CleanYourTV dock and app grid.
-        skipNextReturn = true;
+        revealClassicOnce();
         catalog.finish();
     }
+
+    static void openInputs(Activity catalog) {
+        catalog.startActivity(new Intent(catalog, MainActivity.class)
+                .setAction(MainActivity.ACTION_VIEW_INPUTS).putExtra(MainActivity.EXTRA_CATALOG_INPUTS, true));
+    }
+
+    static void revealClassicOnce() { skipNextReturn = true; }
 
     private UnifiedTvHome() {}
 }

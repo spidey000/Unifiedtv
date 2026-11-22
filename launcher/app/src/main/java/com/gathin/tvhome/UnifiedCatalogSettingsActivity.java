@@ -1,7 +1,8 @@
 package com.gathin.tvhome;
 
 import android.app.Activity;
-import android.app.AlertDialog;
+import android.content.Intent;
+import android.graphics.Color;
 import android.os.Bundle;
 import android.text.InputType;
 import android.view.Gravity;
@@ -17,31 +18,44 @@ import java.util.List;
 
 /** Split-pane settings for the streaming interface; existing preference names remain unchanged. */
 public final class UnifiedCatalogSettingsActivity extends Activity {
-    private static final String[] SECTIONS = {"Catálogo", "Plataformas", "Seguir viendo", "Actualizaciones", "Información"};
+    static final String EXTRA_SECTION = "unifiedtv_settings_section";
+    static final int PLATFORMS_SECTION = 2;
+    private static final String[] SECTIONS = {"Apariencia", "Catálogo", "Plataformas", "Seguir viendo",
+            "Actualizaciones", "Launcher", "Información"};
+    private static final int[] SECTION_ICONS = {R.drawable.uic_palette, R.drawable.uic_film, R.drawable.ic_apps,
+            R.drawable.uic_layers, R.drawable.uic_download, R.drawable.uic_house, R.drawable.uic_info};
+    private static final int[] ACCENTS = {StreamUi.DEFAULT_ACCENT, 0xFFFF9B45, 0xFF26BC91, 0xFF468DFF, 0xFFB472F1};
+    private static final String[] ACCENT_NAMES = {"Rojo", "Ámbar", "Verde", "Azul", "Violeta"};
     private final List<TextView> tabs = new ArrayList<>();
     private LinearLayout content;
     private ScrollView scroll;
     private TextView installPermissionStatus;
     private int section;
+    private String restoredFocus;
 
     @Override protected void onCreate(Bundle state) {
         super.onCreate(state);
         LinearLayout root = new LinearLayout(this);
         root.setBackgroundColor(StreamUi.BLACK);
         LinearLayout rail = StreamUi.column(this);
-        rail.setBackgroundColor(0xFF101014);
+        ScrollView railScroll = new ScrollView(this);
+        railScroll.setBackground(StreamUi.rail(this));
+        railScroll.setFillViewport(true);
+        railScroll.setVerticalScrollBarEnabled(false);
         rail.setPadding(dp(14), dp(16), dp(12), dp(12));
-        TextView title = text("Ajustes", 24, StreamUi.RED, true);
+        TextView title = text("Ajustes", 24, StreamUi.WHITE, true);
         title.setPadding(dp(10), 0, 0, dp(14));
         rail.addView(title);
         for (int i = 0; i < SECTIONS.length; i++) {
             final int index = i;
-            TextView tab = StreamUi.control(this, SECTIONS[i], false, v -> show(index, null));
+            TextView tab = StreamUi.control(this, SECTIONS[i], SECTION_ICONS[i], false, v -> show(index, null));
+            StreamUi.background(tab, false, true);
             tabs.add(tab);
             add(rail, tab);
         }
-        add(rail, StreamUi.control(this, "Volver", false, v -> finish()));
-        root.addView(rail, new LinearLayout.LayoutParams(dp(178), -1));
+        add(rail, StreamUi.control(this, "Volver", R.drawable.uic_arrow_left, false, v -> finish()));
+        railScroll.addView(rail);
+        root.addView(railScroll, new LinearLayout.LayoutParams(dp(178), -1));
         scroll = new ScrollView(this);
         scroll.setVerticalScrollBarEnabled(false);
         scroll.setFillViewport(true);
@@ -50,13 +64,18 @@ public final class UnifiedCatalogSettingsActivity extends Activity {
         scroll.addView(content);
         root.addView(scroll, new LinearLayout.LayoutParams(0, -1, 1));
         setContentView(root);
-        show(state == null ? 0 : state.getInt("section", 0), null);
-        tabs.get(section).requestFocus();
+        int selected = state == null ? getIntent().getIntExtra(EXTRA_SECTION, 0) : state.getInt("section", 0);
+        if (selected < 0 || selected >= SECTIONS.length) selected = 0;
+        show(selected, state == null ? null : state.getString("focus"));
+        if (state == null || state.getString("focus") == null || getCurrentFocus() == null) {
+            tabs.get(section).requestFocus();
+        }
     }
 
     @Override protected void onSaveInstanceState(Bundle state) {
         super.onSaveInstanceState(state);
         state.putInt("section", section);
+        state.putString("focus", restoredFocus);
     }
 
     @Override protected void onResume() {
@@ -77,10 +96,15 @@ public final class UnifiedCatalogSettingsActivity extends Activity {
         installPermissionStatus = null;
         content.addView(text(SECTIONS[selected], 32, StreamUi.WHITE, true));
         switch (selected) {
-            case 0: catalog(); break;
-            case 1: providers(); break;
-            case 2: watch(); break;
-            case 3: updates(); break;
+            case 0: appearance(); break;
+            case 1: catalog(); break;
+            case PLATFORMS_SECTION: providers(); break;
+            case 3: watch(); break;
+            case 4: updates(); break;
+            case 5:
+                description("Ajustes del dock, cuadrícula, fondo, reloj y app de inicio.");
+                action("Abrir ajustes del launcher", v -> startActivity(new Intent(this, LauncherSettingsActivity.class)), "launcher");
+                break;
             default:
                 description("UnifiedTV combina resultados de TMDB con la disponibilidad de JustWatch. No puede comprobar suscripciones, ni garantiza que una plataforma abra la ficha exacta. No accede al historial privado de tus apps.");
         }
@@ -89,6 +113,66 @@ public final class UnifiedCatalogSettingsActivity extends Activity {
             View target = content.findViewWithTag(focusTag);
             if (target != null) target.requestFocus();
         }
+    }
+
+    private void appearance() {
+        int active = StreamUi.accent(this);
+        description("Color de acento");
+        LinearLayout choices = new LinearLayout(this);
+        for (int i = 0; i < ACCENTS.length; i++) {
+            int color = ACCENTS[i];
+            String tag = "swatch" + i;
+            TextView sample = StreamUi.control(this, ACCENT_NAMES[i], false, v -> setAccent(color, tag));
+            sample.setTag(tag);
+            sample.setSelected(active == color);
+            if (i == 0) left(sample);
+            android.graphics.drawable.GradientDrawable swatch = StreamUi.shape(this, color, 10, StreamUi.BORDER);
+            swatch.setBounds(0, 0, dp(15), dp(15));
+            sample.setCompoundDrawablesRelative(swatch, null, null, null);
+            sample.setCompoundDrawablePadding(dp(6));
+            sample.setPadding(dp(7), 0, dp(7), 0);
+            LinearLayout.LayoutParams size = new LinearLayout.LayoutParams(0, -2, 1);
+            size.setMarginEnd(dp(5));
+            choices.addView(sample, size);
+        }
+        add(content, choices);
+        action("Color personalizado  ·  " + hex(active), v -> customAccent(), "custom");
+        action("Restablecer el color", v -> setAccent(StreamUi.DEFAULT_ACCENT, "custom"), "reset");
+    }
+
+    private static String hex(int color) {
+        return String.format(java.util.Locale.ROOT, "#%06X", color & 0xFFFFFF);
+    }
+
+    private void setAccent(int color, String tag) {
+        if (color == StreamUi.accent(this)) return;
+        StreamUi.saveAccent(this, color);
+        restoredFocus = tag;
+        recreate();
+    }
+
+    private void customAccent() {
+        EditText input = new EditText(this);
+        StreamUi.field(input);
+        input.setSingleLine(true);
+        input.setHint("#RRGGBB");
+        input.setText(hex(StreamUi.accent(this)));
+        LinearLayout field = StreamUi.column(this);
+        field.setPadding(dp(20), dp(8), dp(20), dp(8));
+        field.addView(input);
+        android.app.AlertDialog dialog = StreamUi.dialog(this).setTitle("Color personalizado")
+                .setView(field).setNegativeButton("Cancelar", null)
+                .setPositiveButton("Guardar", null).show();
+        dialog.getButton(android.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> {
+            String value = input.getText().toString().trim();
+            if (!value.matches("#?[0-9A-Fa-f]{6}")) {
+                input.setError("Introduce un color en formato #RRGGBB");
+                input.requestFocus();
+                return;
+            }
+            dialog.dismiss();
+            setAccent(Color.parseColor(value.startsWith("#") ? value : "#" + value), "custom");
+        });
     }
 
     private void catalog() {
@@ -119,7 +203,7 @@ public final class UnifiedCatalogSettingsActivity extends Activity {
 
     private TextView priority(UnifiedCatalogPrefs.Provider provider, int direction) {
         String tag = provider.key + ":" + direction;
-        TextView button = StreamUi.control(this, direction < 0 ? "↑" : "↓", false, v -> {
+        TextView button = StreamUi.control(this, "", direction < 0 ? R.drawable.uic_arrow_up : R.drawable.uic_arrow_down, false, v -> {
             UnifiedCatalogPrefs.move(this, provider, direction);
             show(section, tag);
         });
@@ -180,7 +264,7 @@ public final class UnifiedCatalogSettingsActivity extends Activity {
     private void left(View view) { view.setNextFocusLeftId(tabs.get(section).getId()); }
 
     private void action(String label, View.OnClickListener click, String tag) {
-        TextView button = StreamUi.control(this, label, false, click);
+        TextView button = StreamUi.control(this, label, R.drawable.uic_chevron_right, false, click);
         button.setTag(tag);
         left(button);
         add(content, button);
@@ -201,9 +285,10 @@ public final class UnifiedCatalogSettingsActivity extends Activity {
         EditText input = new EditText(this);
         input.setSingleLine(true);
         input.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
+        StreamUi.field(input);
         input.setText(UnifiedCatalogPrefs.apiKey(this));
         input.setHint("Clave de TMDB v3");
-        new AlertDialog.Builder(this).setTitle("Conectar TMDB").setView(input)
+        StreamUi.dialog(this).setTitle("Conectar TMDB").setView(input)
                 .setNegativeButton("Cancelar", null)
                 .setPositiveButton("Guardar", (dialog, which) -> {
                     UnifiedCatalogPrefs.prefs(this).edit().putString(UnifiedCatalogPrefs.KEY,
@@ -214,7 +299,7 @@ public final class UnifiedCatalogSettingsActivity extends Activity {
 
     private void chooseRegion() {
         String[] regions = {"ES", "PT", "FR", "DE", "IT", "GB", "US", "MX", "AR"};
-        new AlertDialog.Builder(this).setTitle("Región de disponibilidad")
+        StreamUi.dialog(this).setTitle("Región de disponibilidad")
                 .setItems(regions, (dialog, index) -> {
                     UnifiedCatalogPrefs.prefs(this).edit().putString(UnifiedCatalogPrefs.REGION, regions[index]).apply();
                     show(section, "region");
@@ -224,7 +309,7 @@ public final class UnifiedCatalogSettingsActivity extends Activity {
     private void chooseAge() {
         int[] days = {30, 60, 90, 180, 365};
         String[] options = {"30 días", "60 días", "90 días", "180 días", "365 días"};
-        new AlertDialog.Builder(this).setTitle("Antigüedad máxima").setItems(options, (dialog, index) -> {
+        StreamUi.dialog(this).setTitle("Antigüedad máxima").setItems(options, (dialog, index) -> {
             UnifiedCatalogPrefs.prefs(this).edit().putInt(UnifiedCatalogPrefs.CONTINUE_MAX_AGE, days[index]).apply();
             show(section, "age");
         }).show();

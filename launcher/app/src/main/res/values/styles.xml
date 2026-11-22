@@ -7,6 +7,15 @@
         <item name="android:colorAccent">#FFFF5467</item>
     </style>
 
+    <style name="Theme.UnifiedDialog" parent="android:Theme.Material.Dialog.Alert">
+        <item name="android:windowBackground">@drawable/glass_panel</item>
+        <item name="android:colorBackground">#FF19191E</item>
+        <item name="android:colorAccent">#FFF7F7F8</item>
+        <item name="android:textColorPrimary">#FFF7F7F8</item>
+        <item name="android:textColorSecondary">#FFB7B7C0</item>
+        <item name="android:windowDimAmount">0.72</item>
+    </style>
+
     <!-- Frosted pill, tvOS style. -->
     <style name="TopButtonBase">
         <item name="android:layout_width">wrap_content</item>

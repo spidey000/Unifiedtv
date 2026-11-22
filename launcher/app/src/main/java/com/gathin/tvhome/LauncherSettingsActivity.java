@@ -1,7 +1,6 @@
 package com.gathin.tvhome;
 
 import android.app.Activity;
-import android.app.AlertDialog;
 import android.content.ActivityNotFoundException;
 import android.content.Intent;
 import android.content.SharedPreferences;
@@ -50,6 +49,7 @@ public final class LauncherSettingsActivity extends Activity {
     protected void onCreate(Bundle state) {
         super.onCreate(state);
         setContentView(R.layout.activity_launcher_settings);
+        styleRows(findViewById(android.R.id.content));
         choices = getSharedPreferences(Config.SETTINGS_NAME, MODE_PRIVATE);
         Config config = Config.load(this);
         View reorderChoice = findViewById(R.id.reorderChoice);
@@ -139,7 +139,7 @@ public final class LauncherSettingsActivity extends Activity {
             if (advancedEffects) {
                 setAdvanced(false);
             } else {
-                new AlertDialog.Builder(this)
+                StreamUi.dialog(this)
                         .setTitle(R.string.advanced_effects)
                         .setMessage(R.string.advanced_effects_warning)
                         .setPositiveButton(R.string.enable, (dialog, which) -> setAdvanced(true))
@@ -174,9 +174,31 @@ public final class LauncherSettingsActivity extends Activity {
                 open(new Intent(this, HomeSettingsActivity.class)));
         findViewById(R.id.tvSettingsChoice).setOnClickListener(v ->
                 open(SystemSettings.intent(this, Settings.ACTION_SETTINGS)));
+        StreamUi.icon(findViewById(R.id.reorderChoice), R.drawable.ic_swap_vert);
+        StreamUi.icon(findViewById(R.id.wallpaperChoice), R.drawable.ic_picture);
+        StreamUi.icon(findViewById(R.id.animationsChoice), R.drawable.uic_sparkles);
+        StreamUi.icon(findViewById(R.id.advancedChoice), R.drawable.uic_sparkles);
+        StreamUi.icon(findViewById(R.id.openOnStartChoice), R.drawable.uic_play);
+        StreamUi.icon(findViewById(R.id.followThemeChoice), R.drawable.uic_palette);
+        StreamUi.icon(findViewById(R.id.unifiedSettingsChoice), R.drawable.ic_settings);
+        StreamUi.icon(findViewById(R.id.defaultHomeChoice), R.drawable.uic_house);
+        StreamUi.icon(findViewById(R.id.tvSettingsChoice), R.drawable.ic_livetv);
         refresh();
         if (config.launcherSettingsButton) reorderChoice.requestFocus();
         else columnChoices[Math.max(0, Math.min(columns - 4, 3))].requestFocus();
+    }
+
+    @Override protected void onResume() {
+        super.onResume();
+        styleRows(findViewById(android.R.id.content));
+    }
+
+    private void styleRows(View view) {
+        if (view instanceof TextView && view.isClickable()) StreamUi.background(view, false, false);
+        if (view instanceof android.view.ViewGroup) {
+            android.view.ViewGroup group = (android.view.ViewGroup) view;
+            for (int i = 0; i < group.getChildCount(); i++) styleRows(group.getChildAt(i));
+        }
     }
 
     private void reverseRow(TextView[] views) {
@@ -198,7 +220,7 @@ public final class LauncherSettingsActivity extends Activity {
         String current = choices.getString(Config.WALLPAPER_CHOICE_KEY, null);
         int checked = "none".equals(current) ? images.size()
                 : indexOf(images, current);
-        new AlertDialog.Builder(this)
+        StreamUi.dialog(this)
                 .setTitle(R.string.wallpaper_label)
                 .setSingleChoiceItems(labels, checked, (dialog, which) -> {
                     dialog.dismiss();
@@ -242,7 +264,7 @@ public final class LauncherSettingsActivity extends Activity {
             labels[i + 1] = apps.get(i)[0];
             if (apps.get(i)[1].equals(current)) checked = i + 1;
         }
-        new AlertDialog.Builder(this)
+        StreamUi.dialog(this)
                 .setTitle(R.string.open_on_start_label)
                 .setSingleChoiceItems(labels, checked, (dialog, which) -> {
                     dialog.dismiss();

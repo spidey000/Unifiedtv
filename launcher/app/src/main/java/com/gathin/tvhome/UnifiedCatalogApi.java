@@ -217,6 +217,8 @@ final class UnifiedCatalogApi {
 
     static Bitmap poster(Context c, String path) { return artwork(c, path, "w342"); }
 
+    static Bitmap shelfArtwork(Context c, String path) { return artwork(c, path, "w300"); }
+
     static Bitmap backdrop(Context c, String path) { return artwork(c, path, "w780"); }
 
     private static Bitmap artwork(Context c, String path, String size) {

@@ -1,7 +1,6 @@
 package com.gathin.tvhome;
 
 import android.app.Activity;
-import android.app.AlertDialog;
 import android.app.SearchManager;
 import android.content.ActivityNotFoundException;
 import android.content.Intent;
@@ -19,7 +18,7 @@ final class UnifiedCatalogRoute {
     static void open(Activity activity, UnifiedCatalogApi.Media media) {
         List<UnifiedCatalogPrefs.Provider> eligible = UnifiedCatalogApi.eligible(activity, media);
         if (eligible.isEmpty()) {
-            new AlertDialog.Builder(activity)
+            StreamUi.dialog(activity)
                 .setTitle("No disponible en tus plataformas")
                 .setMessage("No se ha encontrado «" + media.title + "» en las plataformas seleccionadas e instaladas de "
                         + UnifiedCatalogPrefs.region(activity) + ". Comprueba tus preferencias y tu suscripción.")
@@ -56,7 +55,7 @@ final class UnifiedCatalogRoute {
                 }
             } catch (RuntimeException ignored) { /* Try the next installed provider. */ }
         }
-        new AlertDialog.Builder(activity)
+        StreamUi.dialog(activity)
                 .setTitle("Error al abrir")
                 .setMessage("No se pudo abrir ninguna de las aplicaciones compatibles para «" + media.title + "».")
                 .setPositiveButton("Aceptar", null).show();

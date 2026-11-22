@@ -108,6 +108,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     static final String ACTION_APP_LIBRARY = "com.gathin.tvhome.action.APP_LIBRARY";
     /** The system input switcher, forwarded here by InputsRequestActivity while handle_view_inputs is on. */
     static final String ACTION_VIEW_INPUTS = "com.android.tv.action.VIEW_INPUTS";
+    static final String EXTRA_CATALOG_INPUTS = "unifiedtv_catalog_inputs";
     /** Tiles per row and dock slots (res/values/config.xml, columns). Set in onCreate. */
     static int COLUMNS = 4;
     private boolean rtlAppGrid;
@@ -930,6 +931,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
                         .setDuration(reducedMotion ? Motion.REDUCED_MS : 160).start());
             }
         }
+        updateStreamingChrome();
         if (festive) applyFestiveSkin((TextView) btnInputs, (TextView) btnSettings);
 
         // Hide the glass when focus leaves the tiles.
@@ -975,6 +977,15 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         }
     }
 
+    private int chromeAccent;
+
+    private void updateStreamingChrome() {
+        chromeAccent = StreamUi.accent(this);
+        for (View button : new View[]{btnInputs, btnWifi, btnVpn, btnReorder, btnLibraryTop, findViewById(R.id.btnSettings)}) {
+            StreamUi.background(button, false, false);
+        }
+    }
+
     /**
      * handle_view_inputs: switch InputsRequestActivity, the VIEW_INPUTS handler, on or off. It is disabled in the
      * manifest, so a TV with its own input picker never sees it; only the sets that need it turn it on. Written
@@ -998,15 +1009,18 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     private boolean openInputsIfAsked(Intent intent) {
         if (intent == null || !ACTION_VIEW_INPUTS.equals(intent.getAction())) return false;
         setIntent(new Intent(Intent.ACTION_MAIN));
-        View anchor = topMenu ? findViewById(R.id.btnSettings) : btnInputs;
-        if (anchor.getVisibility() != View.VISIBLE) return true;
+        boolean fromCatalog = intent.getBooleanExtra(EXTRA_CATALOG_INPUTS, false);
+        View pill = topMenu ? findViewById(R.id.btnSettings) : btnInputs;
+        if (pill.getVisibility() != View.VISIBLE && !fromCatalog) return true;
+        View anchor = fromCatalog ? root : pill;
+        UnifiedTvHome.revealClassicOnce();
         if (anchor.isLaidOut()) {
             // Android 9 delivers a new intent to a paused activity with a brief resume and pause around it, and
             // onPause() closes popups, so open the menu once that has run (HiSmartTV A4, Android TV 9).
             anchor.post(() -> {
                 if (isFinishing() || anchor.getVisibility() != View.VISIBLE) return;
                 anchor.requestFocus();
-                showInputs();
+                showInputs(fromCatalog);
             });
             return true;
         }
@@ -1018,7 +1032,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
                 anchor.post(() -> {
                     if (isFinishing() || anchor.getVisibility() != View.VISIBLE) return;
                     anchor.requestFocus();
-                    showInputs();
+                    showInputs(fromCatalog);
                 });
             }
         });
@@ -1095,6 +1109,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         // UnifiedTV's streaming catalog replaces Home in this fork; Back restores the classic dock.
         if (UnifiedTvHome.maybeLaunch(this)) return;
         // Also discover updates if the user opted out of the streaming Home.
+        if (chromeAccent != StreamUi.accent(this) && !festive) updateStreamingChrome();
         UnifiedAppUpdater.onResume(this);
         UnifiedAppUpdater.checkAutomatically(this);
         resumed = true;
@@ -3420,7 +3435,9 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     }
 
     /** Dropdown menu under the Inputs pill: HDMI ports (with connection state), AV and Live TV. */
-    private void showInputs() {
+    private void showInputs() { showInputs(false); }
+
+    private void showInputs(boolean centered) {
         // A configured source panel and no Live TV row to offer next to it: the panel is the whole menu.
         // The BYINTEK U4 needs this, as its TvInputManager lists three HDMI ports and an AV input it doesn't have.
         List<CoocaaSources.Source> coocaa = coocaaSources ? CoocaaSources.list(this) : Collections.emptyList();
@@ -3553,6 +3570,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         }
         if (!folded.isEmpty()) {
             View more = getLayoutInflater().inflate(R.layout.item_input, rows, false);
+            StreamUi.background(more, false, true);
             ((ImageView) more.findViewById(R.id.icon)).setImageResource(R.drawable.ic_input);
             ((TextView) more.findViewById(R.id.title)).setText(R.string.more_inputs);
             more.findViewById(R.id.status).setVisibility(View.GONE);
@@ -3622,7 +3640,8 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         popup.setWidth(Math.max(width, Math.min(panel.getMeasuredWidth(), (int) (360 * density))));
 
         int alignment = getResources().getBoolean(R.bool.rtl_menu_bar) != underGear ? Gravity.END : Gravity.START;
-        dropIn(popup, panel, anchor, alignment);
+        if (centered) popup.showAtLocation(root, Gravity.CENTER, 0, 0);
+        else dropIn(popup, panel, anchor, alignment);
         for (int i = 0; i < rows.getChildCount(); i++) {
             View child = rows.getChildAt(i);
             if (child.getVisibility() == View.VISIBLE && child.isFocusable()) { child.requestFocus(); break; }
@@ -3635,6 +3654,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     }
 
     private PopupWindow glassPopup(View panel, int width) {
+        panel.setBackground(StreamUi.panel(this));
         final PopupWindow popup = new PopupWindow(panel, width, ViewGroup.LayoutParams.WRAP_CONTENT, true);
         popup.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));   // needed for Back to dismiss
         popup.setOutsideTouchable(true);
@@ -3670,6 +3690,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
 
     private View addInputRow(LinearLayout rows, PopupWindow popup, int iconRes, String title, int state, Runnable action) {
         View row = getLayoutInflater().inflate(R.layout.item_input, rows, false);
+        StreamUi.background(row, false, true);
         ((ImageView) row.findViewById(R.id.icon)).setImageResource(iconRes);
         ((TextView) row.findViewById(R.id.title)).setText(title);
         TextView status = row.findViewById(R.id.status);
@@ -3901,7 +3922,14 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
 
     private void addSettingsMenuRow(LinearLayout rows, PopupWindow popup, int title, Runnable action) {
         View row = getLayoutInflater().inflate(R.layout.item_input, rows, false);
-        row.findViewById(R.id.icon).setVisibility(View.GONE);
+        StreamUi.background(row, false, true);
+        int icon = R.drawable.ic_settings;
+        if (title == R.string.tile_move || title == R.string.reorder) icon = R.drawable.ic_swap_vert;
+        else if (title == R.string.tile_add_to_dock || title == R.string.tile_replace_in_dock) icon = R.drawable.uic_layers;
+        else if (title == R.string.library_remove_shortcut) icon = R.drawable.uic_x;
+        else if (title == R.string.library_app_info) icon = R.drawable.uic_info;
+        else if (title == R.string.module_cards) icon = R.drawable.ic_apps;
+        ((ImageView) row.findViewById(R.id.icon)).setImageResource(icon);
         row.findViewById(R.id.dot).setVisibility(View.GONE);
         row.findViewById(R.id.status).setVisibility(View.GONE);
         ((TextView) row.findViewById(R.id.title)).setText(title);
@@ -3963,6 +3991,8 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
                 getString(R.string.card_prompt_identity, card.pkg, Cards.shortDigest(card.digest)));
         TextView keep = panel.findViewById(R.id.btnKeep);
         TextView show = panel.findViewById(R.id.btnShow);
+        StreamUi.background(keep, false, false);
+        StreamUi.background(show, true, false);
         if (rtl) {
             LinearLayout buttons = (LinearLayout) keep.getParent();
             buttons.removeAllViews();
@@ -4049,6 +4079,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         Collections.sort(listed, Cards::byLabel);
         for (Cards.Card card : listed) {
             View row = getLayoutInflater().inflate(R.layout.item_card_row, rows, false);
+            StreamUi.background(row, false, true);
             row.setTag(card.pkg);
             ((TextView) row.findViewById(R.id.title)).setText(card.label);
             if (getResources().getBoolean(R.bool.rtl_menu_bar)) {

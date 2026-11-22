@@ -127,7 +127,7 @@ final class UnifiedAppUpdater {
                     UnifiedCatalogPrefs.prefs(activity).edit()
                             .putString(UnifiedCatalogPrefs.UPDATE_LAST_SHOWN, found.tag).apply();
                 }
-                new AlertDialog.Builder(activity)
+                StreamUi.dialog(activity)
                         .setTitle("Nueva versión de UnifiedTV")
                         .setMessage("Instalada: " + current + "\nDisponible: " + found.tag.substring(1)
                                 + "\n\n¿Quieres descargar la APK oficial y actualizar?")
@@ -214,9 +214,10 @@ final class UnifiedAppUpdater {
         ProgressBar bar = new ProgressBar(activity, null, android.R.attr.progressBarStyleHorizontal);
         bar.setMax(100);
         bar.setProgress(0);
+        bar.setProgressTintList(android.content.res.ColorStateList.valueOf(StreamUi.readableAccent(activity)));
         view.addView(bar, new LinearLayout.LayoutParams(-1, -2));
         AtomicBoolean cancelled = new AtomicBoolean();
-        AlertDialog progress = new AlertDialog.Builder(activity)
+        AlertDialog progress = StreamUi.dialog(activity)
                 .setTitle("UnifiedTV " + release.tag.substring(1))
                 .setView(view)
                 .setNegativeButton("Cancelar", (d, which) -> cancelled.set(true))
@@ -252,7 +253,7 @@ final class UnifiedAppUpdater {
                     message(activity, "No se ha instalado la actualización", failure);
                     return;
                 }
-                new AlertDialog.Builder(activity)
+                StreamUi.dialog(activity)
                         .setTitle("Actualización descargada")
                         .setMessage("UnifiedTV " + release.tag.substring(1)
                                 + "\n\nLa APK coincide con SHA-256 y con la firma de esta aplicación."
@@ -431,7 +432,7 @@ final class UnifiedAppUpdater {
             return;
         }
         if (!canInstall(activity)) {
-            new AlertDialog.Builder(activity)
+            StreamUi.dialog(activity)
                     .setTitle("Permitir instalaciones desde UnifiedTV")
                     .setMessage("Android TV requiere que habilites «Instalar aplicaciones desconocidas» "
                             + "para UnifiedTV. Es un permiso por aplicación y puedes revocarlo cuando quieras. "
@@ -483,7 +484,7 @@ final class UnifiedAppUpdater {
     }
 
     private static void message(Activity activity, String title, String body) {
-        if (usable(activity)) new AlertDialog.Builder(activity)
+        if (usable(activity)) StreamUi.dialog(activity)
                 .setTitle(title).setMessage(body).setPositiveButton("Aceptar", null).show();
     }
 
