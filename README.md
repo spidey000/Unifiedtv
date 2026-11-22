@@ -8,7 +8,10 @@ UnifiedTV es un fork independiente de [CleanYourTV](https://github.com/Gathin23/
 
 ## ¿Qué incluye?
 
-- **Inicio unificado:** tendencias de la semana, últimas películas en cartelera y series del momento, con pósteres y títulos en español.
+- **Tres pestañas principales:** **Películas**, **Series** y **Seguir viendo**, navegables con el mando. El catálogo recuerda la última pestaña.
+- **Cinco filtros en Películas y Series:** Destacados (tendencia diaria), Más vistos (aproximación por tendencia semanal), Novedades (estrenos en cartelera / series en emisión), Populares y Mejor valorados (histórico).
+- **Seguir viendo unificado:** lee las entradas visibles del proveedor Android TV `Watch Next` y, cuando existen, los canales «Continue Watching» de las aplicaciones. Muestra portada, origen y barra de progreso, y permite abrir la entrada publicada por la app.
+- **Fuentes configurables de Seguir viendo:** Netflix, Prime Video, Max/HBO Max, Disney+, Apple TV+, SkyShowtime, Movistar Plus+, Filmin, **Stremio** y **Nuvio**, además de otras apps compatibles opcionalmente.
 - **Buscador global** de películas y series en TMDB.
 - **Disponibilidad por país:** por defecto España (`ES`), con otros países configurables.
 - **Marcas de plataforma:** muestra las plataformas compatibles que están **instaladas y seleccionadas**.
@@ -20,11 +23,15 @@ UnifiedTV es un fork independiente de [CleanYourTV](https://github.com/Gathin23/
 
 ### Flujo de usuario
 
-1. Pulsas **Home** y aparece el catálogo de UnifiedTV.
-2. Navegas por los carteles con el mando; las etiquetas muestran Netflix, Max, Prime Video, etc. cuando figuran disponibles en TMDB **y** tienes la aplicación instalada/activada.
-3. Seleccionas un título. UnifiedTV intenta abrir la búsqueda de la primera aplicación compatible en tu orden de preferencias.
-4. Si no acepta búsquedas externas, abre la app para que localices manualmente el título; si no arranca, intenta la siguiente.
-5. Si ninguna plataforma disponible está instalada/activada, aparece un aviso.
+1. Pulsas **Home**. Eliges **Películas**, **Series** o **Seguir viendo**.
+2. Dentro de Películas o Series cambias entre **Destacados · Más vistos · Novedades · Populares · Mejor valorados (histórico)**. Las etiquetas de plataformas se basan en disponibilidad TMDB y aplicaciones instaladas/activadas.
+3. Seleccionas un título. UnifiedTV intenta abrir la búsqueda de la primera app según tu prioridad; si no ofrece búsqueda externa, abre la aplicación para que busques el título. Cuando no hay plataforma compatible se informa del motivo.
+4. En **Seguir viendo** aparecen las entradas que las apps comparten voluntariamente con Android TV. Pulsar una abre su acción de continuación si funciona en la TV, o su app como alternativa.
+5. En **Ajustes → Seguir viendo** puedes filtrar fuentes, activar la fila en Home, incluir próximos episodios o canales de continuación, definir antigüedad máxima y ocultar títulos completados.
+
+> **Más vistos:** TMDB no ofrece cifras reales de visionado agregadas de plataformas. Este filtro utiliza la tendencia semanal como indicador aproximado, y lo señala en pantalla.
+
+> **Seguir viendo:** Android TV solo permite leer las entradas que las aplicaciones hayan publicado y marcado como visibles, después de conceder `READ_TV_LISTINGS`. **No puede extraer automáticamente el historial privado de todas tus apps**. Dependiendo del dispositivo, Netflix, Prime Video, Max, Stremio y Nuvio pueden no publicar ninguna entrada. Se muestran únicamente los datos accesibles.
 
 > **Limitación real:** TMDB no devuelve una URL directa de ficha para cada proveedor y las apps no publican una interfaz universal para abrir fichas. Por tanto, el MVP **no garantiza abrir la ficha exacta** ni comprobar suscripciones activas. Instalar Netflix no implica poder reproducir cualquier título; la disponibilidad cambia con el tiempo y el país. No se hace ninguna reproducción no autorizada ni se elude DRM.
 
@@ -61,7 +68,9 @@ Selecciona UnifiedTV como launcher predeterminado desde Android TV cuando corres
 2. Obtén una API Key v3 en [TMDB](https://www.themoviedb.org/settings/api) e introdúcela.
 3. Comprueba **País = ES** (u otro país).
 4. Activa las plataformas que utilizas y ordénalas con **↑ / ↓**.
-5. Pulsa **Actualizar**. El catálogo cargará los pósteres y comprobará la disponibilidad en segundo plano.
+5. Configura **Seguir viendo**: elige sus fuentes (Netflix, Max, Prime, Stremio, Nuvio...), límite de antigüedad y si debe aparecer en Home.
+6. Entra en **Seguir viendo** y concede permiso de **listados TV** si Android lo solicita.
+7. Pulsa **Actualizar** para obtener nuevas películas, series y disponibilidad. La información de Seguir viendo se actualiza al entrar en esa sección.
 
 También encontrarás «UnifiedTV · Streaming y preferencias» en los ajustes del launcher original.
 
@@ -69,8 +78,9 @@ También encontrarás «UnifiedTV · Streaming y preferencias» en los ajustes d
 
 | Componente | Función |
 |---|---|
-| `UnifiedCatalogActivity.java` | Catálogo TV, secciones, carteles, búsqueda y selección |
-| `UnifiedCatalogApi.java` | API TMDB, proveedores y caché offline |
+| `UnifiedCatalogActivity.java` | Pestañas Películas, Series, Seguir viendo, cinco filtros y tarjetas con progreso |
+| `UnifiedCatalogApi.java` | Cinco categorías TMDB para películas/series, proveedores y caché offline |
+| `UnifiedWatchNext.java` | Lectura autorizada de Android TV Watch Next y canales de continuación |
 | `UnifiedCatalogPrefs.java` | Servicios instalados, país, preferencias y orden |
 | `UnifiedCatalogSettingsActivity.java` | Ajustes utilizables con el mando |
 | `UnifiedCatalogRoute.java` | Búsqueda o apertura de apps, errores y fallback |
