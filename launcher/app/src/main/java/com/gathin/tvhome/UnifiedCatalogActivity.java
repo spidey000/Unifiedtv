@@ -200,7 +200,7 @@ public final class UnifiedCatalogActivity extends Activity {
     }
 
     private int railWidth() {
-        return Math.max(116, Math.min(152, getResources().getConfiguration().screenWidthDp * 12 / 100));
+        return Math.max(128, Math.min(152, getResources().getConfiguration().screenWidthDp * 12 / 100));
     }
 
     private void styleRailControl(TextView control) {
