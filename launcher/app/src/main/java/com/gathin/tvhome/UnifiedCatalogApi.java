@@ -34,6 +34,8 @@ final class UnifiedCatalogApi {
         final double voteAverage;
         final int voteCount;
         volatile boolean availabilityReady;
+        volatile boolean autoTargetReady;
+        volatile UnifiedCatalogRoute.Target autoTarget;
         volatile String watchLink = "";
         volatile String availabilityError = "";
         final Set<Integer> providerIds = new HashSet<>();
