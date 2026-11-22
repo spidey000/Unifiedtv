@@ -57,6 +57,80 @@ final class UnifiedCatalogPrefs {
         new Provider("filmin", "Filmin", new int[]{63}, "com.filmin.filmin", "com.filmin.android")
     ));
 
+    static final String LAST_TAB = "last_tab";
+    static final String CONTINUE_ENABLED = "continue_enabled";
+    static final String CONTINUE_HOME = "continue_home";
+    static final String CONTINUE_PREVIEWS = "continue_previews";
+    static final String CONTINUE_NEXT_EPISODES = "continue_next";
+    static final String CONTINUE_HIDE_FINISHED = "continue_hide_finished";
+    static final String CONTINUE_MAX_AGE = "continue_max_age_days";
+    static final String CONTINUE_OTHER_APPS = "continue_other_apps";
+
+    // Stremio and Nuvio are catalog/player apps rather than TMDB subscription providers.
+    // They are sources of Watch Next, not TMDB availability badges.
+    static final List<Provider> CONTINUE_SOURCES;
+    static {
+        List<Provider> sources = new ArrayList<>(PROVIDERS);
+        sources.add(new Provider("stremio", "Stremio", new int[]{},
+                "com.stremio.one", "com.stremio.two"));
+        sources.add(new Provider("nuvio", "Nuvio", new int[]{},
+                "com.nuvio.tv", "com.nuvio.app"));
+        CONTINUE_SOURCES = Collections.unmodifiableList(sources);
+    }
+
+    static boolean continueEnabled(Context c) {
+        return prefs(c).getBoolean(CONTINUE_ENABLED, true);
+    }
+
+    static boolean continueOnHome(Context c) {
+        return prefs(c).getBoolean(CONTINUE_HOME, true);
+    }
+
+    static boolean continuePreviews(Context c) {
+        return prefs(c).getBoolean(CONTINUE_PREVIEWS, true);
+    }
+
+    static boolean continueNext(Context c) {
+        return prefs(c).getBoolean(CONTINUE_NEXT_EPISODES, true);
+    }
+
+    static boolean continueHideFinished(Context c) {
+        return prefs(c).getBoolean(CONTINUE_HIDE_FINISHED, true);
+    }
+
+    static int continueMaxAge(Context c) {
+        int days = prefs(c).getInt(CONTINUE_MAX_AGE, 90);
+        return days < 1 || days > 365 ? 90 : days;
+    }
+
+    static boolean continueSourceSelected(Context c, Provider p) {
+        return prefs(c).getBoolean("continue_source_" + p.key, true);
+    }
+
+    static boolean continueOtherApps(Context c) {
+        return prefs(c).getBoolean(CONTINUE_OTHER_APPS, false);
+    }
+
+    static Provider sourceForPackage(String pkg) {
+        if (pkg == null) return null;
+        for (Provider provider : CONTINUE_SOURCES)
+            for (String candidate : provider.packages)
+                if (candidate.equals(pkg)) return provider;
+        return null;
+    }
+
+    static boolean allowedContinuePackage(Context c, String pkg) {
+        if (pkg == null || pkg.isEmpty()) return false;
+        Provider provider = sourceForPackage(pkg);
+        if (provider == null) {
+            if (!continueOtherApps(c)) return false;
+            try { return c.getPackageManager().getLaunchIntentForPackage(pkg) != null; }
+            catch (RuntimeException e) { return false; }
+        }
+        return continueSourceSelected(c, provider)
+                && provider.installedPackage(c) != null;
+    }
+
     static SharedPreferences prefs(Context context) {
         return context.getSharedPreferences(NAME, Context.MODE_PRIVATE);
     }
