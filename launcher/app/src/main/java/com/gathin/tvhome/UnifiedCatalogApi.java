@@ -78,12 +78,22 @@ final class UnifiedCatalogApi {
         final String poster, backdrop;
         final double voteAverage;
         final int voteCount;
+        final int id;
+        final String type, overview;
 
         MediaArt(String poster, String backdrop, double voteAverage, int voteCount) {
+            this(poster, backdrop, voteAverage, voteCount, 0, "", "");
+        }
+
+        MediaArt(String poster, String backdrop, double voteAverage, int voteCount,
+                 int id, String type, String overview) {
             this.poster = poster;
             this.backdrop = backdrop;
             this.voteAverage = voteAverage;
             this.voteCount = voteCount;
+            this.id = id;
+            this.type = type;
+            this.overview = overview;
         }
 
         boolean hasRating() {
@@ -263,9 +273,83 @@ final class UnifiedCatalogApi {
         JSONObject match = matches.get(0);
         MediaArt artwork = new MediaArt(match.optString("poster_path", ""),
                 match.optString("backdrop_path", ""),
-                match.optDouble("vote_average", 0.0), match.optInt("vote_count", 0));
+                match.optDouble("vote_average", 0.0), match.optInt("vote_count", 0),
+                match.optInt("id", 0), match.optString("media_type", ""),
+                match.optString("overview", ""));
         synchronized (WATCH_ART) { WATCH_ART.put(cacheKey, artwork); }
         return artwork;
+    }
+
+    /** Full movie/series metadata for an expanded details dialog; cache is shared with catalog requests. */
+    static JSONObject fullDetails(Context context, Media media) throws Exception {
+        return request(context, "/" + media.type + "/" + media.id
+                + "?language=es-ES&append_to_response=credits", PROVIDER_TTL, false);
+    }
+
+    /** Public TMDB details, without inventing fields when the response omits them. */
+    static String fullDetailsText(JSONObject info, String type) {
+        if (info == null) return "";
+        List<String> lines = new ArrayList<>();
+        String original = info.optString("movie".equals(type) ? "original_title" : "original_name", "");
+        String title = info.optString("movie".equals(type) ? "title" : "name", "");
+        if (!original.isEmpty() && !original.equalsIgnoreCase(title))
+            lines.add("Título original: " + original);
+        String tag = info.optString("tagline", "");
+        if (!tag.isEmpty()) lines.add("Lema: " + tag);
+        JSONArray genres = info.optJSONArray("genres");
+        String genre = names(genres, 10);
+        if (!genre.isEmpty()) lines.add("Géneros: " + genre);
+        String premiere = info.optString("movie".equals(type) ? "release_date" : "first_air_date", "");
+        if (!premiere.isEmpty()) lines.add("Estreno: " + premiere);
+        if ("movie".equals(type)) {
+            int runtime = info.optInt("runtime", 0);
+            if (runtime > 0) lines.add("Duración: " + runtime + " min");
+        } else {
+            int seasons = info.optInt("number_of_seasons", 0);
+            int episodes = info.optInt("number_of_episodes", 0);
+            if (seasons > 0) lines.add("Temporadas: " + seasons);
+            if (episodes > 0) lines.add("Episodios: " + episodes);
+            JSONArray times = info.optJSONArray("episode_run_time");
+            if (times != null && times.length() > 0 && times.optInt(0, 0) > 0)
+                lines.add("Duración por episodio: " + times.optInt(0) + " min");
+            String creators = names(info.optJSONArray("created_by"), 6);
+            if (!creators.isEmpty()) lines.add("Creadores: " + creators);
+        }
+        String state = info.optString("status", "");
+        if (!state.isEmpty()) lines.add("Estado: " + state);
+        JSONObject credits = info.optJSONObject("credits");
+        if (credits != null) {
+            JSONArray crew = credits.optJSONArray("crew");
+            List<String> directors = new ArrayList<>();
+            if (crew != null) for (int i = 0; i < crew.length() && directors.size() < 4; i++) {
+                JSONObject member = crew.optJSONObject(i);
+                if (member != null && "Director".equals(member.optString("job", ""))) {
+                    String name = member.optString("name", "");
+                    if (!name.isEmpty() && !directors.contains(name)) directors.add(name);
+                }
+            }
+            if (!directors.isEmpty()) lines.add("Dirección: " + String.join(", ", directors));
+            String cast = names(credits.optJSONArray("cast"), 9);
+            if (!cast.isEmpty()) lines.add("Reparto: " + cast);
+        }
+        String companies = names(info.optJSONArray("production_companies"), 5);
+        if (!companies.isEmpty()) lines.add("Producción: " + companies);
+        String countries = names(info.optJSONArray("production_countries"), 6);
+        if (!countries.isEmpty()) lines.add("Países: " + countries);
+        int votes = info.optInt("vote_count", 0);
+        if (votes > 0) lines.add("Votos registrados: " + votes);
+        return String.join("\n", lines);
+    }
+
+    private static String names(JSONArray items, int max) {
+        if (items == null) return "";
+        List<String> result = new ArrayList<>();
+        for (int i = 0; i < items.length() && result.size() < max; i++) {
+            JSONObject item = items.optJSONObject(i);
+            String name = item == null ? "" : item.optString("name", "");
+            if (!name.isEmpty() && !result.contains(name)) result.add(name);
+        }
+        return String.join(", ", result);
     }
 
     /** The TMDB external IDs endpoint supplies Wikidata QIDs, not service content IDs. */
