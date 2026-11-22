@@ -15,6 +15,7 @@ import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
 import android.text.TextUtils;
 import android.view.Gravity;
+import android.view.KeyEvent;
 import android.view.View;
 import android.view.ViewTreeObserver;
 import android.view.Window;
@@ -55,6 +56,7 @@ public final class UnifiedCatalogActivity extends Activity {
     private final ExecutorService providerArt = Executors.newFixedThreadPool(2);
     private final Map<Page, TextView> routes = new LinkedHashMap<>();
     private FrameLayout viewport;
+    private TvSpatialNavigation spatial;
     private ViewTreeObserver.OnGlobalFocusChangeListener railFocus;
     private ValueAnimator railAnimation;
     private ScrollView scroll;
@@ -82,6 +84,11 @@ public final class UnifiedCatalogActivity extends Activity {
         inflateShell();
         show(page, false);
         routes.get(page).requestFocus();
+    }
+
+    @Override public boolean dispatchKeyEvent(KeyEvent event) {
+        return (spatial != null && spatial.onKey(getCurrentFocus(), event))
+                || super.dispatchKeyEvent(event);
     }
 
     @Override protected void onSaveInstanceState(Bundle state) {
@@ -161,7 +168,10 @@ public final class UnifiedCatalogActivity extends Activity {
         labels.add(settings);
         for (TextView label : labels) label.setText("");
         setContentView(root);
+        spatial = new TvSpatialNavigation(rail, viewport);
+        spatial.setPreferredRail(routes.get(page));
         railFocus = (previous, current) -> {
+            spatial.remember(current);
             boolean hadFocus = previous != null && previous.getParent() == rail;
             boolean hasFocus = current != null && current.getParent() == rail;
             if (hadFocus == hasFocus) return;
@@ -223,6 +233,7 @@ public final class UnifiedCatalogActivity extends Activity {
 
     private void show(Page destination, boolean refresh) {
         page = destination;
+        if (spatial != null) spatial.setPreferredRail(routes.get(page));
         if (page != Page.WATCH) focusWatchGrid = false;
         int stamp = ++revision;
         for (Map.Entry<Page, TextView> entry : routes.entrySet()) {
