@@ -236,12 +236,12 @@ final class UnifiedWatchNext {
     }
 
     private static String mediaType(Cursor cursor) {
-        int type = integer(cursor, "type", -1);
-        if (type == TvContract.Programs.TYPE_MOVIE) return "movie";
-        if (type == TvContract.Programs.TYPE_TV_SERIES
-                || type == TvContract.Programs.TYPE_TV_SEASON
-                || type == TvContract.Programs.TYPE_TV_EPISODE) return "tv";
-        return "";
+        // Optional vendor metadata: never assume a type enum exists in TvContract.
+        String type = string(cursor, "type").toLowerCase(Locale.ROOT);
+        if (type.contains("movie") || type.contains("film")) return "movie";
+        if (type.contains("series") || type.contains("episode") || type.contains("season")
+                || type.equals("tv")) return "tv";
+        return ""; // An unknown hint must not cause an incorrect TMDB match.
     }
 
     private static String sourceName(String pkg) {
