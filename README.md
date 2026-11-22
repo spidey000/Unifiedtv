@@ -16,18 +16,18 @@ UnifiedTV es un fork independiente de [CleanYourTV](https://github.com/Gathin23/
 - **Fuentes configurables de Seguir viendo:** Netflix, Prime Video, Max/HBO Max, Disney+, Apple TV+, SkyShowtime, Movistar Plus+, Filmin, **Stremio** y **Nuvio**, además de otras apps compatibles opcionalmente.
 - **Buscador global** de películas y series en TMDB.
 - **Disponibilidad por país:** por defecto España (`ES`), con otros países configurables.
-- **Marcas de plataforma:** muestra las plataformas compatibles que están **instaladas y seleccionadas**.
-- **Preferencias:** activa, desactiva y ordena tus servicios en **Ajustes → Plataformas**, incluidos Nuvio y Stremio.
-- **Apertura:** elige la app desde **Ver en**. UnifiedTV abre la ficha mediante un enlace directo en Nuvio o Stremio, o intenta enviar la búsqueda del título a la aplicación elegida.
-- **Más opciones:** el selector incluye otras apps de vídeo detectadas, acceso al resto de apps instaladas y un enlace a las opciones online cuando TMDB lo proporciona.
+- **Marcas de plataforma:** identifica los servicios instalados, seleccionados y con disponibilidad indicada por TMDB, sin confundirlos con reproductores locales.
+- **Plataformas y reproductores configurables:** activa/desactiva proveedores TMDB y, por separado, Nuvio, Stremio, Kodi, Plex, Jellyfin, Emby, VLC, Nova u otras apps instaladas seleccionadas manualmente.
+- **Apertura:** «Ver ahora» muestra un selector de apps. Nuvio abre la ficha mediante el ID TMDB y Stremio usa el ID IMDb cuando está disponible (o busca por título). Los demás servicios intentan buscar y, si no pueden, abren la app para una búsqueda manual.
+- **Error explícito** si no hay ningún proveedor TMDB coincidente ni reproductor local seleccionado e instalado; enlace a opciones online cuando TMDB lo proporciona.
 - **Caché:** últimas respuestas de catálogo, disponibilidad y carteles, para reducir consultas y mostrar datos previamente guardados sin conexión.
 - **Launcher clásico preservado:** «Aplicaciones → Abrir launcher clásico» o Atrás desde Inicio muestran la cuadrícula y el dock basados en CleanYourTV. Se puede desactivar el catálogo como Home desde Ajustes.
 
 ### Flujo de usuario
 
 1. Pulsas **Home**. Eliges **Películas**, **Series** o **Seguir viendo**.
-2. Abre Películas o Series desde el menú lateral y recorre las filas con el mando. A la izquierda de la primera tarjeta de cada fila puedes volver al menú. La ficha muestra las plataformas instaladas y activadas cuya disponibilidad indica TMDB.
-3. Selecciona **Ver en** para elegir una plataforma. Nuvio y Stremio aparecen cuando están instaladas y activadas, y pueden abrir la ficha directamente. UnifiedTV también detecta apps de vídeo y ofrece **Otras aplicaciones instaladas**. Cuando una app admite búsqueda externa, UnifiedTV le pasa el título. Si solo permite abrir su pantalla principal, puedes buscarlo allí.
+2. Abre Películas o Series desde el menú lateral y recorre las filas con el mando. A la izquierda de la primera tarjeta de cada fila puedes volver al menú. Las plataformas de la ficha se basan en disponibilidad TMDB y aplicaciones instaladas y activadas.
+3. Seleccionas un título y pulsas **Ver ahora**. UnifiedTV ofrece las plataformas donde TMDB identifica disponibilidad y, además, reproductores locales que has habilitado. Eliges la app; Nuvio y Stremio pueden abrir la ficha del título, y las demás abren búsqueda o inicio.
 4. En **Seguir viendo** aparecen las entradas que las apps comparten voluntariamente con Android TV. Pulsar una abre su acción de continuación si funciona en la TV, o su app como alternativa.
 5. En **Ajustes → Seguir viendo** puedes filtrar fuentes, activar la fila en Home, incluir próximos episodios o canales de continuación, definir antigüedad máxima y ocultar títulos completados.
 
@@ -35,7 +35,7 @@ UnifiedTV es un fork independiente de [CleanYourTV](https://github.com/Gathin23/
 
 > **Seguir viendo:** Android TV solo permite leer las entradas que las aplicaciones hayan publicado y marcado como visibles, después de conceder `READ_TV_LISTINGS`. **No puede extraer automáticamente el historial privado de todas tus apps**. Dependiendo del dispositivo, Netflix, Prime Video, Max, Stremio y Nuvio pueden no publicar ninguna entrada. Se muestran únicamente los datos accesibles.
 
-> **Limitación real:** TMDB no devuelve una URL directa de ficha para cada proveedor y las apps no publican una interfaz universal para abrir fichas. Por tanto, el MVP **no garantiza abrir la ficha exacta** ni comprobar suscripciones activas. Instalar Netflix no implica poder reproducir cualquier título; la disponibilidad cambia con el tiempo y el país. No se hace ninguna reproducción no autorizada ni se elude DRM.
+> **Limitación real:** TMDB no devuelve una URL directa de ficha para cada proveedor y las apps no publican una interfaz universal para abrir fichas. Nuvio acepta enlaces TMDB y Stremio enlaces IMDb/Cinemeta, pero otras apps pueden requerir búsqueda manual. Por tanto, el MVP **no garantiza abrir la ficha exacta** ni comprobar suscripciones activas. Instalar Netflix no implica poder reproducir cualquier título; la disponibilidad cambia con el tiempo y el país. No se hace ninguna reproducción no autorizada ni se elude DRM.
 
 ## Actualizaciones desde la televisión
 
@@ -94,7 +94,7 @@ Prueba UnifiedTV desde la lista de apps de tu televisor. No es necesario deshabi
 1. Abre **UnifiedTV → Ajustes**.
 2. Obtén una API Key v3 en [TMDB](https://www.themoviedb.org/settings/api) e introdúcela.
 3. Comprueba **País = ES** (u otro país).
-4. Activa las plataformas que utilizas y ordénalas con **↑ / ↓**.
+4. En **Ajustes → Plataformas**, activa los servicios y reproductores instalados. También puedes añadir otras apps desde «Elegir otras apps instaladas para reproducir».
 5. Configura **Seguir viendo**: elige sus fuentes (Netflix, Max, Prime, Stremio, Nuvio...), límite de antigüedad y si debe aparecer en Home.
 6. Entra en **Seguir viendo** y concede permiso de **listados TV** si Android lo solicita.
 7. Pulsa **Actualizar** para obtener nuevas películas, series y disponibilidad. La información de Seguir viendo se actualiza al entrar en esa sección.
@@ -110,7 +110,8 @@ También encontrarás «UnifiedTV · Streaming y preferencias» en los ajustes d
 | `UnifiedWatchNext.java` | Lectura autorizada de Android TV Watch Next y canales de continuación |
 | `UnifiedCatalogPrefs.java` | Servicios instalados, país, preferencias y orden |
 | `UnifiedCatalogSettingsActivity.java` | Ajustes utilizables con el mando |
-| `UnifiedCatalogRoute.java` | Búsqueda o apertura de apps, errores y fallback |
+| `UnifiedCatalogRoute.java` | Selector de apps, enlaces Nuvio/Stremio, búsqueda y fallback |
+| `UnifiedPlaybackApps.java` | Detecta reproductores instalados y apps adicionales elegidas por el usuario |
 | `UnifiedTvHome.java` | Entrada desde Home y salida al launcher clásico |
 | `MainActivity.java` | Integración mínima con el launcher original |
 

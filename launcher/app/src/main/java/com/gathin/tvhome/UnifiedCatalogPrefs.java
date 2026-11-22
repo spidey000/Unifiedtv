@@ -64,6 +64,8 @@ final class UnifiedCatalogPrefs {
     static final String CONTINUE_PREVIEWS = "continue_previews";
     static final String CONTINUE_NEXT_EPISODES = "continue_next";
     static final String CONTINUE_HIDE_FINISHED = "continue_hide_finished";
+    static final String CONTINUE_MIN_PERCENT = "continue_min_percent";
+    static final String CONTINUE_MIN_MINUTES = "continue_min_minutes";
     static final String CONTINUE_MAX_AGE = "continue_max_age_days";
     static final String CONTINUE_OTHER_APPS = "continue_other_apps";
     static final String UPDATE_AUTO_CHECK = "update_auto_check";
@@ -72,7 +74,7 @@ final class UnifiedCatalogPrefs {
 
 
     // Stremio and Nuvio are catalog/player apps rather than TMDB subscription providers.
-    // Their title links and Watch Next entries do not depend on TMDB availability.
+    // They are sources of Watch Next, not TMDB availability badges.
     static final List<Provider> CONTINUE_SOURCES;
     static {
         List<Provider> sources = new ArrayList<>(PROVIDERS);
@@ -106,6 +108,14 @@ final class UnifiedCatalogPrefs {
 
     static boolean continueHideFinished(Context c) {
         return prefs(c).getBoolean(CONTINUE_HIDE_FINISHED, true);
+    }
+
+    static int continueMinPercent(Context c) {
+        return Math.max(0, Math.min(100, prefs(c).getInt(CONTINUE_MIN_PERCENT, 5)));
+    }
+
+    static int continueMinMinutes(Context c) {
+        return Math.max(0, Math.min(1440, prefs(c).getInt(CONTINUE_MIN_MINUTES, 5)));
     }
 
     static int continueMaxAge(Context c) {
@@ -168,12 +178,12 @@ final class UnifiedCatalogPrefs {
     }
 
     static List<Provider> ordered(Context c) {
-        List<Provider> result = new ArrayList<>(CONTINUE_SOURCES);
+        List<Provider> result = new ArrayList<>(PROVIDERS);
         String raw = prefs(c).getString(ORDER, "");
         List<String> keys = Arrays.asList(raw.split(","));
         result.sort(Comparator.comparingInt(p -> {
             int i = keys.indexOf(p.key);
-            return i < 0 ? 1000 + CONTINUE_SOURCES.indexOf(p) : i;
+            return i < 0 ? 1000 + PROVIDERS.indexOf(p) : i;
         }));
         return result;
     }

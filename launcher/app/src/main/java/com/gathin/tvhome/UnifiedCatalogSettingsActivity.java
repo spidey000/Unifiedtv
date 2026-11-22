@@ -12,7 +12,9 @@ import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
+import android.widget.Toast;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -30,6 +32,7 @@ public final class UnifiedCatalogSettingsActivity extends Activity {
     private LinearLayout content;
     private ScrollView scroll;
     private TextView installPermissionStatus;
+    private TmdbPairingDialog pairing;
     private int section;
     private String restoredFocus;
 
@@ -82,6 +85,11 @@ public final class UnifiedCatalogSettingsActivity extends Activity {
         super.onResume();
         UnifiedAppUpdater.onResume(this);
         if (installPermissionStatus != null) installPermissionStatus.setText(permissionStatus());
+    }
+
+    @Override protected void onStop() {
+        if (pairing != null) pairing.dismiss();
+        super.onStop();
     }
 
     private int dp(int n) { return StreamUi.dp(this, n); }
@@ -178,14 +186,16 @@ public final class UnifiedCatalogSettingsActivity extends Activity {
     private void catalog() {
         description("Elige qué se muestra al abrir UnifiedTV y conecta el catálogo de películas y series.");
         toggle("Mostrar catálogo al pulsar Home", UnifiedCatalogPrefs.ON_HOME, true);
-        action(UnifiedCatalogPrefs.apiKey(this).isEmpty() ? "Conectar TMDB" : "Cambiar clave de TMDB", v -> editKey(), "tmdb");
+        action(UnifiedCatalogPrefs.apiKey(this).isEmpty() ? "Configurar TMDB desde el móvil"
+                : "Cambiar clave de TMDB desde el móvil", v -> pairKey(), "tmdb");
+        action("Introducir clave de TMDB con el mando", v -> editKey(), "tmdb-manual");
         action("Región de disponibilidad  ·  " + UnifiedCatalogPrefs.region(this), v -> chooseRegion(), "region");
         toggle("Incluir servicios gratuitos y con anuncios", UnifiedCatalogPrefs.INCLUDE_FREE, true);
         description("La clave personal v3 de TMDB se guarda únicamente en esta TV.");
     }
 
     private void providers() {
-        description("Selecciona las plataformas que usas y ordénalas para el selector «Ver en».");
+        description("Servicios disponibles según TMDB en tu región. Solo aparecen al abrir un título si TMDB indica que está disponible.");
         for (UnifiedCatalogPrefs.Provider provider : UnifiedCatalogPrefs.ordered(this)) {
             LinearLayout row = new LinearLayout(this);
             row.setGravity(Gravity.CENTER_VERTICAL);
@@ -199,6 +209,40 @@ public final class UnifiedCatalogSettingsActivity extends Activity {
             row.addView(priority(provider, 1));
             add(content, row);
         }
+
+        description("Apps para abrir títulos descubiertos en TMDB. Nuvio y Stremio pueden abrir fichas; otras apps pueden requerir buscar manualmente. No implica disponibilidad del contenido.");
+        for (UnifiedPlaybackApps.Known app : UnifiedPlaybackApps.KNOWN) {
+            boolean installed = app.installedPackage(this) != null;
+            CheckBox use = StreamUi.toggle(this, app.name + (installed ? "  ·  Instalada" : "  ·  No instalada"),
+                    UnifiedPlaybackApps.selected(this, app));
+            use.setOnCheckedChangeListener((v, checked) -> save("playback_source_" + app.key, checked));
+            left(use);
+            add(content, use);
+        }
+        action("Elegir otras apps instaladas para reproducir", v -> chooseOtherPlaybackApps(), "otherPlayback");
+        description("Las aplicaciones adicionales se activan manualmente y solo se abren si están instaladas.");
+    }
+
+    private void chooseOtherPlaybackApps() {
+        List<UnifiedPlaybackApps.App> apps = UnifiedPlaybackApps.otherInstalledApps(this);
+        if (apps.isEmpty()) {
+            StreamUi.dialog(this).setTitle("No se encontraron otras apps")
+                    .setMessage("Las apps de Android TV disponibles ya están incluidas en las listas anteriores.")
+                    .setPositiveButton("Aceptar", null).show();
+            return;
+        }
+        CharSequence[] names = new CharSequence[apps.size()];
+        boolean[] enabled = new boolean[apps.size()];
+        for (int i = 0; i < apps.size(); i++) {
+            UnifiedPlaybackApps.App app = apps.get(i);
+            names[i] = app.name;
+            enabled[i] = UnifiedPlaybackApps.selectedOther(this, app.packageName);
+        }
+        StreamUi.dialog(this).setTitle("Otras apps instaladas")
+                .setMultiChoiceItems(names, enabled, (dialog, which, chosen) ->
+                        save("playback_package_" + apps.get(which).packageName, chosen))
+                .setPositiveButton("Listo", (dialog, which) -> show(section, "otherPlayback"))
+                .show();
     }
 
     private TextView priority(UnifiedCatalogPrefs.Provider provider, int direction) {
@@ -219,6 +263,12 @@ public final class UnifiedCatalogSettingsActivity extends Activity {
         description("Solo se muestran los títulos que las aplicaciones comparten con Android TV Watch Next.");
         toggle("Activar Seguir viendo unificado", UnifiedCatalogPrefs.CONTINUE_ENABLED, true);
         toggle("Mostrar Seguir viendo en Inicio", UnifiedCatalogPrefs.CONTINUE_HOME, true);
+        int percent = UnifiedCatalogPrefs.continueMinPercent(this);
+        int minutes = UnifiedCatalogPrefs.continueMinMinutes(this);
+        String minimum = percent == 0 && minutes == 0 ? "desactivado"
+                : percent == 0 ? minutes + " min"
+                : minutes == 0 ? percent + "%" : percent + "% o " + minutes + " min";
+        action("Progreso mínimo  ·  " + minimum, v -> chooseMinimum(), "minimum");
         toggle("Incluir siguiente episodio", UnifiedCatalogPrefs.CONTINUE_NEXT_EPISODES, true);
         toggle("Consultar canales de progreso (Stremio y Nuvio)", UnifiedCatalogPrefs.CONTINUE_PREVIEWS, true);
         toggle("Ocultar títulos completados (95% o más)", UnifiedCatalogPrefs.CONTINUE_HIDE_FINISHED, true);
@@ -281,6 +331,22 @@ public final class UnifiedCatalogSettingsActivity extends Activity {
         UnifiedCatalogPrefs.prefs(this).edit().putBoolean(key, value).apply();
     }
 
+    private void pairKey() {
+        if (pairing != null) return;
+        try {
+            pairing = new TmdbPairingDialog(this, () -> {
+                show(section, "tmdb");
+                Toast.makeText(this, "TMDB conectado", Toast.LENGTH_SHORT).show();
+            }, () -> pairing = null);
+        } catch (IOException | SecurityException e) {
+            StreamUi.dialog(this).setTitle("No se ha podido abrir el QR")
+                    .setMessage("Comprueba que la TV esté conectada por Wi-Fi o Ethernet e inténtalo de nuevo.")
+                    .setNegativeButton("Cerrar", null)
+                    .setPositiveButton("Introducir con el mando", (dialog, which) -> editKey())
+                    .show();
+        }
+    }
+
     private void editKey() {
         EditText input = new EditText(this);
         input.setSingleLine(true);
@@ -293,7 +359,7 @@ public final class UnifiedCatalogSettingsActivity extends Activity {
                 .setPositiveButton("Guardar", (dialog, which) -> {
                     UnifiedCatalogPrefs.prefs(this).edit().putString(UnifiedCatalogPrefs.KEY,
                             input.getText().toString().trim()).apply();
-                    show(section, "tmdb");
+                    show(section, "tmdb-manual");
                 }).show();
     }
 
@@ -304,6 +370,56 @@ public final class UnifiedCatalogSettingsActivity extends Activity {
                     UnifiedCatalogPrefs.prefs(this).edit().putString(UnifiedCatalogPrefs.REGION, regions[index]).apply();
                     show(section, "region");
                 }).show();
+    }
+
+    private void chooseMinimum() {
+        LinearLayout fields = StreamUi.column(this);
+        fields.setPadding(dp(24), dp(8), dp(24), dp(8));
+        fields.addView(text("Se muestra el título cuando alcanza cualquiera de los mínimos. "
+                + "Introduce 0 para desactivar ese criterio.", 14, StreamUi.DIM, false));
+        EditText percent = addMinimumField(fields, "Porcentaje reproducido", UnifiedCatalogPrefs.continueMinPercent(this));
+        EditText minutes = addMinimumField(fields, "Minutos reproducidos", UnifiedCatalogPrefs.continueMinMinutes(this));
+        android.app.AlertDialog dialog = StreamUi.dialog(this).setTitle("Progreso mínimo")
+                .setView(fields)
+                .setNegativeButton("Cancelar", null)
+                .setPositiveButton("Guardar", null).create();
+        dialog.show();
+        dialog.getButton(android.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener(view -> {
+            Integer percentValue = minimumValue(percent, 100);
+            if (percentValue == null) return;
+            Integer minutesValue = minimumValue(minutes, 1440);
+            if (minutesValue == null) return;
+            UnifiedCatalogPrefs.prefs(this).edit()
+                    .putInt(UnifiedCatalogPrefs.CONTINUE_MIN_PERCENT, percentValue)
+                    .putInt(UnifiedCatalogPrefs.CONTINUE_MIN_MINUTES, minutesValue).apply();
+            dialog.dismiss();
+            show(section, "minimum");
+        });
+    }
+
+    private EditText addMinimumField(LinearLayout fields, String label, int value) {
+        TextView caption = text(label, 14, StreamUi.WHITE, true);
+        EditText input = new EditText(this);
+        input.setId(View.generateViewId());
+        caption.setLabelFor(input.getId());
+        fields.addView(caption);
+        input.setSingleLine(true);
+        input.setInputType(InputType.TYPE_CLASS_NUMBER);
+        input.setText(Integer.toString(value));
+        input.setSelectAllOnFocus(true);
+        StreamUi.field(input);
+        add(fields, input);
+        return input;
+    }
+
+    private Integer minimumValue(EditText input, int max) {
+        try {
+            int value = Integer.parseInt(input.getText().toString().trim());
+            if (value >= 0 && value <= max) return value;
+        } catch (NumberFormatException ignored) {}
+        input.setError("Introduce un número entre 0 y " + max);
+        input.requestFocus();
+        return null;
     }
 
     private void chooseAge() {

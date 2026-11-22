@@ -153,25 +153,28 @@ final class UnifiedCatalogApi {
         media.availabilityReady = true;
     }
 
-    static String imdbId(Context context, Media media) throws Exception {
-        return request(context, "/" + media.type + "/" + media.id + "/external_ids", LIST_TTL, false)
-                .optString("imdb_id", "");
-    }
-
     static List<UnifiedCatalogPrefs.Provider> eligible(Context context, Media media) {
         List<UnifiedCatalogPrefs.Provider> result = new ArrayList<>();
         synchronized (media.providerIds) {
             for (UnifiedCatalogPrefs.Provider p : UnifiedCatalogPrefs.ordered(context)) {
-                if (p.tmdbIds.length == 0 || !UnifiedCatalogPrefs.selected(context, p)) continue;
+                if (!UnifiedCatalogPrefs.selected(context, p) || p.installedPackage(context) == null) continue;
                 for (int id : media.providerIds) {
                     if (p.supports(id)) {
-                        if (p.installedPackage(context) != null) result.add(p);
+                        result.add(p);
                         break;
                     }
                 }
             }
         }
         return result;
+    }
+
+    /** Resolve an IMDb/Cinemeta ID for a Stremio detail link; TMDB IDs are not interchangeable. */
+    static String imdbId(Context context, Media media) throws Exception {
+        JSONObject ids = request(context, "/" + media.type + "/" + media.id + "/external_ids",
+                PROVIDER_TTL, false);
+        String id = ids.optString("imdb_id", "");
+        return id.matches("tt[0-9]{5,12}") ? id : "";
     }
 
     private static void collect(JSONArray arr, Set<Integer> ids) {
@@ -197,14 +200,7 @@ final class UnifiedCatalogApi {
         }
         HttpURLConnection connection = null;
         try {
-            String separator = endpoint.contains("?") ? "&" : "?";
-            URL url = new URL("https://api.themoviedb.org/3" + endpoint + separator + "api_key="
-                    + URLEncoder.encode(token, "UTF-8"));
-            connection = (HttpURLConnection) url.openConnection();
-            connection.setConnectTimeout(9000);
-            connection.setReadTimeout(12000);
-            connection.setRequestProperty("Accept", "application/json");
-            connection.setRequestProperty("User-Agent", "UnifiedTV/0.1");
+            connection = openRequest(endpoint, token);
             int status = connection.getResponseCode();
             if (status < 200 || status >= 300)
                 throw new IOException("TMDB HTTP " + status + (status == 401 ? ": clave incorrecta" : ""));
@@ -217,6 +213,33 @@ final class UnifiedCatalogApi {
             throw e;
         } finally {
             if (connection != null) connection.disconnect();
+        }
+    }
+
+    private static HttpURLConnection openRequest(String endpoint, String key) throws IOException {
+        String separator = endpoint.contains("?") ? "&" : "?";
+        URL url = new URL("https://api.themoviedb.org/3" + endpoint + separator + "api_key="
+                + URLEncoder.encode(key, "UTF-8"));
+        HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+        connection.setConnectTimeout(9000);
+        connection.setReadTimeout(12000);
+        connection.setRequestProperty("Accept", "application/json");
+        connection.setRequestProperty("User-Agent", "UnifiedTV/0.1");
+        return connection;
+    }
+
+    static boolean validatesPairingKey(String key) throws IOException {
+        HttpURLConnection connection = openRequest("/configuration", key);
+        try {
+            connection.setConnectTimeout(4500);
+            connection.setReadTimeout(4500);
+            connection.setInstanceFollowRedirects(false);
+            int status = connection.getResponseCode();
+            if (status == 401 || status == 403) return false;
+            if (status != 200) throw new IOException("TMDB status " + status);
+            return true;
+        } finally {
+            connection.disconnect();
         }
     }
 
