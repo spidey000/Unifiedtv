@@ -1161,6 +1161,9 @@ public final class UnifiedCatalogActivity extends Activity {
                             ? gridTile(grid, i, () -> UnifiedWatchNext.open(this, item))
                             : mediaTile(line, i, () -> UnifiedWatchNext.open(this, item));
                     cards.add(card);
+                    // Short press opens the publisher's own item intent. Long press
+                    // resolves a richer TMDB information sheet without playing media.
+                    card.setOnLongClickListener(v -> { watchDetails(item); return true; });
                     ImageView artwork = tileArt(card);
                     TextView score = ratingSlot(card);
                     LinearLayout copy = caption(card);
@@ -1292,64 +1295,143 @@ public final class UnifiedCatalogActivity extends Activity {
         });
     }
 
+    /** Long press: comprehensive TMDB sheet; never starts playback on its own. */
     private void details(UnifiedCatalogApi.Media media) {
         Dialog dialog = new Dialog(this);
         dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
         LinearLayout root = new LinearLayout(this);
+        root.setOrientation(LinearLayout.HORIZONTAL);
         root.setPadding(dp(18), dp(18), dp(18), dp(18));
         root.setBackground(StreamUi.panel(this));
-        LinearLayout artColumn = StreamUi.column(this);
-        ImageView image = poster(artColumn, 215);
-        root.addView(artColumn, new LinearLayout.LayoutParams(dp(150), -2));
+        ImageView cover = new ImageView(this);
+        cover.setScaleType(ImageView.ScaleType.CENTER_CROP);
+        cover.setBackground(StreamUi.shape(this, 0xFF302C34, 6, Color.TRANSPARENT));
+        cover.setClipToOutline(true);
+        root.addView(cover, new LinearLayout.LayoutParams(dp(157), dp(236)));
+        LinearLayout right = StreamUi.column(this);
+        right.setPadding(dp(17), 0, 0, 0);
+        root.addView(right, new LinearLayout.LayoutParams(0, -1, 1));
+
+        ScrollView information = new ScrollView(this);
+        information.setFillViewport(false);
+        information.setVerticalScrollBarEnabled(false);
         LinearLayout copy = StreamUi.column(this);
-        copy.setPadding(dp(18), 0, 0, 0);
-        root.addView(copy, new LinearLayout.LayoutParams(0, -2, 1));
-        TextView name = text(media.title, 26, StreamUi.WHITE, true);
-        name.setMaxLines(2);
-        name.setEllipsize(TextUtils.TruncateAt.END);
+        copy.setPadding(0, 0, dp(8), dp(8));
+        information.addView(copy);
+        right.addView(information, new LinearLayout.LayoutParams(-1, 0, 1));
+
+        TextView name = text(media.title, 25, StreamUi.WHITE, true);
         copy.addView(name);
-        copy.addView(text(metadata(media), 14, StreamUi.RATING, true));
-        TextView synopsis = text(media.overview.isEmpty() ? "No hay sinopsis disponible." : media.overview, 15, StreamUi.DIM, false);
-        synopsis.setPadding(0, dp(8), 0, dp(8));
-        synopsis.setMaxLines(4);
-        synopsis.setEllipsize(TextUtils.TruncateAt.END);
+        copy.addView(text(metadata(media), 13, StreamUi.RATING, true));
+        TextView synopsis = text(media.overview.isEmpty()
+                ? "Buscando sinopsis…" : media.overview, 14, StreamUi.WHITE, false);
+        synopsis.setPadding(0, dp(13), 0, dp(11));
         copy.addView(synopsis);
-        TextView platforms = text("Consultando disponibilidad…", 14, StreamUi.DIM, false);
-        platforms.setMaxLines(4);
-        platforms.setEllipsize(TextUtils.TruncateAt.END);
+        TextView expanded = text("Consultando ficha completa de TMDB…",
+                13, StreamUi.DIM, false);
+        expanded.setPadding(0, 0, 0, dp(10));
+        copy.addView(expanded);
+        TextView platforms = text("Consultando disponibilidad…",
+                12, StreamUi.DIM, false);
         copy.addView(platforms);
-        TextView open = StreamUi.control(this, "Ver ahora", R.drawable.uic_play, true, v -> {
+
+        LinearLayout buttons = new LinearLayout(this);
+        buttons.setGravity(Gravity.CENTER_VERTICAL);
+        TextView open = StreamUi.control(this, "Abrir título", R.drawable.uic_play, true, v -> {
             dialog.dismiss();
             openMedia(media, null, revision);
         });
-        copy.addView(open, new LinearLayout.LayoutParams(-2, -2));
-        TextView close = StreamUi.control(this, "Cerrar ficha", R.drawable.uic_x, false, v -> dialog.dismiss());
-        copy.addView(close, new LinearLayout.LayoutParams(-2, -2));
+        buttons.addView(open, new LinearLayout.LayoutParams(-2, dp(34)));
+        TextView close = StreamUi.control(this, "Cerrar", R.drawable.uic_x, false,
+                v -> dialog.dismiss());
+        LinearLayout.LayoutParams closeParams = new LinearLayout.LayoutParams(-2, dp(34));
+        closeParams.setMarginStart(dp(10));
+        buttons.addView(close, closeParams);
+        right.addView(buttons);
+
         dialog.setContentView(root);
         dialog.show();
         Window window = dialog.getWindow();
         if (window != null) {
             window.setBackgroundDrawableResource(android.R.color.transparent);
-            window.setLayout(Math.min(dp(660), getResources().getDisplayMetrics().widthPixels - dp(40)), -2);
+            int displayWidth = getResources().getDisplayMetrics().widthPixels;
+            int displayHeight = getResources().getDisplayMetrics().heightPixels;
+            window.setLayout(Math.min(dp(825), displayWidth - dp(32)),
+                    Math.min(dp(480), displayHeight - dp(30)));
         }
         close.requestFocus();
-        image(revision, image, () -> UnifiedCatalogApi.poster(this, media.poster));
+        image(revision, cover, () -> UnifiedCatalogApi.poster(this, media.poster));
         data.execute(() -> {
-            boolean ready;
-            try { UnifiedCatalogApi.availability(this, media); ready = true; }
-            catch (Exception ignored) { ready = false; }
-            final boolean loaded = ready;
+            boolean available;
+            try { UnifiedCatalogApi.availability(this, media); available = true; }
+            catch (Exception ignored) { available = false; }
+            org.json.JSONObject additional = null;
+            try { additional = UnifiedCatalogApi.fullDetails(this, media); }
+            catch (Exception ignored) { /* Display the known summary offline. */ }
+            final boolean ready = available;
+            final org.json.JSONObject info = additional;
             runOnUiThread(() -> {
                 if (!dialog.isShowing() || isFinishing()) return;
+                if (info != null) {
+                    String fullOverview = info.optString("overview", "");
+                    if (!fullOverview.isEmpty()) synopsis.setText(fullOverview);
+                    String facts = UnifiedCatalogApi.fullDetailsText(info, media.type);
+                    expanded.setText(facts.isEmpty() ? "No hay más detalles publicados en TMDB." : facts);
+                } else {
+                    expanded.setText("Ficha ampliada no disponible sin conexión a TMDB.");
+                }
                 List<String> names = new ArrayList<>();
-                if (loaded) for (UnifiedCatalogPrefs.Provider provider : UnifiedCatalogApi.eligible(this, media)) names.add(provider.name);
+                if (ready) for (UnifiedCatalogPrefs.Provider provider :
+                        UnifiedCatalogApi.eligible(this, media)) names.add(provider.name);
                 List<String> players = UnifiedCatalogRoute.localAppNames(this);
-                String tmdb = !loaded ? "Disponibilidad TMDB no consultada"
-                        : names.isEmpty() ? "Sin servicios disponibles según TMDB"
-                        : "Según TMDB: " + TextUtils.join(" · ", names);
-                platforms.setText(tmdb + (players.isEmpty() ? ""
-                        : "\nApps de reproducción: " + TextUtils.join(" · ", players)));
-                open.setText("Ver ahora");
+                String availability = !ready ? "Disponibilidad no consultada"
+                        : names.isEmpty() ? "Sin proveedores configurados disponibles según TMDB"
+                        : "Disponible en: " + TextUtils.join(" · ", names);
+                platforms.setText(availability + (players.isEmpty() ? ""
+                        : "\nReproductores instalados: " + TextUtils.join(" · ", players)));
+            });
+        });
+    }
+
+    /** A platform-published Watch Next item may have no TMDB id; never guess one. */
+    private void watchDetails(UnifiedWatchNext.Entry item) {
+        android.app.AlertDialog lookup = StreamUi.dialog(this)
+                .setTitle(item.title)
+                .setMessage("Buscando la ficha de información completa…")
+                .setNegativeButton("Cancelar", null)
+                .create();
+        lookup.show();
+        watchMeta.execute(() -> {
+            UnifiedCatalogApi.MediaArt art = null;
+            try {
+                art = UnifiedCatalogApi.watchArtwork(getApplicationContext(),
+                        item.title, item.mediaType, item.releaseDate);
+            } catch (Exception ignored) { /* Local metadata is still available. */ }
+            final UnifiedCatalogApi.MediaArt result = art;
+            runOnUiThread(() -> {
+                if (!lookup.isShowing() || isFinishing()) return;
+                lookup.dismiss();
+                if (result != null && result.id > 0
+                        && ("movie".equals(result.type) || "tv".equals(result.type))) {
+                    String date = item.releaseDate;
+                    String year = date.length() >= 4 ? date.substring(0, 4) : "";
+                    details(new UnifiedCatalogApi.Media(result.id, result.type,
+                            item.title, result.poster, year, result.voteAverage,
+                            result.voteCount, result.backdrop, result.overview));
+                } else {
+                    String message = "Aplicación: " + item.source
+                            + (item.releaseDate.isEmpty() ? ""
+                            : "\nEstreno: " + item.releaseDate)
+                            + (item.episode.isEmpty() ? "" : "\nEpisodio: " + item.episode)
+                            + (item.progress() < 0 ? "" : "\nProgreso: " + item.progress() + "%")
+                            + "\n\nNo se ha encontrado una coincidencia inequívoca en TMDB."
+                            + " El enlace original de la plataforma sigue disponible"
+                            + " mediante pulsación corta.";
+                    StreamUi.dialog(this).setTitle(item.title).setMessage(message)
+                            .setPositiveButton("Abrir título",
+                                    (d, which) -> UnifiedWatchNext.open(this, item))
+                            .setNegativeButton("Cerrar", null).show();
+                }
             });
         });
     }
