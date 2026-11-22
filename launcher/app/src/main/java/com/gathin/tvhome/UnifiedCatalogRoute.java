@@ -46,7 +46,8 @@ final class UnifiedCatalogRoute {
                 }
             } catch (RuntimeException ignored) { /* Try package launch instead. */ }
             try {
-                Intent launch = activity.getPackageManager().getLaunchIntentForPackage(pkg);
+                Intent launch = activity.getPackageManager().getLeanbackLaunchIntentForPackage(pkg);
+                if (launch == null) launch = activity.getPackageManager().getLaunchIntentForPackage(pkg);
                 if (launch != null) {
                     activity.startActivity(launch);
                     Toast.makeText(activity, "Abriendo " + provider.name + ". Busca «" + media.title
