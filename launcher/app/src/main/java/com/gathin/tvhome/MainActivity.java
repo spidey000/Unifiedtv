@@ -1094,6 +1094,9 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         super.onResume();
         // UnifiedTV's streaming catalog replaces Home in this fork; Back restores the classic dock.
         if (UnifiedTvHome.maybeLaunch(this)) return;
+        // Also discover updates if the user opted out of the streaming Home.
+        UnifiedAppUpdater.onResume(this);
+        UnifiedAppUpdater.checkAutomatically(this);
         resumed = true;
         // A festival that started or ended while Home was in the background: rebuild with or without it.
         if (festive != festival.active(LocalDate.now())) {

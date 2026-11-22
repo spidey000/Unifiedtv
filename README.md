@@ -37,6 +37,18 @@ UnifiedTV es un fork independiente de [CleanYourTV](https://github.com/Gathin23/
 
 > **Limitación real:** TMDB no devuelve una URL directa de ficha para cada proveedor y las apps no publican una interfaz universal para abrir fichas. Por tanto, el MVP **no garantiza abrir la ficha exacta** ni comprobar suscripciones activas. Instalar Netflix no implica poder reproducir cualquier título; la disponibilidad cambia con el tiempo y el país. No se hace ninguna reproducción no autorizada ni se elude DRM.
 
+## Actualizaciones desde la televisión
+
+UnifiedTV consulta las [releases oficiales de GitHub](https://github.com/spidey000/Unifiedtv/releases/latest) **automáticamente al abrir el launcher como máximo una vez cada 24 horas**, con un interruptor en **Ajustes → Actualizaciones** activado por defecto. El chequeo requiere conexión, pero no descarga nada en segundo plano.
+
+Cuando hay una versión nueva, muestra un diálogo discreto para elegir **Descargar** o **Más tarde**. También se puede pulsar **Buscar actualización ahora** en Ajustes aunque la búsqueda automática esté desactivada.
+
+Al descargar, se valida el `SHA256SUMS` publicado, el identificador de paquete `io.github.spidey000.unifiedtv`, la versión superior a la instalada y **el mismo certificado de firma**. Solo entonces se ofrece **Instalar**, abriendo el instalador del sistema.
+
+En Android TV 8+ puede ser necesario habilitar **Instalar aplicaciones desconocidas → Permitir desde UnifiedTV**. Desde la propia app hay un acceso a ese ajuste. Android siempre muestra su propia confirmación de instalación: **no se realizan actualizaciones silenciosas**.
+
+Las APKs descargadas se guardan temporalmente en la caché privada y solo se comparten con el instalador mediante un `FileProvider` restringido. Si GitHub no responde, falta la suma de verificación o cambia la firma, no se instala nada. La opción de actualización **no cambia** la configuración de TMDB ni las plataformas.
+
 ## Versiones y descargas
 
 **[Descargar la última versión de UnifiedTV](https://github.com/spidey000/Unifiedtv/releases/latest)**

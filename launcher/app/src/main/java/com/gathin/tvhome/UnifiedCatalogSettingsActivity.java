@@ -23,10 +23,20 @@ public final class UnifiedCatalogSettingsActivity extends Activity {
     private LinearLayout sections;
     private LinearLayout content;
     private ScrollView scroller;
+    private TextView installPermissionStatus;
 
     @Override protected void onCreate(Bundle state) {
         super.onCreate(state);
         render();
+    }
+
+    @Override protected void onResume() {
+        super.onResume();
+        UnifiedAppUpdater.onResume(this);
+        if (installPermissionStatus != null)
+            installPermissionStatus.setText(UnifiedAppUpdater.canInstall(this)
+                    ? "Instalación desde UnifiedTV: permitida."
+                    : "Instalación desde UnifiedTV: requiere autorización de Android TV.");
     }
 
     private int dp(int n) { return CinemaUi.dp(this, n); }
@@ -167,6 +177,20 @@ public final class UnifiedCatalogSettingsActivity extends Activity {
         }
         content.addView(text("Permiso de Android TV: la app te lo pedirá al abrir Seguir viendo. "
                 + "Si alguna plataforma no publica progreso visible, no aparecerá hasta que lo haga.", 14));
+
+        section("Actualizaciones");
+        addToggle("Comprobar nuevas versiones automáticamente (recomendado)",
+                UnifiedCatalogPrefs.UPDATE_AUTO_CHECK, true);
+        content.addView(text("La búsqueda automática se realiza al abrir UnifiedTV, como máximo una vez cada 24 horas. "
+                + "No descarga ni instala nada sin tu confirmación. Las versiones se obtienen de las releases oficiales de GitHub.", 14));
+        content.addView(button("Buscar actualización ahora",
+                v -> UnifiedAppUpdater.checkNow(this)));
+        content.addView(button("Permitir instalar APK desde UnifiedTV",
+                v -> UnifiedAppUpdater.openInstallPermissionSettings(this)));
+        installPermissionStatus = text(UnifiedAppUpdater.canInstall(this)
+                ? "Instalación desde UnifiedTV: permitida."
+                : "Instalación desde UnifiedTV: requiere autorización de Android TV.", 14);
+        content.addView(installPermissionStatus);
 
         section("Información");
         content.addView(text("TMDB informa de plataformas por país, pero no acredita una suscripción activa ni garantiza que una app permita abrir la ficha concreta. Si la app no admite búsqueda externa, se abre su inicio.", 14));

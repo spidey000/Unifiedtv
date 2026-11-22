@@ -14,7 +14,8 @@ TAG = re.compile(r"v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)")
 TYPE = re.compile(r"^(\w+)(?:\([^\r\n]+\))?(!)?:\s")
 REQUIRED_PERMISSIONS = {
     "android.permission." + name for name in (
-        "INTERNET", "READ_TV_LISTINGS", "ACCESS_NETWORK_STATE", "ACCESS_WIFI_STATE",
+        "INTERNET", "READ_TV_LISTINGS", "REQUEST_INSTALL_PACKAGES",
+        "ACCESS_NETWORK_STATE", "ACCESS_WIFI_STATE",
         "ACCESS_FINE_LOCATION", "WRITE_SECURE_SETTINGS",
     )
 } | {"yandex.tv.permission.ACCESS_TV_SOURCE"}
