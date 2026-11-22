@@ -98,6 +98,8 @@ public final class UnifiedCatalogActivity extends Activity {
     @Override protected void onResume() {
         super.onResume();
         if (!created) return;
+        UnifiedAppUpdater.onResume(this);
+        UnifiedAppUpdater.checkAutomatically(this);
         String current = fingerprint();
         if (!current.equals(lastSettings) || returnFromProvider) {
             lastSettings = current;

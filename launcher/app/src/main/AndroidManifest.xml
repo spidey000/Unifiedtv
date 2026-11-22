@@ -3,6 +3,8 @@
     xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Only to hand a user-approved GitHub APK to Android's own package installer. -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
     <!-- Opt-in Android TV Watch Next reading. Requested only when user enters Continue Watching. -->
     <uses-permission android:name="android.permission.READ_TV_LISTINGS" />
     <uses-feature android:name="android.software.leanback" android:required="false" />
@@ -102,6 +104,16 @@
         android:theme="@style/Theme.TvHome"
         android:allowBackup="false"
         android:localeConfig="@xml/locales_config">
+
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.unifiedtv-updates"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/unifiedtv_update_paths" />
+        </provider>
 
         <activity
             android:name=".MainActivity"
