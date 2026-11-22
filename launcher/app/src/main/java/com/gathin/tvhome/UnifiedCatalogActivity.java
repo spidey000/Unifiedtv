@@ -919,30 +919,45 @@ public final class UnifiedCatalogActivity extends Activity {
         });
     }
 
-    /** Resolve platform images first, then TMDB only for missing portrait/landscape formats. */
+    /** Show the platform artwork immediately; TMDB never blocks first paint. */
     private void watchImage(int stamp, UnifiedWatchNext.Entry item, FrameLayout card,
                             ImageView poster, ImageView thumbnail) {
         art.execute(() -> {
             if (revision != stamp) return;
-            UnifiedWatchArtwork.Pair pair = UnifiedWatchArtwork.resolve(getApplicationContext(), item);
-            runOnUiThread(() -> {
-                if (!live(stamp)) return;
-                if (pair.portrait != null) {
-                    poster.setImageBitmap(pair.portrait);
-                    if (StreamUi.motionEnabled() && poster.isAttachedToWindow()) {
-                        poster.animate().cancel();
-                        poster.setAlpha(0f);
-                        poster.animate().alpha(1f).setDuration(StreamUi.ART_ANIM_MS).start();
-                    } else {
-                        poster.setAlpha(1f);
-                    }
-                }
-                if (thumbnail != null && pair.landscape != null) {
-                    thumbnail.setImageBitmap(pair.landscape);
-                    if (card.isFocused()) revealThumbnail(thumbnail);
-                }
-            });
+            UnifiedWatchArtwork.Pair platform = UnifiedWatchArtwork.platform(getApplicationContext(), item);
+            runOnUiThread(() -> showWatchImage(stamp, card, poster, thumbnail, platform));
+            if (revision != stamp) return;
+            UnifiedWatchArtwork.Pair enhanced = UnifiedWatchArtwork.withTmdb(
+                    getApplicationContext(), item, platform);
+            if (enhanced != platform) {
+                runOnUiThread(() -> showWatchImage(stamp, card, poster, thumbnail, enhanced));
+            }
         });
+    }
+
+    private void showWatchImage(int stamp, FrameLayout card,
+                                ImageView poster, ImageView thumbnail,
+                                UnifiedWatchArtwork.Pair pair) {
+        if (!live(stamp)) return;
+        if (pair.portrait != null && poster.getDrawable() == null
+                || pair.portrait != null && poster.getDrawable() instanceof android.graphics.drawable.BitmapDrawable
+                   && ((android.graphics.drawable.BitmapDrawable) poster.getDrawable()).getBitmap() != pair.portrait) {
+            poster.setImageBitmap(pair.portrait);
+            if (StreamUi.motionEnabled() && poster.isAttachedToWindow()) {
+                poster.animate().cancel();
+                poster.setAlpha(0f);
+                poster.animate().alpha(1f).setDuration(StreamUi.ART_ANIM_MS).start();
+            } else {
+                poster.setAlpha(1f);
+            }
+        }
+        if (thumbnail != null && pair.landscape != null) {
+            if (!(thumbnail.getDrawable() instanceof android.graphics.drawable.BitmapDrawable)
+                    || ((android.graphics.drawable.BitmapDrawable) thumbnail.getDrawable()).getBitmap() != pair.landscape) {
+                thumbnail.setImageBitmap(pair.landscape);
+                if (card.isFocused()) revealThumbnail(thumbnail);
+            }
+        }
     }
 
     private void watch(int stamp) {
