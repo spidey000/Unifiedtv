@@ -146,6 +146,8 @@ public final class UnifiedCatalogActivity extends Activity {
     private void route(LinearLayout rail, Page destination, String label, int icon) {
         TextView control = StreamUi.control(this, label, icon, false, v -> show(destination, false));
         StreamUi.background(control, false, true);
+        control.setTextSize(14);
+        control.setPadding(dp(6), dp(4), dp(4), dp(4));
         control.setSingleLine(true);
         control.setEllipsize(TextUtils.TruncateAt.END);
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-1, -2);
