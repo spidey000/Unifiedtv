@@ -1,5 +1,7 @@
 package com.gathin.tvhome;
 
+import android.animation.Animator;
+import android.animation.AnimatorListenerAdapter;
 import android.animation.ValueAnimator;
 import android.app.Activity;
 import android.app.Dialog;
@@ -17,6 +19,7 @@ import android.text.TextUtils;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewTreeObserver;
+import android.view.animation.DecelerateInterpolator;
 import android.view.Window;
 import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.InputMethodManager;
@@ -42,15 +45,11 @@ public final class UnifiedCatalogActivity extends Activity {
     private enum Page { HOME, WATCH, SEARCH, APPS, LIVE }
     private static final String[] FILTERS = {"featured", "watched", "new", "popular", "rated"};
     private static final String[] LABELS = {"Destacados", "Más vistos", "Novedades", "Populares", "Mejor valorados"};
-    private static final int[] FILTER_ICONS = {R.drawable.uic_star, R.drawable.uic_chart_no_axes_column_increasing,
-            R.drawable.uic_sparkles, R.drawable.uic_flame, R.drawable.uic_star};
     private static final int CONTENT_START = 21;
     private static final int CONTENT_END = 12;
     private static final int CARD_GAP = 7;
     private static final int RAIL_COLLAPSED = 52;
-    private final TextView[] filters = new TextView[FILTERS.length];
     private boolean series;
-    private int filter;
     private int accent;
 
     private final ExecutorService data = Executors.newFixedThreadPool(3);
@@ -75,7 +74,6 @@ public final class UnifiedCatalogActivity extends Activity {
             page = Page.valueOf(savedPage);
             query = state.getString("query", "");
             series = state.getBoolean("series");
-            filter = state.getInt("filter");
         }
         settingsSnapshot = snapshot();
         accent = StreamUi.accent(this);
@@ -90,7 +88,6 @@ public final class UnifiedCatalogActivity extends Activity {
         state.putString("catalogPage", page.name());
         state.putString("query", query);
         state.putBoolean("series", series);
-        state.putInt("filter", filter);
     }
 
     @Override protected void onResume() {
@@ -254,21 +251,23 @@ public final class UnifiedCatalogActivity extends Activity {
         String kind = series ? "tv" : "movie";
         FrameLayout spotlight = hero("DESTACADO", connected ? "Descubrir" : "Tu cine empieza aquí",
                 connected ? "" : "Conecta TMDB para descubrir películas y series.");
-        addHomeTabs(spotlight, connected);
+        addHomeTabs(spotlight);
         if (!connected) connect();
         if (UnifiedCatalogPrefs.continueEnabled(this) && UnifiedCatalogPrefs.continueOnHome(this)) watch(stamp);
         if (connected) {
-            shelf(stamp, filter == 0 ? "En tendencia en UnifiedTV" : LABELS[filter],
-                    kind, FILTERS[filter], "", refresh, spotlight);
+            // All five shelves coexist; the featured shelf also drives the hero.
+            for (int i = 0; i < FILTERS.length; i++) {
+                shelf(stamp, LABELS[i], kind, FILTERS[i], "", refresh, i == 0 ? spotlight : null);
+            }
             link("Recargar catálogo", R.drawable.uic_refresh_cw, v -> {
                 show(Page.HOME, true);
-                filters[filter].requestFocus();
+                findViewById(series ? R.id.seriesTab : R.id.moviesTab).requestFocus();
             });
             note(pageBody, "Datos de TMDB y JustWatch · Más vistos usa la tendencia semanal de TMDB");
         }
     }
 
-    private void addHomeTabs(FrameLayout spotlight, boolean connected) {
+    private void addHomeTabs(FrameLayout spotlight) {
         LinearLayout toolbar = StreamUi.column(this);
         toolbar.setGravity(Gravity.CENTER_HORIZONTAL);
         LinearLayout tabs = new LinearLayout(this);
@@ -295,11 +294,6 @@ public final class UnifiedCatalogActivity extends Activity {
             tabs.addView(tab);
         }
         toolbar.addView(tabs, new LinearLayout.LayoutParams(-2, -2));
-        addFilters(toolbar, connected);
-        if (connected) {
-            tabs.getChildAt(0).setNextFocusDownId(filters[filter].getId());
-            tabs.getChildAt(1).setNextFocusDownId(filters[filter].getId());
-        }
         FrameLayout.LayoutParams top = new FrameLayout.LayoutParams(-1, -2, Gravity.TOP);
         top.setMargins(dp(CONTENT_START), dp(7), dp(CONTENT_END), 0);
         spotlight.addView(toolbar, top);
@@ -312,48 +306,6 @@ public final class UnifiedCatalogActivity extends Activity {
         FrameLayout.LayoutParams edge = new FrameLayout.LayoutParams(-2, -2, Gravity.TOP | Gravity.END);
         edge.setMargins(0, dp(15), dp(15), 0);
         spotlight.addView(clock, edge);
-    }
-
-    private void addFilters(LinearLayout toolbar, boolean enabled) {
-        LinearLayout strip = new LinearLayout(this);
-        strip.setBackground(StreamUi.panel(this));
-        strip.setPadding(dp(3), dp(3), dp(3), dp(3));
-        for (int i = 0; i < FILTERS.length; i++) {
-            int choice = i;
-            TextView button = StreamUi.control(this, LABELS[i], FILTER_ICONS[i], false, v -> {
-                if (filter == choice) return;
-                filter = choice;
-                show(Page.HOME, false);
-                filters[choice].requestFocus();
-            });
-            button.setGravity(Gravity.CENTER);
-            button.setMinHeight(dp(28));
-            button.setTextSize(11);
-            button.setSingleLine(true);
-            button.setEllipsize(TextUtils.TruncateAt.END);
-            button.setPadding(dp(5), 0, dp(5), 0);
-            resizeLeadingIcon(button, 13);
-            StreamUi.background(button, false, true);
-            button.setCompoundDrawablePadding(dp(5));
-            button.addOnLayoutChangeListener((view, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom) -> {
-                int group = (int) Math.ceil(button.getPaint().measureText(LABELS[choice]))
-                        + dp(13) + button.getCompoundDrawablePadding();
-                int inset = Math.max(dp(5), (right - left - group) / 2);
-                if (button.getPaddingStart() != inset) button.setPaddingRelative(inset, 0, inset, 0);
-            });
-            button.setSelected(i == filter);
-            button.setEnabled(enabled);
-            button.setFocusable(enabled);
-            if (i == 0) leftToRail(button);
-            button.setNextFocusUpId(series ? R.id.seriesTab : R.id.moviesTab);
-            filters[i] = button;
-            strip.addView(button, new LinearLayout.LayoutParams(0, -1, 1));
-        }
-        int width = Math.min(665, getResources().getConfiguration().screenWidthDp
-                - RAIL_COLLAPSED - CONTENT_START - CONTENT_END);
-        LinearLayout.LayoutParams group = new LinearLayout.LayoutParams(dp(width), dp(31));
-        group.topMargin = dp(4);
-        toolbar.addView(strip, group);
     }
 
     private boolean hasKey() { return !UnifiedCatalogPrefs.apiKey(this).isEmpty(); }
@@ -499,6 +451,8 @@ public final class UnifiedCatalogActivity extends Activity {
             hero.meta.setPadding(current.hasRating() ? dp(8) : 0, 0, 0, 0);
             hero.meta.setText(kindAndYear(current));
             hero.caption.setText(current.overview);
+            hero.backdrop.animate().cancel();
+            hero.backdrop.setAlpha(0f);
             hero.backdrop.setImageDrawable(null);
             watch.setEnabled(true);
             for (int i = 0; i < dots.size(); i++) dots.get(i).setSelected(i == index);
@@ -508,7 +462,14 @@ public final class UnifiedCatalogActivity extends Activity {
                         ? UnifiedCatalogApi.backdrop(this, current.backdrop)
                         : UnifiedCatalogApi.poster(this, current.poster);
                 runOnUiThread(() -> {
-                    if (live(stamp) && hero.index == index) hero.backdrop.setImageBitmap(bitmap);
+                    if (live(stamp) && hero.index == index) {
+                        hero.backdrop.setImageBitmap(bitmap);
+                        if (StreamUi.motionEnabled() && bitmap != null) {
+                            hero.backdrop.animate().alpha(1f).setDuration(StreamUi.ART_ANIM_MS).start();
+                        } else {
+                            hero.backdrop.setAlpha(1f);
+                        }
+                    }
                 });
             });
         };
@@ -622,6 +583,8 @@ public final class UnifiedCatalogActivity extends Activity {
     private void shelf(int stamp, String heading, String kind, String category, String search,
                        boolean refresh, FrameLayout spotlight) {
         LinearLayout row = row(heading);
+        // Keep shelf positions stable while all five TMDB requests resolve independently.
+        row.setMinimumHeight(dp(tileHeight() + 9));
         row.addView(text("Cargando…", 15, StreamUi.DIM, false));
         requestList(stamp, kind, category, search, refresh, result -> {
             row.removeAllViews();
@@ -644,7 +607,9 @@ public final class UnifiedCatalogActivity extends Activity {
                 card.setContentDescription(media.title + (media.hasRating() ? ", valoración TMDB " + media.ratingText() : ""));
                 loads.add(once(() -> image(stamp, cover, () -> UnifiedCatalogApi.poster(this, media.poster))));
                 Runnable loadThumbnail = thumbnail == null ? null
-                        : once(() -> image(stamp, thumbnail, () -> UnifiedCatalogApi.shelfArtwork(this, media.backdrop)));
+                        : once(() -> image(stamp, thumbnail,
+                                () -> UnifiedCatalogApi.shelfArtwork(this, media.backdrop),
+                                () -> { if (card.isFocused()) revealThumbnail(thumbnail); }));
                 bindTileFocus(card, loads, i, thumbnail, loadThumbnail, title, facts);
             }
         }, () -> {
@@ -675,11 +640,6 @@ public final class UnifiedCatalogActivity extends Activity {
         LinearLayout.LayoutParams tile = new LinearLayout.LayoutParams(dp(coverWidth()), dp(tileHeight()));
         tile.setMarginEnd(dp(CARD_GAP));
         row.addView(card, tile);
-        card.addOnLayoutChangeListener((view, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom) -> {
-            if (view.isFocused() && right - left != oldRight - oldLeft) {
-                view.requestRectangleOnScreen(new Rect(0, 0, right - left, bottom - top), true);
-            }
-        });
         return card;
     }
 
@@ -735,21 +695,86 @@ public final class UnifiedCatalogActivity extends Activity {
         };
     }
 
+    private void revealThumbnail(ImageView thumbnail) {
+        thumbnail.animate().cancel();
+        thumbnail.setVisibility(View.VISIBLE);
+        if (!StreamUi.motionEnabled()) {
+            thumbnail.setAlpha(1f);
+            return;
+        }
+        thumbnail.setAlpha(0f);
+        thumbnail.animate().alpha(1f).setDuration(StreamUi.ART_ANIM_MS).start();
+    }
+
     private void bindTileFocus(FrameLayout card, List<Runnable> loads, int index,
                                ImageView thumbnail, Runnable loadThumbnail, TextView title, View focusedInfo) {
         int available = getResources().getConfiguration().screenWidthDp - RAIL_COLLAPSED - CONTENT_START - CONTENT_END;
         if (index < available / (coverWidth() + CARD_GAP) + 2) loads.get(index).run();
         focusedInfo.setVisibility(View.GONE);
-        if (thumbnail != null) thumbnail.setVisibility(View.INVISIBLE);
+        if (thumbnail != null) {
+            thumbnail.setAlpha(0f);
+            thumbnail.setVisibility(View.INVISIBLE);
+        }
+        final ValueAnimator[] resize = {null};
         card.setOnFocusChangeListener((view, focused) -> {
-            LinearLayout.LayoutParams tile = (LinearLayout.LayoutParams) view.getLayoutParams();
-            tile.width = focused ? Math.round(tile.height * 16f / 9f) : dp(coverWidth());
-            view.setLayoutParams(tile);
-            title.setTextSize(focused ? 12 : 9);
-            focusedInfo.setVisibility(focused ? View.VISIBLE : View.GONE);
+            if (resize[0] != null) resize[0].cancel();
+            int normalWidth = dp(coverWidth());
+            int focusedWidth = dp(Math.round(tileHeight() * 16f / 9f));
+            int startWidth = ((LinearLayout.LayoutParams) view.getLayoutParams()).width;
+            int targetWidth = focused ? focusedWidth : normalWidth;
+            focusedInfo.animate().cancel();
+            if (focused) {
+                focusedInfo.setAlpha(StreamUi.motionEnabled() ? 0f : 1f);
+                focusedInfo.setVisibility(View.VISIBLE);
+                if (StreamUi.motionEnabled()) {
+                    focusedInfo.animate().alpha(1f).setDuration(StreamUi.ART_ANIM_MS).start();
+                }
+            } else {
+                focusedInfo.setVisibility(View.GONE);
+            }
+            card.animate().cancel();
+            if (StreamUi.motionEnabled()) {
+                card.animate().scaleY(focused ? 1.018f : 1f)
+                        .translationZ(focused ? dp(3) : 0)
+                        .setDuration(StreamUi.FOCUS_ANIM_MS).start();
+                resize[0] = ValueAnimator.ofInt(startWidth, targetWidth);
+                resize[0].setDuration(StreamUi.FOCUS_ANIM_MS);
+                resize[0].setInterpolator(new DecelerateInterpolator());
+                resize[0].addUpdateListener(anim -> {
+                    int width = (int) anim.getAnimatedValue();
+                    LinearLayout.LayoutParams params = (LinearLayout.LayoutParams) view.getLayoutParams();
+                    params.width = width;
+                    view.setLayoutParams(params);
+                    float progress = Math.max(0f, Math.min(1f,
+                            (width - normalWidth) / (float) (focusedWidth - normalWidth)));
+                    title.setTextSize(9f + 3f * progress);
+                });
+                resize[0].addListener(new AnimatorListenerAdapter() {
+                    @Override public void onAnimationEnd(Animator animation) {
+                        if (view.isFocused()) {
+                            view.requestRectangleOnScreen(new Rect(0, 0, view.getWidth(), view.getHeight()), false);
+                        }
+                    }
+                });
+                resize[0].start();
+            } else {
+                LinearLayout.LayoutParams params = (LinearLayout.LayoutParams) view.getLayoutParams();
+                params.width = targetWidth;
+                view.setLayoutParams(params);
+                title.setTextSize(focused ? 12 : 9);
+                card.setScaleY(1f);
+                card.setTranslationZ(0f);
+                if (focused) view.requestRectangleOnScreen(new Rect(0, 0, targetWidth, view.getHeight()), true);
+            }
             if (thumbnail != null) {
-                thumbnail.setVisibility(focused ? View.VISIBLE : View.INVISIBLE);
-                if (focused) loadThumbnail.run();
+                thumbnail.animate().cancel();
+                if (focused) {
+                    if (thumbnail.getDrawable() != null) revealThumbnail(thumbnail);
+                    else loadThumbnail.run();
+                } else {
+                    thumbnail.setAlpha(0f);
+                    thumbnail.setVisibility(View.INVISIBLE);
+                }
             }
             if (!focused) return;
             for (int i = Math.max(0, index - 1); i < Math.min(index + 4, loads.size()); i++) loads.get(i).run();
@@ -786,10 +811,27 @@ public final class UnifiedCatalogActivity extends Activity {
     private interface Artwork { Bitmap load(); }
 
     private void image(int stamp, ImageView target, Artwork loader) {
+        image(stamp, target, loader, null);
+    }
+
+    private void image(int stamp, ImageView target, Artwork loader, Runnable onLoaded) {
         art.execute(() -> {
             if (revision != stamp) return;
             Bitmap value = loader.load();
-            if (value != null) runOnUiThread(() -> { if (live(stamp)) target.setImageBitmap(value); });
+            if (value != null) runOnUiThread(() -> {
+                if (live(stamp)) {
+                    target.setImageBitmap(value);
+                    if (onLoaded != null) {
+                        onLoaded.run(); // Focused 16:9 thumbnails have their own reveal.
+                    } else if (StreamUi.motionEnabled() && target.isAttachedToWindow()) {
+                        target.animate().cancel();
+                        target.setAlpha(0f);
+                        target.animate().alpha(1f).setDuration(StreamUi.ART_ANIM_MS).start();
+                    } else {
+                        target.setAlpha(1f);
+                    }
+                }
+            });
         });
     }
 
@@ -799,6 +841,7 @@ public final class UnifiedCatalogActivity extends Activity {
             return;
         }
         LinearLayout line = row("Seguir viendo");
+        line.setMinimumHeight(dp(tileHeight() + 9));
         if (!UnifiedWatchNext.hasPermission(this)) {
             TextView allow = StreamUi.control(this, "Permitir acceso a Watch Next", true,
                     v -> requestPermissions(new String[]{UnifiedWatchNext.PERMISSION}, UnifiedWatchNext.PERMISSION_REQUEST));

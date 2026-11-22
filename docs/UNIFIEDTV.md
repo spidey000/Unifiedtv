@@ -5,7 +5,7 @@
 Esta primera versión añade el catálogo unificado a la app nativa del fork. Implementado:
 
 - Entrada a UnifiedTV desde el Home de Android TV, configurable.
-- Pestañas **Películas**, **Series** y **Seguir viendo**. Las primeras ofrecen **Destacados**, **Más vistos**, **Novedades**, **Populares** y **Mejor valorados (histórico)**.
+- Selector **Películas / Series**. En Inicio, debajo del destacado principal, aparece **Seguir viendo** si está habilitado y después cinco filas horizontales independientes: **Destacados**, **Más vistos**, **Novedades**, **Populares** y **Mejor valorados (histórico)**. No hay pestañas para cambiar entre categorías.
 - Destacados = tendencia del día; Más vistos = tendencia semanal como aproximación, **no** reproducciones agregadas reales; Novedades = cartelera actual de cine o series actualmente en emisión; Populares y Mejor valorados = listas TMDB.
 - Seguir viendo integrado mediante Android TV `Watch Next` (lectura con permiso) y canales `Continue Watching` disponibles, con origen, progreso y apertura de la acción de la app.
 - Fuentes independientes por aplicación: Netflix, Max, Prime, Disney+, Apple TV+, SkyShowtime, Movistar, Filmin, Stremio, Nuvio y apps adicionales opcionales.
@@ -49,7 +49,7 @@ Se usa `android.permission.READ_TV_LISTINGS`, solicitado de forma explícita al 
 
 Estos datos **no** se sincronizan con servidores del proyecto. El permiso puede revocarse desde Ajustes de Android TV.
 
-## Significado de los filtros
+## Significado de las filas de descubrimiento
 
 | Tipo | Películas | Series |
 | --- | --- | --- |
@@ -91,7 +91,7 @@ No deshabilites el launcher de fábrica hasta comprobar que el nuevo funciona co
 ## Pruebas funcionales recomendadas
 
 1. Sin clave TMDB: debe aparecer un mensaje y un acceso a los ajustes, sin ANR.
-2. Con clave incorrecta: se informa del error HTTP; con clave válida: aparecen los tres carruseles.
+2. Con clave incorrecta: se informa del error HTTP; con clave válida: aparecen las cinco filas horizontales y se actualiza el destacado principal.
 3. Desconecta Wi-Fi: deben conservarse las últimas respuestas cacheadas, si ya se habían descargado.
 4. Comprueba si un proveedor instalado aparece correctamente, y que uno ausente no aparezca como seleccionable para reproducir.
 5. Cambia el orden de prioridad, vuelve al catálogo y comprueba el orden de los servicios en el selector.
@@ -99,7 +99,7 @@ No deshabilites el launcher de fábrica hasta comprobar que el nuevo funciona co
 7. Busca una película y una serie: deben distinguirse y consultarse los endpoints correctos.
 8. Verifica apertura directa de fichas en Nuvio/Stremio, búsqueda externa e inicio de los demás reproductores. Prueba tanto con la API TMDB disponible como con un fallo de red.
 9. Pulsa «Aplicaciones» y Atrás: debe reaparecer el Home clásico; vuelve a pulsar Home.
-10. Prueba la navegación D-pad en todos los bordes, un televisor de poca RAM, reconexión de red y varias entradas/salidas.
+10. Prueba la navegación D-pad en todos los bordes, el cambio Películas / Series, y que el póster 2:3 se expande a miniatura 16:9 sin saltos; comprueba también la opción de animaciones desactivadas, un televisor de poca RAM, reconexión de red y varias entradas/salidas.
 
 ## Futuro
 
