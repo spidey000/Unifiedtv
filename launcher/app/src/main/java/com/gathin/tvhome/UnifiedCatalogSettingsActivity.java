@@ -115,9 +115,58 @@ public final class UnifiedCatalogSettingsActivity extends Activity {
             content.addView(row);
         }
 
+        section("Seguir viendo • fuentes y privacidad");
+        content.addView(text("UnifiedTV solo puede leer los títulos compartidos con Android TV (Watch Next). "
+                + "No puede consultar el historial privado de Netflix, Prime Video o las demás apps.", 14));
+        addToggle("Activar Seguir viendo unificado", UnifiedCatalogPrefs.CONTINUE_ENABLED, true);
+        addToggle("Mostrar Seguir viendo encima del catálogo", UnifiedCatalogPrefs.CONTINUE_HOME, true);
+        addToggle("Incluir siguiente episodio", UnifiedCatalogPrefs.CONTINUE_NEXT_EPISODES, true);
+        addToggle("Consultar canales 'Continue Watching' cuando existan (Stremio/Nuvio)",
+                UnifiedCatalogPrefs.CONTINUE_PREVIEWS, true);
+        addToggle("Ocultar títulos completados (95% o más)",
+                UnifiedCatalogPrefs.CONTINUE_HIDE_FINISHED, true);
+        addToggle("Incluir otras aplicaciones instaladas que compartan Watch Next",
+                UnifiedCatalogPrefs.CONTINUE_OTHER_APPS, false);
+        int days = UnifiedCatalogPrefs.continueMaxAge(this);
+        content.addView(button("Antigüedad máxima: " + days + " días", v -> {
+            final int[] choices = {30, 60, 90, 180, 365};
+            final String[] labels = {"30 días", "60 días", "90 días", "180 días", "365 días"};
+            new AlertDialog.Builder(this).setTitle("Ocultar contenido inactivo")
+                    .setItems(labels, (dialog, which) -> {
+                        UnifiedCatalogPrefs.prefs(this).edit()
+                                .putInt(UnifiedCatalogPrefs.CONTINUE_MAX_AGE, choices[which]).apply();
+                        render();
+                    }).show();
+        }));
+        content.addView(text("Qué aplicaciones pueden alimentar la fila:", 16));
+        for (UnifiedCatalogPrefs.Provider provider : UnifiedCatalogPrefs.CONTINUE_SOURCES) {
+            boolean installed = provider.installedPackage(this) != null;
+            CheckBox watching = new CheckBox(this);
+            watching.setText(provider.name + (installed ? " · instalada" : " · no instalada"));
+            watching.setTextColor(Color.WHITE);
+            watching.setTextSize(16);
+            watching.setChecked(UnifiedCatalogPrefs.continueSourceSelected(this, provider));
+            watching.setOnCheckedChangeListener((v, checked) ->
+                    UnifiedCatalogPrefs.prefs(this).edit()
+                            .putBoolean("continue_source_" + provider.key, checked).apply());
+            content.addView(watching);
+        }
+        content.addView(text("Permiso de Android TV: la app te lo pedirá al abrir Seguir viendo. "
+                + "Si alguna plataforma no publica progreso visible, no aparecerá hasta que lo haga.", 14));
+
         section("Información");
         content.addView(text("TMDB informa de plataformas por país, pero no acredita una suscripción activa ni garantiza que una app permita abrir la ficha concreta. Si la app no admite búsqueda externa, se abre su inicio.", 14));
         content.addView(button("Volver al catálogo", v -> finish()));
+    }
+
+    private void addToggle(String title, String key, boolean defaultValue) {
+        CheckBox toggle = new CheckBox(this);
+        toggle.setText(title);
+        toggle.setTextColor(Color.WHITE);
+        toggle.setChecked(UnifiedCatalogPrefs.prefs(this).getBoolean(key, defaultValue));
+        toggle.setOnCheckedChangeListener((view, checked) ->
+                UnifiedCatalogPrefs.prefs(this).edit().putBoolean(key, checked).apply());
+        content.addView(toggle);
     }
 
     private void editKey() {
