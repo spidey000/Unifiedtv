@@ -73,7 +73,7 @@ public final class UnifiedCatalogActivity extends Activity {
     private Button action(String title, View.OnClickListener click) {
         Button button = new Button(this);
         button.setText(title);
-        button.setTextAllCaps(false);
+        button.setAllCaps(false);
         button.setOnClickListener(click);
         return button;
     }
