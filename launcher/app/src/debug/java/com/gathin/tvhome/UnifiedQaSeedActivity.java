@@ -36,11 +36,26 @@ public final class UnifiedQaSeedActivity extends Activity {
                 runOnUiThread(() -> {
                     String page = getIntent().getStringExtra("qa_page");
                     if ("settings".equals(page)) {
-                        startActivity(new Intent(this, UnifiedCatalogSettingsActivity.class)
+                        Intent open = new Intent(this, UnifiedCatalogSettingsActivity.class)
                                 .putExtra(UnifiedCatalogSettingsActivity.EXTRA_SECTION,
-                                        getIntent().getIntExtra("qa_section", 1)));
+                                        getIntent().getIntExtra("qa_section", 1));
+                        open.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK
+                                | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+                        startActivity(open);
                     } else {
-                        startActivity(new Intent(this, UnifiedCatalogActivity.class));
+                        Intent open = new Intent(this, UnifiedCatalogActivity.class)
+                                .putExtra("unifiedtv_qa", true)
+                                .putExtra("unifiedtv_qa_page",
+                                        getIntent().getStringExtra("qa_target") == null ? "HOME"
+                                                : getIntent().getStringExtra("qa_target"))
+                                .putExtra("unifiedtv_qa_focus",
+                                        getIntent().getStringExtra("qa_focus") == null ? ""
+                                                : getIntent().getStringExtra("qa_focus"))
+                                .putExtra("unifiedtv_qa_details",
+                                        getIntent().getBooleanExtra("qa_details", false));
+                        open.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK
+                                | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+                        startActivity(open);
                     }
                     finish();
                 });
@@ -59,7 +74,9 @@ public final class UnifiedQaSeedActivity extends Activity {
                 .putBoolean(UnifiedCatalogPrefs.CONTINUE_HOME, false)
                 .putBoolean(UnifiedCatalogPrefs.CATALOG_COLUMNS,
                         "columns".equals(getIntent().getStringExtra("qa_layout")))
-                .apply();
+                .commit();
+        android.util.Log.i("UnifiedTvQa", "Columns readback "
+                + UnifiedCatalogPrefs.twoColumnSections(this));
         File posters = new File(getCacheDir(), "unifiedtv_posters");
         File json = new File(getCacheDir(), "unifiedtv_json");
         if ((!posters.isDirectory() && !posters.mkdirs())
