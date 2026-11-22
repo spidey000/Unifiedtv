@@ -21,6 +21,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 
 /** Small, bounded network/cache layer. Call only from a worker thread. */
@@ -28,17 +29,35 @@ final class UnifiedCatalogApi {
     static final class Media {
         final int id;
         final String type, title, poster, year;
+        final double voteAverage;
+        final int voteCount;
         volatile boolean availabilityReady;
         volatile String watchLink = "";
         volatile String availabilityError = "";
         final Set<Integer> providerIds = new HashSet<>();
 
-        Media(int id, String type, String title, String poster, String year) {
+        Media(int id, String type, String title, String poster, String year,
+              double voteAverage, int voteCount) {
             this.id = id;
             this.type = type;
             this.title = title;
             this.poster = poster;
             this.year = year;
+            this.voteAverage = voteAverage;
+            this.voteCount = voteCount;
+        }
+
+        /** TMDB ratings use a 0–10 scale. Zero votes means unrated, not 0/10. */
+        boolean hasRating() {
+            return voteCount > 0 && !Double.isNaN(voteAverage)
+                    && !Double.isInfinite(voteAverage)
+                    && voteAverage > 0 && voteAverage <= 10;
+        }
+
+        String ratingText() {
+            return hasRating()
+                    ? String.format(Locale.forLanguageTag("es-ES"), "%.1f", voteAverage)
+                    : "";
         }
     }
 
@@ -97,7 +116,10 @@ final class UnifiedCatalogApi {
             String date = o.optString(type.equals("tv") ? "first_air_date" : "release_date", "");
             String year = date.length() >= 4 ? date.substring(0, 4) : "";
             int id = o.optInt("id", 0);
-            if (id > 0) media.add(new Media(id, type, name, poster, year));
+            double voteAverage = o.optDouble("vote_average", 0.0);
+            int voteCount = o.optInt("vote_count", 0);
+            if (id > 0) media.add(new Media(id, type, name, poster, year,
+                    voteAverage, voteCount));
         }
         return media;
     }
