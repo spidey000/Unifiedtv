@@ -998,6 +998,12 @@ public final class UnifiedCatalogActivity extends Activity {
     }
 
     private void connectGridFocus(List<FrameLayout> cards, List<Runnable> loads) {
+        connectGridFocus(cards, loads, 1.015f);
+    }
+
+    /** Distinct focus scale for the 16:9 app launcher; poster focus stays unchanged. */
+    private void connectGridFocus(List<FrameLayout> cards, List<Runnable> loads,
+                                  float focusScale) {
         for (int i = 0; i < cards.size(); i++) {
             FrameLayout card = cards.get(i);
             int column = UnifiedCatalogLayout.column(i);
@@ -1012,7 +1018,7 @@ public final class UnifiedCatalogActivity extends Activity {
             card.setOnFocusChangeListener((view, focused) -> {
                 view.animate().cancel();
                 if (StreamUi.motionEnabled()) {
-                    view.animate().scaleX(focused ? 1.015f : 1f).scaleY(focused ? 1.015f : 1f)
+                    view.animate().scaleX(focused ? focusScale : 1f).scaleY(focused ? focusScale : 1f)
                             .translationZ(focused ? dp(3) : 0)
                             .setDuration(StreamUi.FOCUS_ANIM_MS).start();
                 } else {
@@ -1374,7 +1380,9 @@ public final class UnifiedCatalogActivity extends Activity {
                         });
                     })));
                 }
-                connectGridFocus(cards, loads);
+                // LEFT/RIGHT stay within each row; DOWN scrolls to the next six apps.
+                connectGridFocus(cards, loads, 1.035f);
+                routes.get(page).setNextFocusRightId(cards.get(0).getId());
                 loadGridOnScroll(grid, loads,
                         UnifiedCatalogLayout.appRowStrideDp(bannerWidth));
             });
