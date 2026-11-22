@@ -4,6 +4,7 @@ import android.animation.ValueAnimator;
 import android.app.Activity;
 import android.app.Dialog;
 import android.content.Intent;
+import android.content.ComponentName;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
 import android.content.res.ColorStateList;
@@ -977,9 +978,14 @@ public final class UnifiedCatalogActivity extends Activity {
 
     /** Fetch only artwork in and near the viewport, including when scrolling by D-pad. */
     private void loadGridOnScroll(GridLayout grid, List<Runnable> loads) {
+        loadGridOnScroll(grid, loads, tileHeight() + UnifiedCatalogLayout.GRID_ROW_GAP_DP);
+    }
+
+    /** App banners and posters have different row heights but identical vertical scrolling. */
+    private void loadGridOnScroll(GridLayout grid, List<Runnable> loads, int rowStrideDp) {
         Runnable preload = () -> {
             if (grid.getParent() == null) return;
-            int stride = dp(tileHeight() + UnifiedCatalogLayout.GRID_ROW_GAP_DP);
+            int stride = dp(rowStrideDp);
             int top = scroll.getScrollY() - grid.getTop();
             int firstRow = Math.max(0, top / stride - 1);
             int lastRow = Math.max(firstRow,
@@ -1251,17 +1257,38 @@ public final class UnifiedCatalogActivity extends Activity {
         }
     }
 
+    /**
+     * App library is a six-column vertically scrolling grid of official TV
+     * 16:9 banners. Square-only apps keep their icon centered inside the banner.
+     * The shared ScrollView owns scrolling; there is no horizontal carousel.
+     */
     private void apps(int stamp) {
-        title("Apps y fuentes", "Aplicaciones instaladas");
-        LinearLayout line = row("Tus apps");
+        title("Apps y fuentes", "Aplicaciones disponibles en este dispositivo");
+        int bannerWidth = UnifiedCatalogLayout.appBannerWidthDp(
+                getResources().getConfiguration().screenWidthDp,
+                RAIL_COLLAPSED, CONTENT_START, CONTENT_END);
+        int bannerHeight = UnifiedCatalogLayout.appBannerHeightDp(bannerWidth);
+        int cardHeight = UnifiedCatalogLayout.appCardHeightDp(bannerWidth);
+        GridLayout grid = new GridLayout(this);
+        grid.setColumnCount(UnifiedCatalogLayout.COLUMNS);
+        grid.setOrientation(GridLayout.HORIZONTAL);
+        grid.setPadding(dp(CONTENT_START), dp(7), dp(CONTENT_END), dp(15));
+        grid.setClipChildren(false);
+        grid.setClipToPadding(false);
+        pageBody.addView(grid, new LinearLayout.LayoutParams(-1, -2));
+        // Configuration actions follow the content rather than consuming the first row.
         link("Gestionar fuentes de streaming", R.drawable.ic_settings,
                 v -> startActivity(new Intent(this, UnifiedCatalogSettingsActivity.class)
-                        .putExtra(UnifiedCatalogSettingsActivity.EXTRA_SECTION, UnifiedCatalogSettingsActivity.PLATFORMS_SECTION)));
-        link("Abrir launcher clásico", R.drawable.uic_house, v -> UnifiedTvHome.leaveForApps(this));
+                        .putExtra(UnifiedCatalogSettingsActivity.EXTRA_SECTION,
+                                UnifiedCatalogSettingsActivity.PLATFORMS_SECTION)));
+        link("Abrir launcher clásico", R.drawable.uic_house,
+                v -> UnifiedTvHome.leaveForApps(this));
+
         PackageManager manager = getPackageManager();
         data.execute(() -> {
             Map<String, ResolveInfo> installed = new LinkedHashMap<>();
-            for (String category : new String[]{Intent.CATEGORY_LEANBACK_LAUNCHER, Intent.CATEGORY_LAUNCHER}) {
+            for (String category : new String[]{Intent.CATEGORY_LEANBACK_LAUNCHER,
+                    Intent.CATEGORY_LAUNCHER}) {
                 Intent launch = new Intent(Intent.ACTION_MAIN).addCategory(category);
                 for (ResolveInfo app : manager.queryIntentActivities(launch, 0)) {
                     String pkg = app.activityInfo.packageName;
@@ -1272,25 +1299,84 @@ public final class UnifiedCatalogActivity extends Activity {
             sorted.sort(new ResolveInfo.DisplayNameComparator(manager));
             runOnUiThread(() -> {
                 if (!live(stamp)) return;
+                if (sorted.isEmpty()) {
+                    note(pageBody, "No se encontraron aplicaciones disponibles.");
+                    return;
+                }
+                List<FrameLayout> cards = new ArrayList<>();
+                List<Runnable> loads = new ArrayList<>();
                 for (int i = 0; i < sorted.size(); i++) {
                     ResolveInfo app = sorted.get(i);
-                    CharSequence name = app.loadLabel(manager);
-                    LinearLayout card = card(line, 124, i, () -> {
-                        Intent launch = new Intent(Intent.ACTION_MAIN).setClassName(app.activityInfo.packageName, app.activityInfo.name);
-                        try { startActivity(launch); }
-                        catch (RuntimeException e) { android.widget.Toast.makeText(this, "No se pudo abrir la aplicación", android.widget.Toast.LENGTH_SHORT).show(); }
+                    String appName = app.loadLabel(manager).toString();
+                    String packageName = app.activityInfo.packageName;
+                    FrameLayout card = mediaCard(() -> {
+                        try {
+                            Intent launch = manager.getLeanbackLaunchIntentForPackage(packageName);
+                            if (launch == null) launch = manager.getLaunchIntentForPackage(packageName);
+                            if (launch == null) launch = new Intent(Intent.ACTION_MAIN)
+                                    .setClassName(packageName, app.activityInfo.name);
+                            startActivity(launch);
+                        } catch (RuntimeException e) {
+                            android.widget.Toast.makeText(this, "No se pudo abrir la aplicación",
+                                    android.widget.Toast.LENGTH_SHORT).show();
+                        }
                     });
-                    ImageView icon = poster(card, 81);
-                    icon.setScaleType(ImageView.ScaleType.FIT_CENTER);
-                    icon.setPadding(dp(12), dp(8), dp(12), dp(8));
-                    card.addView(singleLine(name.toString(), 14, StreamUi.WHITE, true));
-                    art.execute(() -> {
+                    card.setContentDescription(appName);
+                    int column = UnifiedCatalogLayout.column(i);
+                    GridLayout.LayoutParams tile = new GridLayout.LayoutParams(
+                            GridLayout.spec(UnifiedCatalogLayout.row(i)), GridLayout.spec(column));
+                    tile.width = dp(bannerWidth);
+                    tile.height = dp(cardHeight);
+                    tile.setMargins(dp(UnifiedCatalogLayout.APP_FOCUS_INSET_X_DP),
+                            dp(UnifiedCatalogLayout.APP_FOCUS_INSET_TOP_DP),
+                            dp(UnifiedCatalogLayout.APP_FOCUS_INSET_X_DP
+                                    + UnifiedCatalogLayout.APP_CELL_GAP_DP),
+                            dp(UnifiedCatalogLayout.APP_FOCUS_INSET_BOTTOM_DP));
+                    grid.addView(card, tile);
+                    if (column == 0) leftToRail(card);
+
+                    ImageView artwork = new ImageView(this);
+                    artwork.setScaleType(ImageView.ScaleType.CENTER_CROP);
+                    artwork.setBackgroundColor(0xFF24242C);
+                    artwork.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+                    card.addView(artwork, new FrameLayout.LayoutParams(-1, dp(bannerHeight),
+                            Gravity.TOP));
+                    TextView label = singleLine(appName, 11, StreamUi.WHITE, true);
+                    label.setGravity(Gravity.CENTER);
+                    label.setPadding(dp(3), 0, dp(3), 0);
+                    label.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+                    card.addView(label, new FrameLayout.LayoutParams(-1,
+                            dp(UnifiedCatalogLayout.APP_LABEL_HEIGHT_DP), Gravity.BOTTOM));
+                    cards.add(card);
+
+                    loads.add(once(() -> art.execute(() -> {
                         if (revision != stamp) return;
-                        Drawable drawable = app.loadIcon(manager);
-                        runOnUiThread(() -> { if (live(stamp)) icon.setImageDrawable(drawable); });
-                    });
+                        Drawable loaded = null;
+                        try {
+                            loaded = manager.getActivityBanner(new ComponentName(
+                                    packageName, app.activityInfo.name));
+                        } catch (PackageManager.NameNotFoundException ignored) { }
+                        if (loaded == null) {
+                            try { loaded = manager.getApplicationBanner(packageName); }
+                            catch (PackageManager.NameNotFoundException ignored) { }
+                        }
+                        boolean hasBanner = loaded != null;
+                        if (!hasBanner) loaded = app.loadIcon(manager);
+                        final Drawable image = loaded;
+                        runOnUiThread(() -> {
+                            if (!live(stamp) || grid.getParent() == null) return;
+                            artwork.setImageDrawable(image);
+                            if (!hasBanner) {
+                                // A square icon must not stretch into a 16:9 banner.
+                                artwork.setScaleType(ImageView.ScaleType.FIT_CENTER);
+                                artwork.setPadding(dp(18), dp(6), dp(18), dp(6));
+                            }
+                        });
+                    })));
                 }
-                if (sorted.isEmpty()) line.addView(text("No se encontraron aplicaciones", 15, StreamUi.DIM, false));
+                connectGridFocus(cards, loads);
+                loadGridOnScroll(grid, loads,
+                        UnifiedCatalogLayout.appRowStrideDp(bannerWidth));
             });
         });
     }
