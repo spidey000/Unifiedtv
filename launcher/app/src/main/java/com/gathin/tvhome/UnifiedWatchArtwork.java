@@ -6,54 +6,35 @@ import android.graphics.Bitmap;
 import java.text.Normalizer;
 import java.util.Locale;
 
-/** Prefers correctly shaped platform art; fills missing aspect ratios from TMDB. */
+/** Chooses a single portrait poster; all UnifiedTV catalog cards are 2:3. */
 final class UnifiedWatchArtwork {
-    static final class Pair {
-        final Bitmap portrait, landscape;
-        Pair(Bitmap portrait, Bitmap landscape) {
-            this.portrait = portrait;
-            this.landscape = landscape;
-        }
-    }
-
-    /** First paint uses Android TV's own images; never delays it for a network lookup. */
-    static Pair platform(Context context, UnifiedWatchNext.Entry item) {
+    /**
+     * Show Android TV's own poster if correctly shaped; try its thumbnail only
+     * when the poster is not a portrait. A wide source is center-cropped inside
+     * the 2:3 card if neither source provides portrait artwork.
+     */
+    static Bitmap platformPoster(Context context, UnifiedWatchNext.Entry item) {
         Bitmap poster = UnifiedWatchNext.artwork(context, item.poster);
+        if (isPortrait(poster)) return poster;
         Bitmap thumbnail = item.thumbnail.equals(item.poster) ? poster
                 : UnifiedWatchNext.artwork(context, item.thumbnail);
-        Bitmap portrait = isPortrait(poster) ? poster : isPortrait(thumbnail) ? thumbnail
-                : poster != null ? poster : thumbnail;
-        Bitmap landscape = isWide(thumbnail) ? thumbnail : isWide(poster) ? poster
-                : thumbnail != null ? thumbnail : poster;
-        return new Pair(portrait, landscape);
+        if (isPortrait(thumbnail)) return thumbnail;
+        return poster != null ? poster : thumbnail;
     }
 
-    /** Improve missing aspect ratios with a conservative TMDB title/type/year match. */
-    static Pair withTmdb(Context context, UnifiedWatchNext.Entry item, Pair existing) {
-        Bitmap portrait = existing.portrait;
-        Bitmap landscape = existing.landscape;
-        if (isPortrait(portrait) && isWide(landscape)) return existing;
+    /** Resolve only a missing portrait via TMDB; never fetch the 16:9 backdrop. */
+    static Bitmap withTmdbPoster(Context context, UnifiedWatchNext.Entry item,
+                                 Bitmap existing) {
+        if (isPortrait(existing)) return existing;
         try {
             UnifiedCatalogApi.MediaArt match = UnifiedCatalogApi.watchArtwork(context,
                     item.title, item.mediaType, item.releaseDate);
             if (match != null) {
-                if (!isPortrait(portrait)) {
-                    Bitmap tmdbPoster = UnifiedCatalogApi.poster(context, match.poster);
-                    if (isPortrait(tmdbPoster)) portrait = tmdbPoster;
-                }
-                if (!isWide(landscape)) {
-                    Bitmap tmdbBackdrop = UnifiedCatalogApi.shelfArtwork(context, match.backdrop);
-                    if (isWide(tmdbBackdrop)) landscape = tmdbBackdrop;
-                }
+                Bitmap tmdbPoster = UnifiedCatalogApi.poster(context, match.poster);
+                if (isPortrait(tmdbPoster)) return tmdbPoster;
             }
-        } catch (Exception ignored) { /* User artwork still works without TMDB. */ }
-
-        // Even a single platform image still provides a useful fallback for both
-        // sizes, with center cropping at 2:3 and FIT_CENTER at the expanded 16:9.
-        if (portrait == null) portrait = landscape;
-        if (landscape == null) landscape = portrait;
-        return portrait == existing.portrait && landscape == existing.landscape
-                ? existing : new Pair(portrait, landscape);
+        } catch (Exception ignored) { /* Retain the platform's image offline. */ }
+        return existing;
     }
 
     static boolean isPortrait(Bitmap bitmap) {

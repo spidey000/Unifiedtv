@@ -1,7 +1,5 @@
 package com.gathin.tvhome;
 
-import android.animation.Animator;
-import android.animation.AnimatorListenerAdapter;
 import android.animation.ValueAnimator;
 import android.app.Activity;
 import android.app.Dialog;
@@ -11,7 +9,6 @@ import android.content.pm.ResolveInfo;
 import android.content.res.ColorStateList;
 import android.graphics.Bitmap;
 import android.graphics.Color;
-import android.graphics.Rect;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
@@ -19,7 +16,6 @@ import android.text.TextUtils;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewTreeObserver;
-import android.view.animation.DecelerateInterpolator;
 import android.view.Window;
 import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.InputMethodManager;
@@ -611,8 +607,6 @@ public final class UnifiedCatalogActivity extends Activity {
                 FrameLayout card = mediaTile(row, i, () -> openMedia(media, null, stamp));
                 card.setOnLongClickListener(v -> { details(media); return true; });
                 ImageView cover = tileArt(card);
-                ImageView thumbnail = tileArt(card);
-                thumbnail.setScaleType(ImageView.ScaleType.FIT_CENTER);
                 LinearLayout caption = caption(card);
                 TextView title = singleLine(media.title, 9, StreamUi.WHITE, true);
                 caption.addView(title);
@@ -625,11 +619,7 @@ public final class UnifiedCatalogActivity extends Activity {
                     image(stamp, cover, () -> UnifiedCatalogApi.poster(this, media.poster));
                     loadProviderIcon(stamp, media, card, providerIcon);
                 }));
-                Runnable loadThumbnail = once(() -> image(stamp, thumbnail, () -> {
-                    Bitmap wide = UnifiedCatalogApi.shelfArtwork(this, media.backdrop);
-                    return wide != null ? wide : UnifiedCatalogApi.poster(this, media.poster);
-                }, () -> { if (card.isFocused()) revealThumbnail(thumbnail); }));
-                bindTileFocus(card, loads, i, thumbnail, loadThumbnail, title, facts);
+                bindTileFocus(card, loads, i, facts);
             }
             finishCarousel(row);
         }, () -> {
@@ -679,7 +669,7 @@ public final class UnifiedCatalogActivity extends Activity {
     /** End space allows even the last card to settle in the stationary focus slot. */
     private void finishCarousel(LinearLayout line) {
         int room = getResources().getConfiguration().screenWidthDp - RAIL_COLLAPSED;
-        int focusWidth = Math.round(tileHeight() * 16f / 9f);
+        int focusWidth = coverWidth();
         int trailing = Math.max(0, room - CONTENT_START - focusWidth - CONTENT_END);
         line.addView(new View(this), new LinearLayout.LayoutParams(dp(trailing), dp(1)));
     }
@@ -801,88 +791,44 @@ public final class UnifiedCatalogActivity extends Activity {
         };
     }
 
-    private void revealThumbnail(ImageView thumbnail) {
-        thumbnail.animate().cancel();
-        thumbnail.setVisibility(View.VISIBLE);
-        if (!StreamUi.motionEnabled()) {
-            thumbnail.setAlpha(1f);
-            return;
-        }
-        thumbnail.setAlpha(0f);
-        thumbnail.animate().alpha(1f).setDuration(StreamUi.ART_ANIM_MS).start();
-    }
-
+    /**
+     * Every carousel card stays at its fixed 2:3 poster dimensions.
+     * Focus is a subtle uniform zoom and elevation; the row scrolls
+     * underneath the same focus slot, never resizing its children.
+     */
     private void bindTileFocus(FrameLayout card, List<Runnable> loads, int index,
-                               ImageView thumbnail, Runnable loadThumbnail, TextView title, View focusedInfo) {
-        int available = getResources().getConfiguration().screenWidthDp - RAIL_COLLAPSED - CONTENT_START - CONTENT_END;
+                               View focusedInfo) {
+        int available = getResources().getConfiguration().screenWidthDp
+                - RAIL_COLLAPSED - CONTENT_START - CONTENT_END;
         if (index < available / (coverWidth() + CARD_GAP) + 2) loads.get(index).run();
         focusedInfo.setVisibility(View.GONE);
-        if (thumbnail != null) {
-            thumbnail.setAlpha(0f);
-            thumbnail.setVisibility(View.INVISIBLE);
-        }
-        final ValueAnimator[] resize = {null};
         card.setOnFocusChangeListener((view, focused) -> {
-            if (resize[0] != null) resize[0].cancel();
-            int normalWidth = dp(coverWidth());
-            int focusedWidth = dp(Math.round(tileHeight() * 16f / 9f));
-            int startWidth = ((LinearLayout.LayoutParams) view.getLayoutParams()).width;
-            int targetWidth = focused ? focusedWidth : normalWidth;
             focusedInfo.animate().cancel();
             if (focused) {
                 focusedInfo.setAlpha(StreamUi.motionEnabled() ? 0f : 1f);
                 focusedInfo.setVisibility(View.VISIBLE);
                 if (StreamUi.motionEnabled()) {
-                    focusedInfo.animate().alpha(1f).setDuration(StreamUi.ART_ANIM_MS).start();
+                    focusedInfo.animate().alpha(1f)
+                            .setDuration(StreamUi.ART_ANIM_MS).start();
                 }
             } else {
                 focusedInfo.setVisibility(View.GONE);
             }
             card.animate().cancel();
             if (StreamUi.motionEnabled()) {
-                card.animate().scaleY(focused ? 1.018f : 1f)
+                card.animate().scaleX(focused ? 1.025f : 1f)
+                        .scaleY(focused ? 1.025f : 1f)
                         .translationZ(focused ? dp(3) : 0)
                         .setDuration(StreamUi.FOCUS_ANIM_MS).start();
-                resize[0] = ValueAnimator.ofInt(startWidth, targetWidth);
-                resize[0].setDuration(StreamUi.FOCUS_ANIM_MS);
-                resize[0].setInterpolator(new DecelerateInterpolator());
-                resize[0].addUpdateListener(anim -> {
-                    int width = (int) anim.getAnimatedValue();
-                    LinearLayout.LayoutParams params = (LinearLayout.LayoutParams) view.getLayoutParams();
-                    params.width = width;
-                    view.setLayoutParams(params);
-                    float progress = Math.max(0f, Math.min(1f,
-                            (width - normalWidth) / (float) (focusedWidth - normalWidth)));
-                    title.setTextSize(9f + 3f * progress);
-                });
-                resize[0].addListener(new AnimatorListenerAdapter() {
-                    @Override public void onAnimationEnd(Animator animation) {
-                        if (view.isFocused()) pinCarouselFocus(view);
-                    }
-                });
-                resize[0].start();
             } else {
-                LinearLayout.LayoutParams params = (LinearLayout.LayoutParams) view.getLayoutParams();
-                params.width = targetWidth;
-                view.setLayoutParams(params);
-                title.setTextSize(focused ? 12 : 9);
-                card.setScaleY(1f);
-                card.setTranslationZ(0f);
-                if (focused) view.post(() -> { if (view.isFocused()) pinCarouselFocus(view); });
-            }
-            if (thumbnail != null) {
-                thumbnail.animate().cancel();
-                if (focused) {
-                    if (thumbnail.getDrawable() != null) revealThumbnail(thumbnail);
-                    else loadThumbnail.run();
-                } else {
-                    thumbnail.setAlpha(0f);
-                    thumbnail.setVisibility(View.INVISIBLE);
-                }
+                card.setScaleX(focused ? 1.025f : 1f);
+                card.setScaleY(focused ? 1.025f : 1f);
+                card.setTranslationZ(focused ? dp(3) : 0);
             }
             if (!focused) return;
             view.post(() -> { if (view.isFocused()) pinCarouselFocus(view); });
-            for (int i = Math.max(0, index - 1); i < Math.min(index + 4, loads.size()); i++) loads.get(i).run();
+            for (int i = Math.max(0, index - 1); i < Math.min(index + 4, loads.size()); i++)
+                loads.get(i).run();
         });
     }
 
@@ -964,65 +910,46 @@ public final class UnifiedCatalogActivity extends Activity {
     private interface Artwork { Bitmap load(); }
 
     private void image(int stamp, ImageView target, Artwork loader) {
-        image(stamp, target, loader, null);
-    }
-
-    private void image(int stamp, ImageView target, Artwork loader, Runnable onLoaded) {
         art.execute(() -> {
             if (revision != stamp) return;
             Bitmap value = loader.load();
             if (value != null) runOnUiThread(() -> {
-                if (live(stamp)) {
-                    target.setImageBitmap(value);
-                    if (onLoaded != null) {
-                        onLoaded.run(); // Focused 16:9 thumbnails have their own reveal.
-                    } else if (StreamUi.motionEnabled() && target.isAttachedToWindow()) {
-                        target.animate().cancel();
-                        target.setAlpha(0f);
-                        target.animate().alpha(1f).setDuration(StreamUi.ART_ANIM_MS).start();
-                    } else {
-                        target.setAlpha(1f);
-                    }
+                if (!live(stamp)) return;
+                target.setImageBitmap(value);
+                if (StreamUi.motionEnabled() && target.isAttachedToWindow()) {
+                    target.animate().cancel();
+                    target.setAlpha(0f);
+                    target.animate().alpha(1f).setDuration(StreamUi.ART_ANIM_MS).start();
+                } else {
+                    target.setAlpha(1f);
                 }
             });
         });
     }
 
-    /** Show the platform artwork immediately; TMDB never blocks first paint. */
-    private void watchImage(int stamp, UnifiedWatchNext.Entry item, FrameLayout card,
-                            ImageView poster, ImageView thumbnail) {
+    /** Show portrait artwork immediately; TMDB only fills missing 2:3 posters. */
+    private void watchImage(int stamp, UnifiedWatchNext.Entry item, ImageView poster) {
         art.execute(() -> {
             if (revision != stamp) return;
-            UnifiedWatchArtwork.Pair platform = UnifiedWatchArtwork.platform(getApplicationContext(), item);
-            runOnUiThread(() -> showWatchImage(stamp, card, poster, thumbnail, platform));
+            Bitmap platform = UnifiedWatchArtwork.platformPoster(getApplicationContext(), item);
+            runOnUiThread(() -> showWatchImage(stamp, poster, platform));
             if (revision != stamp) return;
-            UnifiedWatchArtwork.Pair enhanced = UnifiedWatchArtwork.withTmdb(
+            Bitmap enhanced = UnifiedWatchArtwork.withTmdbPoster(
                     getApplicationContext(), item, platform);
-            if (enhanced != platform) {
-                runOnUiThread(() -> showWatchImage(stamp, card, poster, thumbnail, enhanced));
-            }
+            if (enhanced != platform)
+                runOnUiThread(() -> showWatchImage(stamp, poster, enhanced));
         });
     }
 
-    private void showWatchImage(int stamp, FrameLayout card,
-                                ImageView poster, ImageView thumbnail,
-                                UnifiedWatchArtwork.Pair pair) {
-        if (!live(stamp)) return;
-        if (pair.portrait != null && !showingBitmap(poster, pair.portrait)) {
-            poster.setImageBitmap(pair.portrait);
-            if (StreamUi.motionEnabled() && poster.isAttachedToWindow()) {
-                poster.animate().cancel();
-                poster.setAlpha(0f);
-                poster.animate().alpha(1f).setDuration(StreamUi.ART_ANIM_MS).start();
-            } else {
-                poster.setAlpha(1f);
-            }
-        }
-        if (thumbnail != null && pair.landscape != null) {
-            if (!showingBitmap(thumbnail, pair.landscape)) {
-                thumbnail.setImageBitmap(pair.landscape);
-                if (card.isFocused()) revealThumbnail(thumbnail);
-            }
+    private void showWatchImage(int stamp, ImageView poster, Bitmap bitmap) {
+        if (!live(stamp) || bitmap == null || showingBitmap(poster, bitmap)) return;
+        poster.setImageBitmap(bitmap);
+        if (StreamUi.motionEnabled() && poster.isAttachedToWindow()) {
+            poster.animate().cancel();
+            poster.setAlpha(0f);
+            poster.animate().alpha(1f).setDuration(StreamUi.ART_ANIM_MS).start();
+        } else {
+            poster.setAlpha(1f);
         }
     }
 
@@ -1079,11 +1006,6 @@ public final class UnifiedCatalogActivity extends Activity {
                             : mediaTile(line, i, () -> UnifiedWatchNext.open(this, item));
                     cards.add(card);
                     ImageView artwork = tileArt(card);
-                    ImageView thumbnail = fullGrid ? null : tileArt(card);
-                    if (thumbnail != null) {
-                        // The landscape artwork is shown completely, without CENTER_CROP.
-                        thumbnail.setScaleType(ImageView.ScaleType.FIT_CENTER);
-                    }
                     LinearLayout copy = caption(card);
                     TextView title = singleLine(item.title, 9, StreamUi.WHITE, true);
                     copy.addView(title);
@@ -1111,9 +1033,9 @@ public final class UnifiedCatalogActivity extends Activity {
                     } else if (!item.episode.isEmpty()) {
                         copy.addView(singleLine(item.episode, 9, StreamUi.DIM, false));
                     }
-                    Runnable loadArtwork = once(() -> watchImage(stamp, item, card, artwork, thumbnail));
+                    Runnable loadArtwork = once(() -> watchImage(stamp, item, artwork));
                     loads.add(loadArtwork);
-                    if (!fullGrid) bindTileFocus(card, loads, i, thumbnail, loadArtwork, title, episode);
+                    if (!fullGrid) bindTileFocus(card, loads, i, episode);
                 }
                 if (!fullGrid) finishCarousel(line);
                 if (fullGrid) {
