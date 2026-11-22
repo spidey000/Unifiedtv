@@ -1287,8 +1287,7 @@ public final class UnifiedCatalogActivity extends Activity {
                 v -> startActivity(new Intent(this, UnifiedCatalogSettingsActivity.class)
                         .putExtra(UnifiedCatalogSettingsActivity.EXTRA_SECTION,
                                 UnifiedCatalogSettingsActivity.PLATFORMS_SECTION)));
-        link("Abrir launcher clásico", R.drawable.uic_house,
-                v -> UnifiedTvHome.leaveForApps(this));
+        link("Abrir launcher clásico", R.drawable.uic_house, v -> UnifiedTvHome.leaveForApps(this));
 
         PackageManager manager = getPackageManager();
         data.execute(() -> {
