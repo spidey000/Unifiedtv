@@ -225,6 +225,8 @@ final class UnifiedWatchNext {
         }
         try {
             Intent launch = activity.getPackageManager()
+                    .getLeanbackLaunchIntentForPackage(item.providerPackage);
+            if (launch == null) launch = activity.getPackageManager()
                     .getLaunchIntentForPackage(item.providerPackage);
             if (launch != null) {
                 activity.startActivity(launch);
