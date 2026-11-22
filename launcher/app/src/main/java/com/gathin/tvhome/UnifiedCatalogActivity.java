@@ -359,7 +359,8 @@ public final class UnifiedCatalogActivity extends Activity {
         tile.addView(title);
 
         String percentage = item.progress() >= 0 ? " · " + item.progress() + "%" : "";
-        TextView source = label(item.source + percentage, 13, 0xFF9DE4B8);
+        String episode = item.episode.isEmpty() ? "" : item.episode + " · ";
+        TextView source = label(episode + item.source + percentage, 13, 0xFF9DE4B8);
         source.setSingleLine(true);
         source.setEllipsize(TextUtils.TruncateAt.END);
         tile.addView(source);
