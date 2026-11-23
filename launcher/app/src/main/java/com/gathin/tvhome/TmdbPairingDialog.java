@@ -95,9 +95,9 @@ final class TmdbPairingDialog {
             onDismiss.run();
         });
         dialog.setOnShowListener(ignored -> {
-            dialog.getWindow().setBackgroundDrawable(StreamUi.shape(activity, 0xFA22222B, 18, StreamUi.BORDER));
+            dialog.getWindow().setBackgroundDrawable(StreamUi.panel(activity));
             TextView close = dialog.getButton(AlertDialog.BUTTON_NEGATIVE);
-            close.setBackground(StreamUi.state(activity, 0x702F2F3B, 0xFF393943, StreamUi.PANEL, StreamUi.WHITE));
+            StreamUi.background(close, false, false);
             close.setTextColor(StreamUi.WHITE);
             close.setAllCaps(false);
         });
