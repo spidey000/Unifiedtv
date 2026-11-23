@@ -2,6 +2,8 @@
 <resources>
     <string name="app_name">Home</string>
     <string name="unifiedtv_name" translatable="false">Unifiedtv</string>
+    <string name="unifiedtv_guard_service">UnifiedTV · Recuperación del servicio (opcional)</string>
+    <string name="unifiedtv_input_key_service">UnifiedTV · Tecla Entradas/HDMI</string>
     <string name="inputs">Inputs</string>
     <string name="wifi">Wi-Fi</string>
     <string name="settings">Settings</string>
