@@ -56,6 +56,11 @@
         <intent>
             <action android:name="android.intent.action.MEDIA_SEARCH" />
         </intent>
+        <!-- Android 11+ visibility for the OEM TV input picker used from UnifiedTV. -->
+        <intent>
+            <action android:name="com.android.tv.action.VIEW_INPUTS" />
+            <category android:name="android.intent.category.DEFAULT" />
+        </intent>
         <!-- Other optional installed media players. No broad QUERY_ALL_PACKAGES permission. -->
         <package android:name="org.xbmc.kodi" />
         <package android:name="com.plexapp.android" />
@@ -163,11 +168,7 @@
             android:name=".UnifiedCatalogSettingsActivity"
             android:exported="false"
             android:screenOrientation="landscape" />
-        <activity
-            android:name=".LauncherSettingsActivity"
-            android:exported="false"
-            android:excludeFromRecents="true"
-            android:screenOrientation="landscape" />
+
         <!-- The system input switcher (com.android.tv.action.VIEW_INPUTS), which is what the remote's Input
              button becomes through the TV's Live TV app or InputKeyService. Disabled here and switched on by
              MainActivity only while handle_view_inputs is true (config.xml or a theme), for sets whose stock
@@ -185,17 +186,7 @@
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
         </activity>
-        <!-- Remote Settings button panel (settings_key_panel); own task so the app behind stays put.
-             No screenOrientation: a translucent activity may not request one on Android 8.0 (API 26),
-             which throws IllegalStateException in onCreate (#1122); a TV is landscape anyway. -->
-        <activity
-            android:name=".QuickSettingsActivity"
-            android:exported="false"
-            android:taskAffinity=""
-            android:launchMode="singleTop"
-            android:excludeFromRecents="true"
-            android:noHistory="true"
-            android:theme="@android:style/Theme.Translucent.NoTitleBar.Fullscreen" />
+
         <activity
             android:name=".HomeSettingsActivity"
             android:exported="false"
@@ -234,13 +225,7 @@
             </intent-filter>
         </activity>
 
-        <!-- The same clock, started by Home itself after home_idle_clock_minutes without input. -->
-        <activity
-            android:name=".ClockActivity"
-            android:exported="false"
-            android:excludeFromRecents="true"
-            android:noHistory="true"
-            android:theme="@android:style/Theme.Black.NoTitleBar.Fullscreen" />
+
 
         <!-- stock_home_redirect at boot: HomeKeyService opens this invisible activity once, so the screen behind
              it sends a window event when it closes (HomeKeyService.probeAtBoot). -->
@@ -252,26 +237,9 @@
             android:taskAffinity=""
             android:theme="@android:style/Theme.Translucent.NoTitleBar" />
 
-        <!-- Screensaver: pick it in Settings, or `settings put secure screensaver_components
-             com.gathin.tvhome/.ClockDream` over adb. -->
-        <service
-            android:name=".ClockDream"
-            android:label="@string/dream_name"
-            android:exported="true"
-            android:permission="android.permission.BIND_DREAM_SERVICE">
-            <intent-filter>
-                <action android:name="android.service.dreams.DreamService" />
-                <category android:name="android.intent.category.DEFAULT" />
-            </intent-filter>
-        </service>
 
-        <!-- tools/theme.sh writes the theme through this where the shell can't reach Android/data;
-             see ThemeProvider. WRITE_SECURE_SETTINGS: the adb shell has it, ordinary apps don't. -->
-        <provider
-            android:name=".ThemeProvider"
-            android:authorities="${applicationId}.theme"
-            android:exported="true"
-            android:permission="android.permission.WRITE_SECURE_SETTINGS" />
+
+
 
         <!-- The remote's Input button (KEYCODE_TV or KEYCODE_TV_INPUT) opens the input switcher, and input_key_keycodes and
          app_keys (config.xml or a theme) bring back other remote buttons; see InputKeyService. -->

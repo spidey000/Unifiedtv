@@ -25,7 +25,7 @@ public final class UnifiedCatalogSettingsActivity extends Activity {
     static final String EXTRA_SECTION = "unifiedtv_settings_section";
     static final int PLATFORMS_SECTION = 2;
     private static final String[] SECTIONS = {"Apariencia", "Catálogo", "Plataformas", "Seguir viendo",
-            "Actualizaciones", "Launcher", "Información"};
+            "Actualizaciones", "Recuperación", "Información"};
     private static final int[] SECTION_ICONS = {R.drawable.uic_palette, R.drawable.uic_film, R.drawable.ic_apps,
             R.drawable.uic_layers, R.drawable.uic_download, R.drawable.uic_house, R.drawable.uic_info};
     private static final int[] ACCENTS = {StreamUi.DEFAULT_ACCENT, 0xFFFF9B45, 0xFF26BC91, 0xFF468DFF, 0xFFB472F1};
@@ -140,8 +140,20 @@ public final class UnifiedCatalogSettingsActivity extends Activity {
             case 3: watch(); break;
             case 4: updates(); break;
             case 5:
-                description("Ajustes del dock, cuadrícula, fondo, reloj y app de inicio.");
-                action("Abrir ajustes del launcher", v -> startActivity(new Intent(this, LauncherSettingsActivity.class)), "launcher");
+                description("Permite volver a la pantalla de inicio original del televisor. "
+                        + "Selecciona su launcher en los ajustes de Android TV.");
+                action("Recuperar launcher original / Cambiar Home",
+                        v -> confirmRecovery(), "recover-home");
+                if (UnifiedTvHome.isSystemHomeRecovery(this)) {
+                    description("Modo de recuperación activado: las teclas Home y las redirecciones "
+                            + "automáticas del launcher antiguo quedan desactivadas.");
+                    action("Reactivar accesos Home de UnifiedTV", v -> {
+                        UnifiedTvHome.enableUnifiedHomeRouting(this);
+                        show(section, "recover-home");
+                    }, "enable-unified-home");
+                }
+                description("Si Android TV no ofrece el selector de Home, se mostrarán "
+                        + "las preferencias de aplicaciones predeterminadas o ajustes del sistema.");
                 break;
             default:
                 description("UnifiedTV combina resultados de TMDB con la disponibilidad de JustWatch. No puede comprobar suscripciones, ni garantiza que una plataforma abra la ficha exacta. No accede al historial privado de tus apps.");
@@ -152,6 +164,17 @@ public final class UnifiedCatalogSettingsActivity extends Activity {
             if (target != null) target.requestFocus();
             else tabs.get(section).requestFocus();
         }
+    }
+
+    private void confirmRecovery() {
+        StreamUi.dialog(this).setTitle("Recuperar inicio original")
+                .setMessage("Se desactivará la redirección de teclas Home de UnifiedTV "
+                        + "y se abrirá el selector de Android TV (o los ajustes del fabricante). "
+                        + "Selecciona el inicio original de tu televisor. "
+                        + "UnifiedTV seguirá instalada y podrás volver a activarla desde esta sección.")
+                .setPositiveButton("Abrir selector de inicio", (dialog, which) ->
+                        startActivity(new Intent(this, HomeSettingsActivity.class)))
+                .setNegativeButton("Cancelar", null).show();
     }
 
     private void appearance() {
@@ -244,7 +267,6 @@ public final class UnifiedCatalogSettingsActivity extends Activity {
 
     private void catalog() {
         description("Elige qué se muestra al abrir UnifiedTV y conecta el catálogo de películas y series.");
-        toggle("Mostrar catálogo al pulsar Home", UnifiedCatalogPrefs.ON_HOME, true);
         action(UnifiedCatalogPrefs.apiKey(this).isEmpty() ? "Configurar TMDB desde el móvil"
                 : "Cambiar clave de TMDB desde el móvil", v -> pairKey(), "tmdb");
         action("Introducir clave de TMDB con el mando", v -> editKey(), "tmdb-manual");

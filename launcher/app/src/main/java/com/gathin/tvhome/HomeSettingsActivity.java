@@ -22,12 +22,25 @@ public class HomeSettingsActivity extends Activity {
     protected void onCreate(Bundle state) {
         super.onCreate(state);
         if (state != null) { left = true; return; }
+        UnifiedTvHome.enterSystemHomeRecovery(this);
         try {
             startActivity(new Intent(Settings.ACTION_HOME_SETTINGS));
             Toast.makeText(this, R.string.home_settings_help, Toast.LENGTH_LONG).show();
         } catch (ActivityNotFoundException | SecurityException unavailable) {
-            Toast.makeText(this, R.string.not_available, Toast.LENGTH_LONG).show();
-            finish();
+            try {
+                startActivity(new Intent(Settings.ACTION_MANAGE_DEFAULT_APPS_SETTINGS));
+                Toast.makeText(this, "Selecciona Aplicación de inicio o Home.",
+                        Toast.LENGTH_LONG).show();
+            } catch (ActivityNotFoundException | SecurityException unavailableDefaults) {
+                try {
+                    startActivity(new Intent(Settings.ACTION_SETTINGS));
+                    Toast.makeText(this, "Busca Aplicaciones predeterminadas > Inicio.",
+                            Toast.LENGTH_LONG).show();
+                } catch (RuntimeException noSettings) {
+                    Toast.makeText(this, R.string.not_available, Toast.LENGTH_LONG).show();
+                    finish();
+                }
+            }
         }
     }
 
