@@ -23,6 +23,9 @@ class LegacyCleanupTests(unittest.TestCase):
         self.assertIn('static final String FILE_NAME = "config.json"', config)
         self.assertIn('final int[] inputKeycodes;', config)
         self.assertIn('final boolean restoreKeyServices;', config)
+        self.assertIn("Environment.MEDIA_MOUNTED", config)
+        self.assertIn("readJson(cached)", config)
+        self.assertIn("cached.delete()", config)
         for old in ("dockApps", "wallpaperRotationMinutes", "raceCalendar",
                     "skyIntensity", "clockFormat", "WallpaperRotation",
                     "RaceWeekend", "ThemeFiles"):
