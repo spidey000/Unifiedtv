@@ -13,10 +13,12 @@ servicio: puede depender de los enlaces públicos de la plataforma.
 ## Configuración
 1. Instala la APK publicada en [Releases](https://github.com/spidey000/Unifiedtv/releases).
 2. Abre **Ajustes → Catálogo** y vincula una clave TMDB con QR o mando.
-3. En **Ajustes → Plataformas**, selecciona proveedores y reproductores.
-4. En **Ajustes → Apariencia**, selecciona overlay: logotipo con nombre,
+3. En **Ajustes → Permisos y funcionamiento**, comprueba el acceso a Android TV
+   Watch Next, las actualizaciones y los permisos opcionales del mando.
+4. En **Ajustes → Plataformas**, selecciona proveedores y reproductores.
+5. En **Ajustes → Apariencia**, selecciona overlay: logotipo con nombre,
    icono de aplicación o ninguno. Configura también la puntuación ★ TMDB.
-5. Para volver al inicio original del televisor, entra en **Ajustes → Recuperación**
+6. Para volver al inicio original del televisor, entra en **Ajustes → Recuperación**
    y selecciona la aplicación de inicio del fabricante en los ajustes de Android TV.
 
 La aplicación no instala ni desactiva launchers del sistema automáticamente.
@@ -24,6 +26,7 @@ La elección de Home es responsabilidad del sistema y del usuario.
 
 ## Documentación del proyecto
 - [Arquitectura y módulos](docs/architecture.md)
+- [Permisos y puesta en marcha](docs/permissions-and-setup.md)
 - [Guía de recuperación](docs/recovery.md)
 - [Biblioteca y procedencia de logotipos](docs/design/provider-wordmarks.md)
 - [Diseño de Apps y fuentes](docs/design/apps-and-sources.md)

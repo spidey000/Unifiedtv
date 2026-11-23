@@ -6,7 +6,9 @@
 - `UnifiedCatalogActivity`: único inicio visual con menú lateral, carruseles
   de películas/series, sección Seguir viendo y grid de apps de seis columnas.
 - `UnifiedCatalogSettingsActivity`: ajustes de catálogo, fuentes, apariencia,
-  seguimiento, actualizaciones y recuperación de Android TV.
+  seguimiento, actualizaciones, accesos a permisos y recuperación de Android TV.
+- `UnifiedPermissionChecks`: diagnóstico del estado de la red, launcher predeterminado,
+  servicios de accesibilidad, listener opcional y permiso de ajustes seguros.
 - `HomeSettingsActivity`: selector **del sistema** para cambiar de Home;
   no cambia ni desactiva paquetes del fabricante.
 
