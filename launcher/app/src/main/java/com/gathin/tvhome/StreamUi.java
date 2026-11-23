@@ -69,12 +69,11 @@ final class StreamUi {
     }
 
     static GradientDrawable panel(Context c) {
-        return glass(c, 0xE9212128, 0x44FFFFFF, 1);
+        return glass(c, 0xF21C1C21, 0, 0);
     }
 
     static GradientDrawable rail(Context c) {
-        return new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, new int[]{
-                0xFF121217, BLACK, shade(accent(c), .14f), BLACK});
+        return shape(c, 0xFF121216, 0, Color.TRANSPARENT);
     }
 
     static int dp(Context context, int value) {
@@ -114,12 +113,12 @@ final class StreamUi {
 
     static StateListDrawable buttonBackground(Context c, boolean primary, boolean bare) {
         StateListDrawable drawable = new StateListDrawable();
-        Drawable active = glass(c, 0x503F3F49, visibleAccent(c), 1);
+        Drawable active = glass(c, 0xFF34343A, 0, 0);
         drawable.addState(new int[]{-android.R.attr.state_enabled}, glass(c, 0x301B1B21, 0, 0));
-        drawable.addState(FOCUS, glass(c, 0xE64B4B57, WHITE, 2));
-        drawable.addState(new int[]{android.R.attr.state_activated}, glass(c, 0x553F3F49, visibleAccent(c), 1));
+        drawable.addState(FOCUS, glass(c, 0xFF55555D, 0, 0));
+        drawable.addState(new int[]{android.R.attr.state_activated}, glass(c, 0xFF34343A, 0, 0));
         drawable.addState(SELECTED, active);
-        drawable.addState(DEFAULT, primary ? glass(c, 0xE63B3B46, 0x66FFFFFF, 1)
+        drawable.addState(DEFAULT, primary ? glass(c, 0xFF45454C, 0, 0)
                 : bare ? shape(c, Color.TRANSPARENT, 10, Color.TRANSPARENT) : panel(c));
         return drawable;
     }
@@ -173,7 +172,7 @@ final class StreamUi {
         box.setChecked(value);
         box.setMinHeight(dp(c, 46));
         box.setPadding(dp(c, 8), dp(c, 4), dp(c, 10), dp(c, 4));
-        background(box, false, false);
+        background(box, false, true);
         box.setButtonTintList(new ColorStateList(new int[][]{{android.R.attr.state_checked}, DEFAULT},
                 new int[]{readableAccent(c), DIM}));
         return box;
@@ -194,7 +193,7 @@ final class StreamUi {
                 dialog.setOnShowListener(ignored -> {
                     dialog.getWindow().setBackgroundDrawable(panel(c));
                     if (dialog.getListView() != null) {
-                        dialog.getListView().setSelector(glass(c, 0xC83F3F49, WHITE, 2));
+                        dialog.getListView().setSelector(glass(c, 0xFF55555D, 0, 0));
                         dialog.getListView().setDrawSelectorOnTop(false);
                     }
                     for (int which : new int[]{AlertDialog.BUTTON_POSITIVE, AlertDialog.BUTTON_NEGATIVE,
