@@ -184,7 +184,7 @@ public class HomeKeyService extends AccessibilityService {
     }
 
     private void loadConfig() {
-        // Keycodes and the panel choice can also come from a theme; theme.sh restarts this service.
+        // Keycodes and OEM settings use the small allowlisted device compatibility config.
         Config config = Config.load(this);
         // restore_key_services: note that this helper runs, so Home can put it back after a force stop. Here, not
         // in onServiceConnected: the note is in credential-protected storage too, readable only after the unlock.
@@ -212,7 +212,7 @@ public class HomeKeyService extends AccessibilityService {
         // power_on_home, off by default. Not with boot_to_live_tv, or with Live TV picked as the Open on start app:
         // those open Live TV on purpose at boot.
         String openOnStart = config.openOnStartChoice
-                ? getSharedPreferences(Config.SETTINGS_NAME, MODE_PRIVATE).getString(OpenOnStart.KEY, "") : "";
+                ? getSharedPreferences(Config.SETTINGS_NAME, MODE_PRIVATE).getString("open_on_start", "") : "";
         powerOnLiveTv = config.powerOnHome && !config.bootToLiveTv && !config.liveTvPackage.equals(openOnStart)
                 ? config.liveTvPackage : "";
         powerOnAlways = config.powerOnHomeAlways && !config.bootToLiveTv && openOnStart.isEmpty();

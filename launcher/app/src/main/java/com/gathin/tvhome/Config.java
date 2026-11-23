@@ -161,5 +161,4 @@ final class Config {
         return accepted;
     }
 
-    private Config() { throw new AssertionError("No default Config"); }
 }

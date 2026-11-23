@@ -41,7 +41,7 @@ public class InputKeyService extends AccessibilityService {
     protected void onServiceConnected() {
         super.onServiceConnected();
         running = this;
-        // From config.xml or a theme's config.json; theme.sh rebinds this service after a push.
+        // Keys are loaded from the OEM compatibility defaults or allowlisted config.json.
         Config config = Config.load(this);
         // restore_key_services: note that this helper runs, so Home can put it back after a force stop.
         repairRecord = config.restoreKeyServices;
