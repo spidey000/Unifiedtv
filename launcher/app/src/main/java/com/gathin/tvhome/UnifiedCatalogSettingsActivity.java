@@ -595,6 +595,7 @@ public final class UnifiedCatalogSettingsActivity extends Activity {
 
     private void action(String label, View.OnClickListener click, String tag) {
         TextView button = StreamUi.control(this, label, R.drawable.uic_chevron_right, false, click);
+        StreamUi.background(button, false, true);
         button.setTag(tag);
         left(button);
         add(content, button);
