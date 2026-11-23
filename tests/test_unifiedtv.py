@@ -49,10 +49,10 @@ class UnifiedTvTests(unittest.TestCase):
     def test_home_and_launcher_settings_are_connected(self):
         source = (JAVA / "MainActivity.java").read_text(encoding="utf-8")
         self.assertIn("UnifiedTvHome.maybeLaunch(this)", source)
-        settings = (JAVA / "LauncherSettingsActivity.java").read_text(encoding="utf-8")
-        self.assertIn("UnifiedCatalogSettingsActivity.class", settings)
-        layout = (MAIN / "res/layout/activity_launcher_settings.xml").read_text(encoding="utf-8")
-        self.assertIn("unifiedSettingsChoice", layout)
+        settings = (JAVA / "UnifiedCatalogSettingsActivity.java").read_text(encoding="utf-8")
+        self.assertIn("HomeSettingsActivity.class", settings)
+        self.assertIn("Recuperación", settings)
+        self.assertNotIn("LauncherSettingsActivity.class", settings)
 
     def test_streaming_services_and_region(self):
         source = (JAVA / "UnifiedCatalogPrefs.java").read_text(encoding="utf-8")
@@ -126,7 +126,8 @@ class UnifiedTvTests(unittest.TestCase):
         home = (JAVA / "UnifiedCatalogActivity.java").read_text(encoding="utf-8")
         api = (JAVA / "UnifiedCatalogApi.java").read_text(encoding="utf-8")
         self.assertIn('route(rail, Page.APPS, "Apps y fuentes", R.drawable.ic_apps)', home)
-        self.assertIn('link("Abrir launcher clásico", R.drawable.uic_house, v -> UnifiedTvHome.leaveForApps(this))', home)
+        self.assertNotIn("Abrir launcher clásico", home)
+        self.assertNotIn("leaveForApps", home)
         self.assertIn("setNextFocusLeftId(route.getId())", home)
         self.assertIn("UnifiedCatalogRoute.open(this, media)", home)
         self.assertIn("UnifiedWatchNext.open(this, item)", home)
@@ -167,7 +168,7 @@ class UnifiedTvTests(unittest.TestCase):
         self.assertIn('path="unifiedtv-updates/"', file_paths)
         self.assertIn("getBoolean(UPDATE_AUTO_CHECK, true)", prefs)
         self.assertIn("checkAutomatically(this)", home)
-        self.assertIn("checkAutomatically(this)", original_home)
+        self.assertIn("UnifiedTvHome.maybeLaunch(this)", original_home)
         self.assertIn("Buscar actualización ahora", settings)
         self.assertIn("Permitir instalar APK desde UnifiedTV", settings)
         self.assertIn("api.github.com/repos/spidey000/Unifiedtv/releases/latest", updater)
