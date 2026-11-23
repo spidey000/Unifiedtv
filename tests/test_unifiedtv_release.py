@@ -6,6 +6,18 @@ from tools import unifiedtv_release as release
 
 
 class ReleasePolicyTests(unittest.TestCase):
+
+    def test_permissions_policy_does_not_require_obsolete_location(self):
+        # UnifiedTV no longer reads the Wi-Fi SSID or location; the signed APK
+        # should be rejected if it accidentally reintroduces ACCESS_FINE_LOCATION.
+        self.assertNotIn("android.permission.ACCESS_FINE_LOCATION", release.REQUIRED_PERMISSIONS)
+        self.assertNotIn("android.permission.ACCESS_FINE_LOCATION", release.ALLOWED_PERMISSIONS)
+        for required in ("android.permission.READ_TV_LISTINGS",
+                         "android.permission.REQUEST_INSTALL_PACKAGES",
+                         "android.permission.WRITE_SECURE_SETTINGS"):
+            self.assertIn(required, release.REQUIRED_PERMISSIONS)
+
+
     def test_semver_order_and_canonical_tags(self):
         self.assertEqual(max(["v0.1.9", "v0.1.10", "v0.0.99"], key=release.semver), "v0.1.10")
         for tag in ("v0.1.2-rc.1", "v0.01.0", "0.1.2", "v0.1"):
