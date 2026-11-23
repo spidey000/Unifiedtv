@@ -21,3 +21,14 @@ lo desactivaste mediante ADB) y luego repite los pasos.
 El cambio de aplicación predeterminada se realiza **dentro de Android**;
 UnifiedTV no solicita root y nunca promete cambiar por sí sola un Home
 que el fabricante no permite seleccionar.
+
+## Redirecciones de accesibilidad y mandos
+Al iniciar **Recuperación**, UnifiedTV guarda `system_home_recovery_no_redirect=true`
+en sus preferencias. El servicio opcional de accesibilidad deja pasar las
+teclas Home y no fuerza la apertura de UnifiedTV al detectar el escritorio
+del fabricante. El modo continúa activo aunque el televisor se reinicie.
+
+Si quieres volver a usar las redirecciones de teclas OEM de UnifiedTV,
+abre su app desde el catálogo de aplicaciones y entra en
+**Ajustes → Recuperación → Reactivar accesos Home de UnifiedTV**.
+La selección del Home predeterminado se cambia por separado en Android TV.
