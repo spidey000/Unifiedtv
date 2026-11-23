@@ -283,7 +283,7 @@ public class HomeKeyService extends AccessibilityService {
             RemoteKeys.handle(this, event, null, hold);
             boolean held = hold != null && event.getEventTime() - event.getDownTime() >= RemoteKeys.HOLD_MS;
             if (event.getAction() == KeyEvent.ACTION_UP && !event.isCanceled() && !held) {
-                Intent open = settingsPanel ? new Intent(this, QuickSettingsActivity.class)
+                Intent open = settingsPanel ? new Intent(this, UnifiedCatalogSettingsActivity.class)
                         : SystemSettings.intent(this, Settings.ACTION_SETTINGS);
                 // settings_key_clear_task: on MediaTek boards KEYCODE_SETTINGS is also a global key that opens Display &
                 // Sound in the Settings task before this helper sees it; cleared, Back from Settings goes Home, not there.

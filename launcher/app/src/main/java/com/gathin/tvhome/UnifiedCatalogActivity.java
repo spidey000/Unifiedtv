@@ -30,7 +30,6 @@ import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.ScrollView;
 import android.widget.TextView;
-import android.widget.TextClock;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -39,7 +38,7 @@ import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-/** Streaming home. The independent CleanYourTV launcher is still reachable from Applications. */
+/** UnifiedTV main interface. Classic launcher components are not exposed. */
 public final class UnifiedCatalogActivity extends Activity {
     private enum Page { HOME, MOVIES, SERIES, WATCH, SEARCH, APPS, LIVE }
     private static final String[] FILTERS = {"featured", "watched", "new", "popular", "rated"};
@@ -79,11 +78,33 @@ public final class UnifiedCatalogActivity extends Activity {
                 page = Page.SERIES; // Migrate the former top tab.
             query = state.getString("query", "");
         }
+        if (state == null) openRequestedPage(getIntent());
         settingsSnapshot = snapshot();
         accent = StreamUi.accent(this);
         inflateShell();
         show(page, false);
         routes.get(page).requestFocus();
+    }
+
+    static final String EXTRA_PAGE = "unifiedtv_page";
+
+    private void openRequestedPage(Intent request) {
+        if (request == null) return;
+        String requested = request.getStringExtra(EXTRA_PAGE);
+        if (requested == null) return;
+        try { page = Page.valueOf(requested); }
+        catch (IllegalArgumentException ignored) { page = Page.HOME; }
+    }
+
+    @Override protected void onNewIntent(Intent request) {
+        super.onNewIntent(request);
+        setIntent(request);
+        if (request != null && request.hasExtra(EXTRA_PAGE)) {
+            openRequestedPage(request);
+            show(page, false);
+            TextView selected = routes.get(page);
+            if (selected != null) selected.requestFocus();
+        }
     }
 
     @Override public boolean dispatchKeyEvent(KeyEvent event) {
@@ -271,7 +292,6 @@ public final class UnifiedCatalogActivity extends Activity {
         String kind = page == Page.SERIES ? "tv" : "movie";
         FrameLayout spotlight = hero("DESTACADO", connected ? "Descubrir" : "Tu cine empieza aquí",
                 connected ? "" : "Conecta TMDB para descubrir películas y series.");
-        addHeroClock(spotlight);
         if (!connected) connect();
         if (page == Page.HOME && UnifiedCatalogPrefs.continueEnabled(this)
                 && UnifiedCatalogPrefs.continueOnHome(this)) watch(stamp);
@@ -292,18 +312,6 @@ public final class UnifiedCatalogActivity extends Activity {
             });
             note(pageBody, "Datos de TMDB y JustWatch · Más vistos usa la tendencia semanal de TMDB");
         }
-    }
-
-    /** Media type is selected in the left navigation, never with hero tabs. */
-    private void addHeroClock(FrameLayout spotlight) {
-        TextClock clock = new TextClock(this);
-        ClockFormat.apply(clock, getSharedPreferences(Config.SETTINGS_NAME, MODE_PRIVATE)
-                .getString(Config.CLOCK_FORMAT_KEY, "system"));
-        clock.setTextColor(StreamUi.WHITE);
-        clock.setTextSize(12);
-        FrameLayout.LayoutParams edge = new FrameLayout.LayoutParams(-2, -2, Gravity.TOP | Gravity.END);
-        edge.setMargins(0, dp(15), dp(15), 0);
-        spotlight.addView(clock, edge);
     }
 
     private boolean hasKey() { return !UnifiedCatalogPrefs.apiKey(this).isEmpty(); }
@@ -1323,7 +1331,6 @@ public final class UnifiedCatalogActivity extends Activity {
                 v -> startActivity(new Intent(this, UnifiedCatalogSettingsActivity.class)
                         .putExtra(UnifiedCatalogSettingsActivity.EXTRA_SECTION,
                                 UnifiedCatalogSettingsActivity.PLATFORMS_SECTION)));
-        link("Abrir launcher clásico", R.drawable.uic_house, v -> UnifiedTvHome.leaveForApps(this));
 
         PackageManager manager = getPackageManager();
         data.execute(() -> {
@@ -1577,9 +1584,7 @@ public final class UnifiedCatalogActivity extends Activity {
         if (page != Page.HOME) {
             show(Page.HOME, false);
             routes.get(Page.HOME).requestFocus();
-        } else {
-            UnifiedTvHome.leaveForApps(this);
-        }
+        } // Home stays on Home when Back is pressed; no classic launcher fallback.
     }
 
     @Override protected void onDestroy() {

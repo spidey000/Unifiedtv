@@ -388,7 +388,8 @@ final class RemoteKeys {
                 // launcher's own clock where the firmware has no such shortcut.
                 Intent dream = new Intent(Intent.ACTION_MAIN)
                         .setClassName("com.android.systemui", "com.android.systemui.Somnambulator");
-                if (ctx.getPackageManager().resolveActivity(dream, 0) == null) dream = new Intent(ctx, ClockActivity.class);
+                if (ctx.getPackageManager().resolveActivity(dream, 0) == null)
+                    dream = new Intent(Settings.ACTION_DREAM_SETTINGS);
                 start(ctx, dream);
                 break;
             case "settings":
