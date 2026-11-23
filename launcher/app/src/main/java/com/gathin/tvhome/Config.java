@@ -851,7 +851,7 @@ final class Config {
     /** {"night": ["03-moon-lake.jpg", ...], ...}: each mood's picture names; other keys and names are left out. */
     private static Map<String, Set<String>> moods(JSONObject o) {
         Map<String, Set<String>> groups = new HashMap<>();
-        for (String mood : WallpaperMood.ALL) {
+        for (String mood : new String[]{"morning", "evening", "night"}) {
             JSONArray names = o.optJSONArray(mood);
             if (names == null) continue;
             Set<String> group = new HashSet<>();
