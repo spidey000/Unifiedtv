@@ -1,6 +1,6 @@
 # Permisos y configuración de UnifiedTV
 
-En la TV abre **Ajustes → Permisos y funcionamiento**. El panel comprueba el
+En la TV abre **Ajustes → Permisos**. El panel comprueba el
 estado real de las autorizaciones y ofrece accesos a las pantallas de Android.
 Las autorizaciones no se conceden solas, ni se exige activar opciones avanzadas
 para usar el catálogo. Al volver desde los ajustes del sistema, los estados

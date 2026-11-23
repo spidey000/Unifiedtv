@@ -13,7 +13,7 @@ servicio: puede depender de los enlaces públicos de la plataforma.
 ## Configuración
 1. Instala la APK publicada en [Releases](https://github.com/spidey000/Unifiedtv/releases).
 2. Abre **Ajustes → Catálogo** y vincula una clave TMDB con QR o mando.
-3. En **Ajustes → Permisos y funcionamiento**, comprueba el acceso a Android TV
+3. En **Ajustes → Permisos**, comprueba el acceso a Android TV
    Watch Next, las actualizaciones y los permisos opcionales del mando.
 4. En **Ajustes → Plataformas**, selecciona proveedores y reproductores.
 5. En **Ajustes → Apariencia**, selecciona overlay: logotipo con nombre,
