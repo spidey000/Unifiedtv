@@ -4,6 +4,7 @@ Toda esta documentación pertenece al fork UnifiedTV. No se incluyen
 manuales para limpieza/debloat de TVs del antiguo repositorio.
 
 - [Arquitectura](architecture.md)
+- [Limpieza de componentes heredados](legacy-cleanup.md)
 - [Recuperación de inicio original](recovery.md)
 - [Permisos y configuración inicial](permissions-and-setup.md)
 - [Funcionalidad de catálogo](UNIFIEDTV.md)

@@ -32,3 +32,7 @@ inicio del fabricante.
 La carpeta `addons/` se conserva íntegra como fuente de integraciones,
 sin habilitarlas automáticamente. Adaptarlas requerirá una API compatible
 con el catálogo y las reglas de permisos de Android 8–14.
+
+## Limpieza del launcher anterior
+La configuración OEM se separó de la configuración visual del catálogo.
+Consulta [Inventario de limpieza y compatibilidad](legacy-cleanup.md).

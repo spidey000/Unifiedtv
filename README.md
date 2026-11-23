@@ -26,6 +26,7 @@ La elección de Home es responsabilidad del sistema y del usuario.
 
 ## Documentación del proyecto
 - [Arquitectura y módulos](docs/architecture.md)
+- [Limpieza de legacy y compatibilidad](docs/legacy-cleanup.md)
 - [Permisos y puesta en marcha](docs/permissions-and-setup.md)
 - [Guía de recuperación](docs/recovery.md)
 - [Biblioteca y procedencia de logotipos](docs/design/provider-wordmarks.md)
