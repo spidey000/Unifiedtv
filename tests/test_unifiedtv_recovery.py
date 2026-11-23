@@ -26,6 +26,12 @@ class RecoveryTests(unittest.TestCase):
         self.assertIn("Settings.ACTION_HOME_SETTINGS", picker)
         self.assertIn("Settings.ACTION_MANAGE_DEFAULT_APPS_SETTINGS", picker)
         self.assertIn("Settings.ACTION_SETTINGS", picker)
+        bridge = (JAVA / "UnifiedTvHome.java").read_text()
+        key_service = (JAVA / "HomeKeyService.java").read_text()
+        self.assertIn("enterSystemHomeRecovery(this)", picker)
+        self.assertIn("isSystemHomeRecovery(this)", key_service)
+        self.assertIn("enableUnifiedHomeRouting", settings)
+        self.assertIn("system_home_recovery_no_redirect", bridge)
 
     def test_manifest_has_no_old_screensaver_or_settings(self):
         tree = ET.parse(MANIFEST)
