@@ -615,7 +615,7 @@ public final class UnifiedCatalogSettingsActivity extends Activity {
         if (pairing != null) return;
         try {
             pairing = new TmdbPairingDialog(this, () -> {
-                show(section, "tmdb");
+                show(section, section == PERMISSIONS_SECTION ? "setup-tmdb" : "tmdb");
                 Toast.makeText(this, "TMDB conectado", Toast.LENGTH_SHORT).show();
             }, () -> pairing = null);
         } catch (IOException | SecurityException e) {
@@ -639,7 +639,7 @@ public final class UnifiedCatalogSettingsActivity extends Activity {
                 .setPositiveButton("Guardar", (dialog, which) -> {
                     UnifiedCatalogPrefs.prefs(this).edit().putString(UnifiedCatalogPrefs.KEY,
                             input.getText().toString().trim()).apply();
-                    show(section, "tmdb-manual");
+                    show(section, section == PERMISSIONS_SECTION ? "setup-tmdb" : "tmdb-manual");
                 }).show();
     }
 
