@@ -2,6 +2,7 @@ package com.gathin.tvhome;
 
 import android.content.Context;
 import android.content.res.Resources;
+import android.os.Environment;
 import android.util.Log;
 
 import org.json.JSONArray;
@@ -10,6 +11,7 @@ import org.json.JSONObject;
 
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -101,9 +103,30 @@ final class Config {
     }
 
     private static JSONObject overlay(Context context) {
+        // OEM services can start before app-specific external storage is mounted.
+        // Keep the last valid remote config in internal storage, without reviving
+        // the former visual theme loader or interpreting visual preference keys.
+        File cached = new File(context.getFilesDir(), FILE_NAME);
+        if (!Environment.MEDIA_MOUNTED.equals(Environment.getExternalStorageState()))
+            return readJson(cached);
         File directory = context.getExternalFilesDir(null);
-        if (directory == null) return null;
+        if (directory == null) return readJson(cached);
         File source = new File(directory, FILE_NAME);
+        JSONObject config = readJson(source);
+        if (config != null) {
+            try (FileOutputStream output = new FileOutputStream(cached)) {
+                output.write(config.toString().getBytes(StandardCharsets.UTF_8));
+            } catch (IOException | SecurityException failure) {
+                Log.w("UnifiedTv.Config", "Could not cache OEM remote settings");
+            }
+        } else if (!source.isFile() || source.length() > MAX_JSON_BYTES) {
+            // A deleted/oversized external file must not keep an obsolete overlay active.
+            cached.delete();
+        }
+        return config;
+    }
+
+    private static JSONObject readJson(File source) {
         if (!source.isFile() || source.length() <= 0 || source.length() > MAX_JSON_BYTES) return null;
         try (FileInputStream input = new FileInputStream(source)) {
             byte[] data = new byte[(int) source.length()];
