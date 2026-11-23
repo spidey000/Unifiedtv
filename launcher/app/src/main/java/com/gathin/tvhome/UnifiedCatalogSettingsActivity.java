@@ -28,7 +28,7 @@ public final class UnifiedCatalogSettingsActivity extends Activity {
     static final int PLATFORMS_SECTION = 2;
     static final int PERMISSIONS_SECTION = 5;
     private static final String[] SECTIONS = {"Apariencia", "Catálogo", "Plataformas", "Seguir viendo",
-            "Actualizaciones", "Permisos y funcionamiento", "Recuperación", "Información"};
+            "Actualizaciones", "Permisos", "Recuperación", "Información"};
     private static final int[] SECTION_ICONS = {R.drawable.uic_palette, R.drawable.uic_film, R.drawable.ic_apps,
             R.drawable.uic_layers, R.drawable.uic_download, R.drawable.uic_check,
             R.drawable.uic_house, R.drawable.uic_info};
@@ -143,7 +143,8 @@ public final class UnifiedCatalogSettingsActivity extends Activity {
         for (int i = 0; i < tabs.size(); i++) tabs.get(i).setSelected(i == selected);
         content.removeAllViews();
         installPermissionStatus = null;
-        content.addView(text(SECTIONS[selected], 32, StreamUi.WHITE, true));
+        content.addView(text(selected == PERMISSIONS_SECTION ? "Permisos y funcionamiento"
+                : SECTIONS[selected], 32, StreamUi.WHITE, true));
         switch (selected) {
             case 0: appearance(); break;
             case 1: catalog(); break;
