@@ -20,6 +20,20 @@ final class UnifiedCatalogPrefs {
     static final String INCLUDE_FREE = "include_free";
     static final String ORDER = "provider_priority";
     static final String CATALOG_COLUMNS = "catalog_two_column_sections";
+    static final String POSTER_PLATFORM_BADGE = "poster_platform_badge";
+    static final String SHOW_TMDB_RATINGS = "show_tmdb_ratings";
+    static final String BADGE_WORDMARK = "wordmark";
+    static final String BADGE_APP_ICON = "app_icon";
+    static final String BADGE_HIDDEN = "hidden";
+
+    static String posterBadge(Context context) {
+        String style = prefs(context).getString(POSTER_PLATFORM_BADGE, BADGE_WORDMARK);
+        return BADGE_APP_ICON.equals(style) || BADGE_HIDDEN.equals(style) ? style : BADGE_WORDMARK;
+    }
+
+    static boolean showRatings(Context context) {
+        return prefs(context).getBoolean(SHOW_TMDB_RATINGS, true);
+    }
 
     static final class Provider {
         final String key, name;

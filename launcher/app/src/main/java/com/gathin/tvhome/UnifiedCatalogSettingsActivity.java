@@ -177,6 +177,34 @@ public final class UnifiedCatalogSettingsActivity extends Activity {
         add(content, choices);
         action("Color personalizado  ·  " + hex(active), v -> customAccent(), "custom");
         action("Restablecer el color", v -> setAccent(StreamUi.DEFAULT_ACCENT, "custom"), "reset");
+        description("Insignia de plataforma sobre las carátulas");
+        action(posterBadgeDescription(), v -> selectPosterBadge(), "poster-badge");
+        toggle("Mostrar puntuación TMDB (★)", UnifiedCatalogPrefs.SHOW_TMDB_RATINGS, true);
+        description("Puedes ocultar las insignias y las valoraciones sin cambiar la disponibilidad ni la reproducción.");
+    }
+
+    private String posterBadgeDescription() {
+        String style = UnifiedCatalogPrefs.posterBadge(this);
+        String label = UnifiedCatalogPrefs.BADGE_HIDDEN.equals(style) ? "Oculta"
+                : UnifiedCatalogPrefs.BADGE_APP_ICON.equals(style) ? "Icono de la app" : "Logotipo con nombre";
+        return "Overlay de la plataforma  ·  " + label;
+    }
+
+    private void selectPosterBadge() {
+        String[] labels = {"Logotipo con nombre", "Icono de la app", "No mostrar"};
+        String[] values = {UnifiedCatalogPrefs.BADGE_WORDMARK,
+                UnifiedCatalogPrefs.BADGE_APP_ICON, UnifiedCatalogPrefs.BADGE_HIDDEN};
+        String saved = UnifiedCatalogPrefs.posterBadge(this);
+        int selected = 0;
+        for (int i = 0; i < values.length; i++)
+            if (saved.equals(values[i])) selected = i;
+        StreamUi.dialog(this).setTitle("Plataforma en los pósteres")
+                .setSingleChoiceItems(labels, selected, (dialog, which) -> {
+                    dialog.dismiss();
+                    UnifiedCatalogPrefs.prefs(this).edit()
+                            .putString(UnifiedCatalogPrefs.POSTER_PLATFORM_BADGE, values[which]).apply();
+                    show(section, "poster-badge");
+                }).setNegativeButton("Cancelar", null).show();
     }
 
     private static String hex(int color) {
