@@ -119,8 +119,8 @@ final class Config {
             } catch (IOException | SecurityException failure) {
                 Log.w("UnifiedTv.Config", "Could not cache OEM remote settings");
             }
-        } else if (!source.isFile() || source.length() > MAX_JSON_BYTES) {
-            // A deleted/oversized external file must not keep an obsolete overlay active.
+        } else {
+            // Missing or invalid configuration must not survive in the boot cache.
             cached.delete();
         }
         return config;
