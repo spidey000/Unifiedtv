@@ -119,7 +119,7 @@ class UnifiedTvTests(unittest.TestCase):
         self.assertIn("boolean hasRating()", api)
         self.assertIn("Locale.forLanguageTag(\"es-ES\")", api)
         self.assertIn('rating(card, media.ratingText())', home)
-        self.assertIn("if (media.hasRating())", home)
+        self.assertIn("UnifiedCatalogPrefs.showRatings(this) && media.hasRating()", home)
         self.assertIn("valoración TMDB", home)
 
     def test_streaming_shell_preserves_apps_and_provider_routing(self):
