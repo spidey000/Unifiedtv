@@ -260,6 +260,8 @@ public class HomeKeyService extends AccessibilityService {
 
     @Override
     protected boolean onKeyEvent(KeyEvent event) {
+        // The user selected recovery: do not capture Home, OEM keys, or Settings.
+        if (UnifiedTvHome.isSystemHomeRecovery(this)) return false;
         // power_on_home: the first key after power-on hands the TV to the user (power and wake keys don't count).
         if (powerOnUntil != 0 && event.getAction() == KeyEvent.ACTION_DOWN
                 && event.getKeyCode() != KeyEvent.KEYCODE_POWER && event.getKeyCode() != KeyEvent.KEYCODE_WAKEUP) {
@@ -320,6 +322,7 @@ public class HomeKeyService extends AccessibilityService {
 
     @Override
     public void onAccessibilityEvent(AccessibilityEvent event) {
+        if (UnifiedTvHome.isSystemHomeRecovery(this)) return;
         if (event.getEventType() != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) return;
         // app_keys "front:" entries: only activities count, so a toast or the volume bar doesn't change the app in front.
         if ((!frontAppKeys.isEmpty() || !frontAppScancodes.isEmpty())
@@ -404,6 +407,7 @@ public class HomeKeyService extends AccessibilityService {
      *  front comes back and sends a window event, and onAccessibilityEvent covers it only if it is the stock home.
      *  An HDMI input or an app that the TV resumed at boot is left alone. */
     private void probeAtBoot() {
+        if (UnifiedTvHome.isSystemHomeRecovery(this)) return;
         int boot = Settings.Global.getInt(getContentResolver(), Settings.Global.BOOT_COUNT, -1);
         SharedPreferences prefs = getSharedPreferences("boot", MODE_PRIVATE);
         if (!firstBindAfterBoot(boot, prefs.getInt("probe_boot", -1), SystemClock.elapsedRealtime())) return;
@@ -440,6 +444,7 @@ public class HomeKeyService extends AccessibilityService {
     }
 
     private void openHome() {
+        if (UnifiedTvHome.isSystemHomeRecovery(this)) return;
         Intent open = stockHomeStays() ? new Intent(this, MainActivity.class)
                 : new Intent(Intent.ACTION_MAIN).setPackage(getPackageName());
         startActivity(open.addCategory(Intent.CATEGORY_HOME)
