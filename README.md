@@ -1,130 +1,43 @@
-# UnifiedTV
+# UnifiedTV — Android TV / Google TV
 
-**Tu catálogo de streaming en una sola pantalla, sin anuncios del launcher.**
+UnifiedTV es un launcher de streaming para descubrir películas y series en TMDB,
+consultar disponibilidad de proveedores, abrir fichas verificadas en las apps
+instaladas, y unificar el contenido de «Seguir viendo» que Android TV exponga.
 
-UnifiedTV es un fork independiente de [CleanYourTV](https://github.com/Gathin23/cleanyourtv) para **Android TV y Google TV**. Mantiene sus utilidades de launcher, dock y cuadrícula de aplicaciones, y añade una portada unificada de películas y series con información de las plataformas de streaming que tienes instaladas.
+El diseño utiliza una barra lateral colapsable, pósteres 2:3 y una biblioteca
+de apps en tarjetas 16:9 con seis columnas. La pulsación corta abre la ficha
+del título en su plataforma cuando existe un enlace verificable; mantener OK
+abre una ficha informativa. **TMDB no garantiza abrir la ficha exacta** de cada
+servicio: puede depender de los enlaces públicos de la plataforma.
 
-**Estado:** primera implementación / MVP, pendiente de compilar y probar en televisores reales. El código de desarrollo está en [`feature/unified-catalog`](https://github.com/spidey000/Unifiedtv/tree/feature/unified-catalog).
+## Configuración
+1. Instala la APK publicada en [Releases](https://github.com/spidey000/Unifiedtv/releases).
+2. Abre **Ajustes → Catálogo** y vincula una clave TMDB con QR o mando.
+3. En **Ajustes → Plataformas**, selecciona proveedores y reproductores.
+4. En **Ajustes → Apariencia**, selecciona overlay: logotipo con nombre,
+   icono de aplicación o ninguno. Configura también la puntuación ★ TMDB.
+5. Para volver al inicio original del televisor, entra en **Ajustes → Recuperación**
+   y selecciona la aplicación de inicio del fabricante en los ajustes de Android TV.
 
-## ¿Qué incluye?
+La aplicación no instala ni desactiva launchers del sistema automáticamente.
+La elección de Home es responsabilidad del sistema y del usuario.
 
-- **Tres pestañas principales:** **Películas**, **Series** y **Seguir viendo**, navegables con el mando. El catálogo recuerda la última pestaña.
-- **Cinco filas en Películas y Series:** Destacados (tendencia diaria), Más vistos (aproximación por tendencia semanal), Novedades (estrenos en cartelera / series en emisión), Populares y Mejor valorados (histórico).
-- **Interfaz de streaming para el mando:** menú lateral fijo, portada panorámica y filas de pósteres independientes. Pulsa OK en un título para ver la ficha con sinopsis, puntuación de TMDB y plataformas disponibles. Buscar, Aplicaciones y Ajustes tienen pantallas propias.
-- **Valoraciones TMDB junto al título:** estrella dorada discreta y puntuación sobre 10 con un decimal (por ejemplo, `★ 8,5`), en películas, series y resultados de búsqueda. Se leen de `vote_average`/`vote_count` en los resultados existentes; sin votos o con nota inválida, la valoración no aparece. No se confunden con las notas de las plataformas.
-- **Seguir viendo unificado:** lee las entradas visibles del proveedor Android TV `Watch Next` y, cuando existen, los canales «Continue Watching» de las aplicaciones. Muestra portada, origen y barra de progreso, y permite abrir la entrada publicada por la app.
-- **Fuentes configurables de Seguir viendo:** Netflix, Prime Video, Max/HBO Max, Disney+, Apple TV+, SkyShowtime, Movistar Plus+, Filmin, **Stremio** y **Nuvio**, además de otras apps compatibles opcionalmente.
-- **Buscador global** de películas y series en TMDB.
-- **Disponibilidad por país:** por defecto España (`ES`), con otros países configurables.
-- **Marcas de plataforma:** identifica los servicios instalados, seleccionados y con disponibilidad indicada por TMDB, sin confundirlos con reproductores locales.
-- **Plataformas y reproductores configurables:** activa/desactiva proveedores TMDB y, por separado, Nuvio, Stremio, Kodi, Plex, Jellyfin, Emby, VLC, Nova u otras apps instaladas seleccionadas manualmente.
-- **Apertura:** «Ver ahora» muestra un selector de apps. Nuvio abre la ficha mediante el ID TMDB y Stremio usa el ID IMDb cuando está disponible (o busca por título). Los demás servicios intentan buscar y, si no pueden, abren la app para una búsqueda manual.
-- **Error explícito** si no hay ningún proveedor TMDB coincidente ni reproductor local seleccionado e instalado; enlace a opciones online cuando TMDB lo proporciona.
-- **Caché:** últimas respuestas de catálogo, disponibilidad y carteles, para reducir consultas y mostrar datos previamente guardados sin conexión.
-- **Launcher clásico preservado:** «Aplicaciones → Abrir launcher clásico» o Atrás desde Inicio muestran la cuadrícula y el dock basados en CleanYourTV. Se puede desactivar el catálogo como Home desde Ajustes.
+## Documentación del proyecto
+- [Arquitectura y módulos](docs/architecture.md)
+- [Guía de recuperación](docs/recovery.md)
+- [Biblioteca y procedencia de logotipos](docs/design/provider-wordmarks.md)
+- [Diseño de Apps y fuentes](docs/design/apps-and-sources.md)
+- [Catálogo y API TMDB](docs/UNIFIEDTV.md)
 
-### Flujo de usuario
+## Desarrollo
+Java / Android SDK 34, Android 8.0+; compilar con JDK 17:
+`cd launcher && ./gradlew testReleaseUnitTest lintRelease assembleRelease`.
+El CI publica releases firmadas; no almacenes claves ni certificados en el código.
 
-1. Pulsas **Home**. Eliges **Películas**, **Series** o **Seguir viendo**.
-2. Abre Películas o Series desde el menú lateral y recorre las filas con el mando. A la izquierda de la primera tarjeta de cada fila puedes volver al menú. Las plataformas de la ficha se basan en disponibilidad TMDB y aplicaciones instaladas y activadas.
-3. Seleccionas un título y pulsas **Ver ahora**. UnifiedTV ofrece las plataformas donde TMDB identifica disponibilidad y, además, reproductores locales que has habilitado. Eliges la app; Nuvio y Stremio pueden abrir la ficha del título, y las demás abren búsqueda o inicio.
-4. En **Seguir viendo** aparecen las entradas que las apps comparten voluntariamente con Android TV. Pulsar una abre su acción de continuación si funciona en la TV, o su app como alternativa.
-5. En **Ajustes → Seguir viendo** puedes filtrar fuentes, activar la fila en Home, incluir próximos episodios o canales de continuación, definir antigüedad máxima y ocultar títulos completados.
+## Add-ons
+Se mantiene la carpeta `addons/` para integraciones modulares futuras.
+Los complementos no están integrados en el launcher actual y deberán
+adaptarse a la nueva arquitectura antes de habilitarse.
 
-> **Más vistos:** TMDB no ofrece cifras reales de visionado agregadas de plataformas. Este filtro utiliza la tendencia semanal como indicador aproximado, y lo señala en pantalla.
-
-> **Seguir viendo:** Android TV solo permite leer las entradas que las aplicaciones hayan publicado y marcado como visibles, después de conceder `READ_TV_LISTINGS`. **No puede extraer automáticamente el historial privado de todas tus apps**. Dependiendo del dispositivo, Netflix, Prime Video, Max, Stremio y Nuvio pueden no publicar ninguna entrada. Se muestran únicamente los datos accesibles.
-
-> **Limitación real:** TMDB no devuelve una URL directa de ficha para cada proveedor y las apps no publican una interfaz universal para abrir fichas. Nuvio acepta enlaces TMDB y Stremio enlaces IMDb/Cinemeta, pero otras apps pueden requerir búsqueda manual. Por tanto, el MVP **no garantiza abrir la ficha exacta** ni comprobar suscripciones activas. Instalar Netflix no implica poder reproducir cualquier título; la disponibilidad cambia con el tiempo y el país. No se hace ninguna reproducción no autorizada ni se elude DRM.
-
-## Actualizaciones desde la televisión
-
-UnifiedTV consulta las [releases oficiales de GitHub](https://github.com/spidey000/Unifiedtv/releases/latest) **automáticamente al abrir el launcher como máximo una vez cada 24 horas**, con un interruptor en **Ajustes → Actualizaciones** activado por defecto. El chequeo requiere conexión, pero no descarga nada en segundo plano.
-
-Cuando hay una versión nueva, muestra un diálogo discreto para elegir **Descargar** o **Más tarde**. También se puede pulsar **Buscar actualización ahora** en Ajustes aunque la búsqueda automática esté desactivada.
-
-Al descargar, se valida el `SHA256SUMS` publicado, el identificador de paquete `io.github.spidey000.unifiedtv`, la versión superior a la instalada y **el mismo certificado de firma**. Solo entonces se ofrece **Instalar**, abriendo el instalador del sistema.
-
-En Android TV 8+ puede ser necesario habilitar **Instalar aplicaciones desconocidas → Permitir desde UnifiedTV**. Desde la propia app hay un acceso a ese ajuste. Android siempre muestra su propia confirmación de instalación: **no se realizan actualizaciones silenciosas**.
-
-Las APKs descargadas se guardan temporalmente en la caché privada y solo se comparten con el instalador mediante un `FileProvider` restringido. Si GitHub no responde, falta la suma de verificación o cambia la firma, no se instala nada. La opción de actualización **no cambia** la configuración de TMDB ni las plataformas.
-
-## Versiones y descargas
-
-**[Descargar la última versión de UnifiedTV](https://github.com/spidey000/Unifiedtv/releases/latest)**
-
-Busca `UnifiedTV-vX.Y.Z.apk` y `SHA256SUMS` en **Assets**. `v0.1.2` es una edición histórica de solo código fuente. No uses los ZIP o tarballs de GitHub como instaladores.
-
-Cuando la publicación está habilitada, los cambios en `main` generan una release SemVer después de pasar las pruebas, Android Lint y la verificación de firma. Si faltan las credenciales o falla una comprobación, no se publica nada. Consulta la [guía de firma y publicación](docs/RELEASES.md).
-
-### Instalar o actualizar la APK oficial
-
-Descarga ambos archivos en la misma carpeta y verifica el hash antes de instalar. Con ADB conectado al televisor:
-
-```bash
-sha256sum -c SHA256SUMS
-adb install -r UnifiedTV-vX.Y.Z.apk  # sustituye X.Y.Z por la versión descargada
-```
-
-Usa el mismo comando para actualizar **sin desinstalar**: el paquete oficial `io.github.spidey000.unifiedtv` conserva su firma y aumenta `versionCode`. Android mantiene los datos de la app, incluidos los ajustes de TMDB y plataformas. Si rechaza la actualización por firma incompatible, no desinstales la versión existente: comprueba si era un build de desarrollo.
-
-## Requisitos
-
-- Android TV / Google TV con Android 8+ (API 26).
-- Android SDK 34 y JDK 17 para compilar.
-- Una **clave personal TMDB API v3** (se introduce desde Ajustes del televisor; nunca en el repositorio).
-- Las aplicaciones de streaming que quieras utilizar instaladas y configuradas con sus cuentas.
-
-### Instalación para desarrollo
-
-```bash
-git clone https://github.com/spidey000/Unifiedtv.git
-cd Unifiedtv
-cd launcher
-./gradlew -PlauncherApplicationId=io.github.spidey000.unifiedtv.dev testReleaseUnitTest assembleRelease
-adb install -r app/build/outputs/apk/release/app-release.apk
-```
-
-Los builds de desarrollo usan firma debug. El sufijo `.dev` evita sustituir CleanYourTV o crear una instalación incompatible con la APK oficial.
-
-Prueba UnifiedTV desde la lista de apps de tu televisor. No es necesario deshabilitar el launcher original.
-
-### Primer arranque
-
-1. Abre **UnifiedTV → Ajustes**.
-2. Obtén una API Key v3 en [TMDB](https://www.themoviedb.org/settings/api) e introdúcela.
-3. Comprueba **País = ES** (u otro país).
-4. En **Ajustes → Plataformas**, activa los servicios y reproductores instalados. También puedes añadir otras apps desde «Elegir otras apps instaladas para reproducir».
-5. Configura **Seguir viendo**: elige sus fuentes (Netflix, Max, Prime, Stremio, Nuvio...), límite de antigüedad y si debe aparecer en Home.
-6. Entra en **Seguir viendo** y concede permiso de **listados TV** si Android lo solicita.
-7. Pulsa **Actualizar** para obtener nuevas películas, series y disponibilidad. La información de Seguir viendo se actualiza al entrar en esa sección.
-
-También encontrarás «UnifiedTV · Streaming y preferencias» en los ajustes del launcher original.
-
-## Arquitectura
-
-| Componente | Función |
-|---|---|
-| `UnifiedCatalogActivity.java` | Pestañas Películas, Series, Seguir viendo, cinco filtros y tarjetas con progreso |
-| `UnifiedCatalogApi.java` | Cinco categorías TMDB para películas/series, proveedores y caché offline |
-| `UnifiedWatchNext.java` | Lectura autorizada de Android TV Watch Next y canales de continuación |
-| `UnifiedCatalogPrefs.java` | Servicios instalados, país, preferencias y orden |
-| `UnifiedCatalogSettingsActivity.java` | Ajustes utilizables con el mando |
-| `UnifiedCatalogRoute.java` | Selector de apps, enlaces Nuvio/Stremio, búsqueda y fallback |
-| `UnifiedPlaybackApps.java` | Detecta reproductores instalados y apps adicionales elegidas por el usuario |
-| `UnifiedTvHome.java` | Entrada desde Home y salida al launcher clásico |
-| `MainActivity.java` | Integración mínima con el launcher original |
-
-La app consulta **TMDB directamente desde el dispositivo**, sin servidor propio, telemetría ni recopilación de credenciales de servicios. La clave TMDB se almacena en las preferencias privadas de la aplicación. Los resultados cacheados pueden estar desactualizados, por lo que debe verificarse la disponibilidad final en el servicio elegido.
-
-Consulta [la guía de desarrollo](docs/UNIFIEDTV.md) para limitaciones, pruebas y próximos pasos.
-
-## Atribuciones y proyecto original
-
-This product uses the TMDB API but is not endorsed or certified by TMDB.
-
-Los metadatos y carteles proceden de [The Movie Database](https://www.themoviedb.org/), y la información de dónde ver un título procede de los datos de JustWatch expuestos por TMDB. JustWatch y las marcas de streaming pertenecen a sus respectivos propietarios.
-
-El proyecto se basa en **CleanYourTV**, de Gathin23, licenciado bajo **MIT**. Se conservan sus avisos en [LICENSE](LICENSE). La [documentación original](README.upstream.md) permanece disponible, pero sus afirmaciones sobre tamaño de APK y ausencia de red **no describen esta variante**. No somos el proyecto oficial [cleanyour.tv](https://cleanyour.tv).
-
-**Repositorio:** [spidey000/Unifiedtv](https://github.com/spidey000/Unifiedtv) · **Origen:** [Gathin23/cleanyourtv](https://github.com/Gathin23/cleanyourtv).
+Los servicios de terceros y sus logotipos son marcas de sus titulares.
+UnifiedTV es un proyecto independiente, sin afiliación comercial.

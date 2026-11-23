@@ -2,19 +2,16 @@ package com.gathin.tvhome;
 
 import android.app.Activity;
 import android.content.Intent;
+import android.content.pm.ResolveInfo;
+import android.widget.Toast;
 
-/** Launcher entry point for the opt-out unified streaming Home. */
+import java.util.List;
+
+/** Launches UnifiedTv from HOME; never exposes the former launcher UI. */
 final class UnifiedTvHome {
-    private static boolean skipNextReturn;
     private static boolean launchPending;
 
     static boolean maybeLaunch(Activity launcher) {
-        if (skipNextReturn) {
-            skipNextReturn = false;
-            return false;
-        }
-        if (!UnifiedCatalogPrefs.enabled(launcher)) return false;
-        // HOME may call both onNewIntent and onResume before the catalog is created.
         if (launchPending) return true;
         launchPending = true;
         try {
@@ -23,24 +20,31 @@ final class UnifiedTvHome {
             return true;
         } catch (RuntimeException e) {
             launchPending = false;
-            return false; // Keep the original launcher available on malformed OEM firmware.
+            Toast.makeText(launcher, "No se pudo iniciar UnifiedTV. Abre los ajustes del televisor.",
+                    Toast.LENGTH_LONG).show();
+            return false;
         }
     }
 
     static void catalogCreated() { launchPending = false; }
 
-    static void leaveForApps(Activity catalog) {
-        // Back reveals the unchanged original CleanYourTV dock and app grid.
-        revealClassicOnce();
-        catalog.finish();
+    static void openInputs(Activity source) {
+        Intent request = new Intent("com.android.tv.action.VIEW_INPUTS")
+                .addCategory(Intent.CATEGORY_DEFAULT);
+        List<ResolveInfo> handlers = source.getPackageManager().queryIntentActivities(request, 0);
+        for (ResolveInfo handler : handlers) {
+            if (handler.activityInfo == null
+                    || source.getPackageName().equals(handler.activityInfo.packageName)) continue;
+            Intent exact = new Intent(request).setClassName(handler.activityInfo.packageName,
+                    handler.activityInfo.name);
+            try {
+                source.startActivity(exact);
+                return;
+            } catch (RuntimeException ignored) { /* Try another system handler. */ }
+        }
+        Toast.makeText(source, "Abre Entradas/HDMI desde los ajustes de tu televisor.",
+                Toast.LENGTH_LONG).show();
     }
-
-    static void openInputs(Activity catalog) {
-        catalog.startActivity(new Intent(catalog, MainActivity.class)
-                .setAction(MainActivity.ACTION_VIEW_INPUTS).putExtra(MainActivity.EXTRA_CATALOG_INPUTS, true));
-    }
-
-    static void revealClassicOnce() { skipNextReturn = true; }
 
     private UnifiedTvHome() {}
 }
