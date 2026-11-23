@@ -445,8 +445,9 @@ public final class UnifiedCatalogActivity extends Activity {
             UnifiedCatalogApi.Media current = result.get(index);
             hero.title.setText(current.title);
             hero.score.setText("★ " + current.ratingText());
-            hero.score.setVisibility(current.hasRating() ? View.VISIBLE : View.GONE);
-            hero.meta.setPadding(current.hasRating() ? dp(8) : 0, 0, 0, 0);
+            boolean showRating = UnifiedCatalogPrefs.showRatings(this) && current.hasRating();
+            hero.score.setVisibility(showRating ? View.VISIBLE : View.GONE);
+            hero.meta.setPadding(showRating ? dp(8) : 0, 0, 0, 0);
             hero.meta.setText(kindAndYear(current));
             hero.caption.setText(current.overview);
             hero.backdrop.animate().cancel();
@@ -529,7 +530,8 @@ public final class UnifiedCatalogActivity extends Activity {
     }
 
     private String metadata(UnifiedCatalogApi.Media media) {
-        return kindAndYear(media) + (media.hasRating() ? "  ·  ★ " + media.ratingText() : "");
+        return kindAndYear(media) + (UnifiedCatalogPrefs.showRatings(this) && media.hasRating()
+                ? "  ·  ★ " + media.ratingText() : "");
     }
 
     private LinearLayout row(String label) {
@@ -610,9 +612,9 @@ public final class UnifiedCatalogActivity extends Activity {
                 caption.addView(title);
                 TextView facts = singleLine(kindAndYear(media), 10, StreamUi.DIM, false);
                 caption.addView(facts);
-                if (media.hasRating()) rating(card, media.ratingText());
+                if (UnifiedCatalogPrefs.showRatings(this) && media.hasRating()) rating(card, media.ratingText());
                 ImageView providerIcon = providerIcon(card);
-                card.setContentDescription(media.title + (media.hasRating() ? ", valoración TMDB " + media.ratingText() : ""));
+                card.setContentDescription(media.title + (UnifiedCatalogPrefs.showRatings(this) && media.hasRating() ? ", valoración TMDB " + media.ratingText() : ""));
                 loads.add(once(() -> {
                     image(stamp, cover, () -> UnifiedCatalogApi.poster(this, media.poster));
                     loadProviderIcon(stamp, media, card, providerIcon);
@@ -706,9 +708,9 @@ public final class UnifiedCatalogActivity extends Activity {
                     TextView title = singleLine(media.title, 9, StreamUi.WHITE, true);
                     caption.addView(title);
                     caption.addView(singleLine(kindAndYear(media), 9, StreamUi.DIM, false));
-                    if (media.hasRating()) rating(card, media.ratingText());
+                    if (UnifiedCatalogPrefs.showRatings(this) && media.hasRating()) rating(card, media.ratingText());
                     ImageView icon = providerIcon(card);
-                    card.setContentDescription(media.title + (media.hasRating()
+                    card.setContentDescription(media.title + (UnifiedCatalogPrefs.showRatings(this) && media.hasRating()
                             ? " · ★ " + media.ratingText() : ""));
                     Runnable load = once(() -> {
                         image(stamp, cover, () -> UnifiedCatalogApi.poster(this, media.poster));
@@ -777,23 +779,37 @@ public final class UnifiedCatalogActivity extends Activity {
             catch (Exception ignored) { return; }
             UnifiedCatalogRoute.Target target = UnifiedCatalogRoute.resolve(this, media);
             if (target == null || revision != stamp) return;
-            // A packaged full wordmark is clearer than TMDB's square provider icon.
-            int wordmark = UnifiedProviderWordmarks.forKey(target.provider.key);
-            Bitmap logo = wordmark == 0 ? UnifiedCatalogApi.logo(this,
+            String badge = UnifiedCatalogPrefs.posterBadge(this);
+            if (UnifiedCatalogPrefs.BADGE_HIDDEN.equals(badge)) return;
+            boolean appIcon = UnifiedCatalogPrefs.BADGE_APP_ICON.equals(badge);
+            int wordmark = appIcon ? 0 : UnifiedProviderWordmarks.forKey(target.provider.key);
+            Drawable installedIcon = null;
+            if (appIcon) {
+                try { installedIcon = getPackageManager().getApplicationIcon(target.packageName); }
+                catch (PackageManager.NameNotFoundException ignored) { }
+            }
+            final Drawable appDrawable = installedIcon;
+            Bitmap tmdbLogo = !appIcon && wordmark == 0 ? UnifiedCatalogApi.logo(this,
                     UnifiedCatalogApi.logoPath(media, target.provider)) : null;
-            if (wordmark == 0 && logo == null) return;
+            if ((appIcon && appDrawable == null) || (!appIcon && wordmark == 0 && tmdbLogo == null)) return;
             runOnUiThread(() -> {
                 if (!live(stamp)) return;
-                if (wordmark != 0) {
+                FrameLayout.LayoutParams slot = (FrameLayout.LayoutParams) icon.getLayoutParams();
+                slot.width = dp(appIcon ? 30 : 70);
+                slot.height = dp(30);
+                icon.setLayoutParams(slot);
+                icon.clearColorFilter();
+                if (appIcon) {
+                    icon.setImageDrawable(appDrawable);
+                } else if (wordmark != 0) {
                     icon.setImageResource(wordmark);
                     UnifiedProviderWordmarks.applyTint(icon, wordmark);
                 } else {
-                    icon.clearColorFilter();
-                    icon.setImageBitmap(logo);
+                    icon.setImageBitmap(tmdbLogo);
                 }
                 icon.setVisibility(View.VISIBLE);
                 card.setContentDescription(media.title + " · Se abrirá en "
-                        + target.provider.name + (media.hasRating()
+                        + target.provider.name + (UnifiedCatalogPrefs.showRatings(this) && media.hasRating()
                         ? " · ★ " + media.ratingText() : ""));
             });
         });
@@ -1114,7 +1130,7 @@ public final class UnifiedCatalogActivity extends Activity {
                         getApplicationContext(), platform, match);
                 if (enhanced != platform)
                     runOnUiThread(() -> showWatchImage(stamp, poster, enhanced));
-                if (match != null && match.hasRating()) {
+                if (UnifiedCatalogPrefs.showRatings(this) && match != null && match.hasRating()) {
                     String rating = match.ratingText();
                     runOnUiThread(() -> {
                         if (!live(stamp)) return;
