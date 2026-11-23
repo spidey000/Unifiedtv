@@ -1,6 +1,7 @@
 package com.gathin.tvhome;
 
 import android.app.Activity;
+import android.content.Context;
 import android.content.Intent;
 import android.content.pm.ResolveInfo;
 import android.widget.Toast;
@@ -10,6 +11,21 @@ import java.util.List;
 /** Launches UnifiedTv from HOME; never exposes the former launcher UI. */
 final class UnifiedTvHome {
     private static boolean launchPending;
+    private static final String PAUSE_REDIRECT = "system_home_recovery_no_redirect";
+
+    static boolean isSystemHomeRecovery(Context context) {
+        return UnifiedCatalogPrefs.prefs(context).getBoolean(PAUSE_REDIRECT, false);
+    }
+
+    /** Stop accessibility and OEM forced-HOME redirects before opening Android's chooser. */
+    static void enterSystemHomeRecovery(Context context) {
+        UnifiedCatalogPrefs.prefs(context).edit().putBoolean(PAUSE_REDIRECT, true).apply();
+    }
+
+    /** Re-enable optional OEM key routing only on explicit user request. */
+    static void enableUnifiedHomeRouting(Context context) {
+        UnifiedCatalogPrefs.prefs(context).edit().putBoolean(PAUSE_REDIRECT, false).apply();
+    }
 
     static boolean maybeLaunch(Activity launcher) {
         if (launchPending) return true;
