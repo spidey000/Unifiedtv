@@ -2,6 +2,8 @@ package com.gathin.tvhome;
 
 import android.app.Activity;
 import android.content.Intent;
+import android.net.Uri;
+import android.provider.Settings;
 import android.graphics.Color;
 import android.os.Bundle;
 import android.text.InputType;
@@ -24,10 +26,12 @@ import java.util.List;
 public final class UnifiedCatalogSettingsActivity extends Activity {
     static final String EXTRA_SECTION = "unifiedtv_settings_section";
     static final int PLATFORMS_SECTION = 2;
+    static final int PERMISSIONS_SECTION = 5;
     private static final String[] SECTIONS = {"Apariencia", "Catálogo", "Plataformas", "Seguir viendo",
-            "Actualizaciones", "Recuperación", "Información"};
+            "Actualizaciones", "Permisos y funcionamiento", "Recuperación", "Información"};
     private static final int[] SECTION_ICONS = {R.drawable.uic_palette, R.drawable.uic_film, R.drawable.ic_apps,
-            R.drawable.uic_layers, R.drawable.uic_download, R.drawable.uic_house, R.drawable.uic_info};
+            R.drawable.uic_layers, R.drawable.uic_download, R.drawable.uic_check,
+            R.drawable.uic_house, R.drawable.uic_info};
     private static final int[] ACCENTS = {StreamUi.DEFAULT_ACCENT, 0xFFFF9B45, 0xFF26BC91, 0xFF468DFF, 0xFFB472F1};
     private static final String[] ACCENT_NAMES = {"Rojo", "Ámbar", "Verde", "Azul", "Violeta"};
     private final List<TextView> tabs = new ArrayList<>();
@@ -37,6 +41,7 @@ public final class UnifiedCatalogSettingsActivity extends Activity {
     private ViewTreeObserver.OnGlobalFocusChangeListener focusObserver;
     private TextView installPermissionStatus;
     private TmdbPairingDialog pairing;
+    private boolean refreshPermissionsOnReturn;
     private int section;
     private String restoredFocus;
 
@@ -114,6 +119,12 @@ public final class UnifiedCatalogSettingsActivity extends Activity {
         super.onResume();
         UnifiedAppUpdater.onResume(this);
         if (installPermissionStatus != null) installPermissionStatus.setText(permissionStatus());
+        if (refreshPermissionsOnReturn && section == PERMISSIONS_SECTION) {
+            refreshPermissionsOnReturn = false;
+            // The Android TV settings app may change permissions while we are paused.
+            // Rebuild controls and restore the last focused row when the user returns.
+            show(section, restoredFocus);
+        }
     }
 
     @Override protected void onStop() {
@@ -139,7 +150,8 @@ public final class UnifiedCatalogSettingsActivity extends Activity {
             case PLATFORMS_SECTION: providers(); break;
             case 3: watch(); break;
             case 4: updates(); break;
-            case 5:
+            case PERMISSIONS_SECTION: permissionsAndSetup(); break;
+            case 6:
                 description("Permite volver a la pantalla de inicio original del televisor. "
                         + "Selecciona su launcher en los ajustes de Android TV.");
                 action("Recuperar launcher original / Cambiar Home",
@@ -394,6 +406,175 @@ public final class UnifiedCatalogSettingsActivity extends Activity {
     private String permissionStatus() {
         return UnifiedAppUpdater.canInstall(this) ? "Instalación desde UnifiedTV: permitida."
                 : "Instalación desde UnifiedTV: requiere autorización de Android TV.";
+    }
+
+    /**
+     * One place to finish Android TV setup. Only permissions needed for a feature are
+     * requested: powerful accessibility / notification / ADB access stays opt-in.
+     * Status is recomputed whenever the system settings screens return to this Activity.
+     */
+    private void permissionsAndSetup() {
+        boolean tmdb = !UnifiedCatalogPrefs.apiKey(this).isEmpty();
+        boolean online = UnifiedPermissionChecks.networkPresent(this);
+        boolean tv = UnifiedWatchNext.hasPermission(this);
+        boolean apk = UnifiedAppUpdater.canInstall(this);
+        boolean home = UnifiedPermissionChecks.isDefaultHome(this);
+
+        description("Configura lo que necesita UnifiedTV y comprueba qué funciones están listas. "
+                + "Android TV decide qué permisos y pantallas de configuración están disponibles; "
+                + "ninguna autorización se concede automáticamente.");
+
+        description("CATÁLOGO Y REPRODUCCIÓN");
+        setupRow("Clave de TMDB", tmdb ? "Configurada" : "Pendiente",
+                "Necesaria para descubrir películas, series y puntuaciones. Puedes introducirla por QR.",
+                v -> pairKey(), "setup-tmdb");
+        setupRow("Conexión a Internet", online ? "Red detectada" : "Sin red detectada",
+                "Necesaria para TMDB y las actualizaciones. El QR también requiere una red local accesible.",
+                v -> openSystemSettings(Settings.ACTION_WIFI_SETTINGS, "ajustes de red"), "setup-network");
+        setupRow("Leer canales de Android TV / Seguir viendo", tv ? "Permitido" : "Sin autorizar",
+                "Necesario para Watch Next y enlaces de fichas que las plataformas publiquen. "
+                        + "No permite leer el historial privado de Netflix u otras apps.",
+                v -> requestTvListings(), "setup-tv-listings");
+        setupRow("Instalar actualizaciones APK", apk ? "Permitido" : "Sin autorizar",
+                "Solo es necesario para instalar las actualizaciones descargadas desde GitHub, "
+                        + "siempre tras confirmación.",
+                v -> {
+                    refreshPermissionsOnReturn = true;
+                    UnifiedAppUpdater.openInstallPermissionSettings(this);
+                }, "setup-install");
+
+        description("INICIO Y MANDO (OPCIONAL)");
+        setupRow("UnifiedTV como pantalla de inicio", home ? "Seleccionado" : "Otro inicio / sin seleccionar",
+                "Cambia la aplicación Home predeterminada desde Android TV. No se modifican "
+                        + "automáticamente los launchers del fabricante.",
+                v -> confirmRecovery(), "setup-home");
+        boolean homeKeys = UnifiedPermissionChecks.accessibilityEnabled(this, HomeKeyService.class);
+        boolean inputKeys = UnifiedPermissionChecks.accessibilityEnabled(this, InputKeyService.class);
+        setupRow("Accesibilidad · teclas Home especiales", homeKeys ? "Activado" : "Desactivado",
+                "Solo para mandos de algunos fabricantes. El servicio puede capturar teclas "
+                        + "del mando; no es necesario para navegar por UnifiedTV.",
+                v -> confirmAccessibility(), "setup-access-home");
+        setupRow("Accesibilidad · botón Entradas/HDMI", inputKeys ? "Activado" : "Desactivado",
+                "Opcional cuando el televisor no gestiona por sí mismo la tecla de entradas.",
+                v -> confirmAccessibility(), "setup-access-input");
+
+        description("COMPATIBILIDAD AVANZADA (OPCIONAL)");
+        boolean listener = UnifiedPermissionChecks.notificationListenerEnabled(this);
+        setupRow("Reactivación tras cierres del fabricante",
+                listener ? "Activada" : "Desactivada",
+                "Acceso especial a notificaciones: Android concede un permiso amplio. "
+                        + "UnifiedTV no lee su contenido, pero esta función no es necesaria "
+                        + "para el catálogo.",
+                v -> confirmNotificationListener(), "setup-notification");
+        boolean privileged = UnifiedPermissionChecks.hasSecureSettingsPermission(this);
+        setupRow("Ajustes seguros de Android (ADB)",
+                privileged ? "Concedido" : "No concedido",
+                "Solo para restaurar ciertos servicios OEM por herramientas avanzadas. "
+                        + "No existe un botón normal de Android TV para concederlo.",
+                v -> showAdbHelp(), "setup-adb");
+
+        description("SOLUCIÓN DE PROBLEMAS");
+        action("Permisos e información de UnifiedTV en Android",
+                v -> openAppSettings(), "setup-app-details");
+        action("Actualizar diagnóstico", v -> show(PERMISSIONS_SECTION, "setup-refresh"), "setup-refresh");
+        description("Internet, acceso a las apps instaladas y navegación con mando no "
+                + "necesitan permisos adicionales. Las opciones avanzadas se dejan apagadas "
+                + "a menos que tu televisor las requiera.");
+    }
+
+    private void setupRow(String name, String status, String detail,
+                          View.OnClickListener click, String tag) {
+        action(name + "  ·  " + status, click, tag);
+        description(detail);
+    }
+
+    private void requestTvListings() {
+        if (UnifiedWatchNext.hasPermission(this)) {
+            Toast.makeText(this, "El acceso a Watch Next ya está concedido", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        requestPermissions(new String[]{UnifiedWatchNext.PERMISSION},
+                UnifiedWatchNext.PERMISSION_REQUEST);
+    }
+
+    @Override public void onRequestPermissionsResult(int requestCode, String[] permissions,
+                                                    int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode != UnifiedWatchNext.PERMISSION_REQUEST) return;
+        if (section == PERMISSIONS_SECTION) show(section, "setup-tv-listings");
+        if (!UnifiedWatchNext.hasPermission(this)) {
+            StreamUi.dialog(this).setTitle("Permiso de Android TV sin conceder")
+                    .setMessage("Seguir viendo puede continuar vacío. Si el televisor no muestra "
+                            + "la solicitud, revisa los permisos de UnifiedTV en los ajustes del sistema. "
+                            + "Algunos fabricantes no permiten acceder a los canales de otras apps.")
+                    .setPositiveButton("Abrir permisos de la app", (dialog, which) -> openAppSettings())
+                    .setNegativeButton("Cerrar", null).show();
+        }
+    }
+
+    private void confirmAccessibility() {
+        StreamUi.dialog(this).setTitle("Servicios de accesibilidad opcionales")
+                .setMessage("Android TV puede conceder a los servicios de accesibilidad "
+                        + "acceso al comportamiento del mando. Solo habilita HomeKeyService "
+                        + "o InputKeyService si las teclas especiales de tu TV no funcionan. "
+                        + "Las funciones normales de UnifiedTV no lo requieren.")
+                .setPositiveButton("Abrir accesibilidad", (d, w) ->
+                        openSystemSettings(Settings.ACTION_ACCESSIBILITY_SETTINGS,
+                                "servicios de accesibilidad"))
+                .setNegativeButton("Cancelar", null).show();
+    }
+
+    private void confirmNotificationListener() {
+        StreamUi.dialog(this).setTitle("Permiso opcional y sensible")
+                .setMessage("Android concede a cualquier servicio de acceso a notificaciones "
+                        + "un permiso amplio para leerlas. UnifiedTV lo utiliza únicamente para "
+                        + "que algunos televisores puedan reactivar su proceso y no lee su contenido. "
+                        + "Actívalo solo si lo necesitas.")
+                .setPositiveButton("Abrir acceso a notificaciones", (d, w) ->
+                        openSystemSettings(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS,
+                                "acceso a notificaciones"))
+                .setNegativeButton("Cancelar", null).show();
+    }
+
+    private void showAdbHelp() {
+        String command = "adb shell pm grant " + getPackageName()
+                + " android.permission.WRITE_SECURE_SETTINGS";
+        StreamUi.dialog(this).setTitle("Permiso técnico: solo ADB")
+                .setMessage("No es necesario para TMDB, los pósteres ni Seguir viendo. "
+                        + "Algunas funciones avanzadas de reparación de teclas lo utilizan. "
+                        + "Solo se concede desde un ordenador con depuración ADB activada "
+                        + "y proporciona privilegios sobre la configuración del dispositivo.\n\n"
+                        + command)
+                .setPositiveButton("Entendido", null).show();
+    }
+
+    private void openAppSettings() {
+        refreshPermissionsOnReturn = true;
+        try {
+            startActivity(new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                    Uri.parse("package:" + getPackageName())));
+        } catch (RuntimeException unavailable) {
+            openSystemSettings(Settings.ACTION_SETTINGS, "ajustes de aplicaciones");
+        }
+    }
+
+    private void openSystemSettings(String action, String feature) {
+        refreshPermissionsOnReturn = true;
+        try {
+            startActivity(new Intent(action));
+        } catch (RuntimeException unavailable) {
+            try {
+                startActivity(new Intent(Settings.ACTION_SETTINGS));
+                Toast.makeText(this, "Busca " + feature + " en Ajustes del televisor",
+                        Toast.LENGTH_LONG).show();
+            } catch (RuntimeException unsupported) {
+                refreshPermissionsOnReturn = false;
+                StreamUi.dialog(this).setTitle("Ajuste no disponible")
+                        .setMessage("Este televisor no dispone de un acceso accesible desde UnifiedTV "
+                                + "a " + feature + ". Abre los ajustes del fabricante manualmente.")
+                        .setPositiveButton("Cerrar", null).show();
+            }
+        }
     }
 
     private TextView description(String message) {
