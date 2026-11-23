@@ -144,6 +144,14 @@ public final class UnifiedCatalogSettingsActivity extends Activity {
                         + "Selecciona su launcher en los ajustes de Android TV.");
                 action("Recuperar launcher original / Cambiar Home",
                         v -> confirmRecovery(), "recover-home");
+                if (UnifiedTvHome.isSystemHomeRecovery(this)) {
+                    description("Modo de recuperación activado: las teclas Home y las redirecciones "
+                            + "automáticas del launcher antiguo quedan desactivadas.");
+                    action("Reactivar accesos Home de UnifiedTV", v -> {
+                        UnifiedTvHome.enableUnifiedHomeRouting(this);
+                        show(section, "recover-home");
+                    }, "enable-unified-home");
+                }
                 description("Si Android TV no ofrece el selector de Home, se mostrarán "
                         + "las preferencias de aplicaciones predeterminadas o ajustes del sistema.");
                 break;
@@ -160,9 +168,10 @@ public final class UnifiedCatalogSettingsActivity extends Activity {
 
     private void confirmRecovery() {
         StreamUi.dialog(this).setTitle("Recuperar inicio original")
-                .setMessage("Android TV mostrará los launchers disponibles. "
-                        + "Para volver al inicio de fábrica, selecciona la aplicación del fabricante. "
-                        + "UnifiedTV permanecerá instalada y disponible en el menú de aplicaciones.")
+                .setMessage("Se desactivará la redirección de teclas Home de UnifiedTV "
+                        + "y se abrirá el selector de Android TV (o los ajustes del fabricante). "
+                        + "Selecciona el inicio original de tu televisor. "
+                        + "UnifiedTV seguirá instalada y podrás volver a activarla desde esta sección.")
                 .setPositiveButton("Abrir selector de inicio", (dialog, which) ->
                         startActivity(new Intent(this, HomeSettingsActivity.class)))
                 .setNegativeButton("Cancelar", null).show();
