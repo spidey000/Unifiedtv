@@ -46,6 +46,8 @@ final class GuardKeep {
 
     /** Puts HomeKeyService back on the enabled list when standby exit is opted in. Other services stay. */
     static void ensureHomeKey(Context context) {
+        // Never restore an OEM Home interceptor after the user selected stock Home.
+        if (UnifiedTvHome.isSystemHomeRecovery(context)) return;
         // The helper may already be bound. Arming only inside onServiceConnected misses an opt-in
         // that arrives after that, so the first screen-off does nothing (Philips 65PUS8102).
         HomeKeyService.applyStandbyOptIn();

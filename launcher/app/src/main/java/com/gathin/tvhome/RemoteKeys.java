@@ -384,8 +384,7 @@ final class RemoteKeys {
                         AudioManager.ADJUST_TOGGLE_MUTE, AudioManager.FLAG_SHOW_UI);
                 break;
             case "screensaver":
-                // The screensaver chosen in the TV's settings, through the system's "start now" shortcut; the
-                // launcher's own clock where the firmware has no such shortcut.
+                // Use Android TV's screensaver setting. The former launcher clock was removed.
                 Intent dream = new Intent(Intent.ACTION_MAIN)
                         .setClassName("com.android.systemui", "com.android.systemui.Somnambulator");
                 if (ctx.getPackageManager().resolveActivity(dream, 0) == null)
@@ -399,7 +398,7 @@ final class RemoteKeys {
                 start(ctx, SystemSettings.intent(ctx, Settings.ACTION_WIFI_SETTINGS));
                 break;
             case "library":
-                // Home with the App library open on top; Home does nothing when app_library is off.
+                // The legacy shortcut now opens UnifiedTV's Apps y fuentes screen.
                 start(ctx, new Intent(ctx, MainActivity.class).setAction(MainActivity.ACTION_APP_LIBRARY));
                 break;
             default:
