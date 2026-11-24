@@ -1526,10 +1526,12 @@ public final class UnifiedCatalogActivity extends Activity {
             dialog.dismiss();
             openMedia(media, null, revision);
         });
-        buttons.addView(open, new LinearLayout.LayoutParams(-2, dp(34)));
+        StreamUi.heroPrimary(open);
+        buttons.addView(open, new LinearLayout.LayoutParams(-2, dp(36)));
         TextView close = StreamUi.control(this, "Cerrar", R.drawable.uic_x, false,
                 v -> dialog.dismiss());
-        LinearLayout.LayoutParams closeParams = new LinearLayout.LayoutParams(-2, dp(34));
+        StreamUi.background(close, false, true);
+        LinearLayout.LayoutParams closeParams = new LinearLayout.LayoutParams(-2, dp(36));
         closeParams.setMarginStart(dp(10));
         buttons.addView(close, closeParams);
         right.addView(buttons);
