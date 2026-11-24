@@ -227,6 +227,8 @@ public final class UnifiedCatalogActivity extends Activity {
                     -extra, -extra, focused.getWidth() + extra,
                     focused.getHeight() + extra);
             scroll.offsetDescendantRectToMyCoords(focused, bounds);
+            // Convert viewport-relative bounds into content coordinates before scoring.
+            bounds.offset(0, scroll.getScrollY());
             int delta = TvFocusViewport.scrollDelta(bounds.top, bounds.bottom,
                     scroll.getScrollY(), scroll.getHeight(), dp(14));
             if (delta != 0) scroll.smoothScrollBy(0, delta);
