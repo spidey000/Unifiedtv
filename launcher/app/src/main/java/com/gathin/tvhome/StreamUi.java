@@ -12,7 +12,7 @@ import android.graphics.drawable.StateListDrawable;
 import android.view.Gravity;
 import android.view.View;
 import android.widget.Button;
-import android.widget.CheckBox;
+import android.widget.Switch;
 import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.TextView;
@@ -26,6 +26,8 @@ final class StreamUi {
     static final int DEFAULT_ACCENT = 0xFFE3293F;
     static final int BORDER = 0xFF34343E;
     static final int RATING = 0xFF99E3B6;
+    static final int FOCUS_SURFACE = 0xFF55555D;
+    static final int SELECTED_SURFACE = 0xFF28282F;
     static final long FOCUS_ANIM_MS = 210;
     static final long ART_ANIM_MS = 190;
     private static final String ACCENT_KEY = "accent_color";
@@ -134,8 +136,8 @@ final class StreamUi {
         int[] selected = {android.R.attr.state_selected};
         int[] idle = {};
         StateListDrawable surfaces = new StateListDrawable();
-        surfaces.addState(focused, shape(c, 0xFF55555D, 9, Color.TRANSPARENT));
-        surfaces.addState(selected, shape(c, Color.TRANSPARENT, 9, Color.TRANSPARENT));
+        surfaces.addState(focused, shape(c, FOCUS_SURFACE, 9, Color.TRANSPARENT));
+        surfaces.addState(selected, shape(c, SELECTED_SURFACE, 9, Color.TRANSPARENT));
         surfaces.addState(idle, shape(c, Color.TRANSPARENT, 9, Color.TRANSPARENT));
         int left = control.getPaddingLeft(), top = control.getPaddingTop();
         int right = control.getPaddingRight(), bottom = control.getPaddingBottom();
@@ -213,26 +215,42 @@ final class StreamUi {
         return button;
     }
 
-    static CheckBox toggle(Context c, String title, boolean value) {
-        CheckBox box = new CheckBox(c);
-        box.setText(title);
-        box.setTextSize(16);
-        box.setTextColor(WHITE);
-        box.setChecked(value);
-        box.setMinHeight(dp(c, 46));
-        box.setPadding(dp(c, 8), dp(c, 4), dp(c, 10), dp(c, 4));
-        background(box, false, true);
-        box.setButtonTintList(new ColorStateList(new int[][]{{android.R.attr.state_checked}, DEFAULT},
-                new int[]{readableAccent(c), DIM}));
-        return box;
+    /**
+     * Native TV switch with a 44dp pill and end-aligned thumb. Keep the OS switch
+     * semantics so OK/DPAD, TalkBack and checked-state persistence still work.
+     */
+    static Switch toggle(Context c, String title, boolean value) {
+        Switch control = new Switch(c);
+        control.setText(title);
+        control.setTextSize(15);
+        control.setTextColor(WHITE);
+        control.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
+        control.setShowText(false);
+        control.setSwitchMinWidth(dp(c, 45));
+        control.setSwitchPadding(dp(c, 12));
+        control.setSplitTrack(false);
+        control.setThumbTintList(ColorStateList.valueOf(WHITE));
+        control.setTrackTintList(new ColorStateList(
+                new int[][]{{android.R.attr.state_checked}, DEFAULT},
+                new int[]{visibleAccent(c), 0xFF575761}));
+        control.setChecked(value);
+        control.setMinHeight(dp(c, 48));
+        control.setGravity(Gravity.CENTER_VERTICAL);
+        control.setPadding(dp(c, 14), dp(c, 6), dp(c, 14), dp(c, 6));
+        background(control, false, true);
+        control.setFocusable(true);
+        return control;
     }
 
     static void field(EditText input) {
         Context c = input.getContext();
         input.setTextColor(WHITE);
         input.setHintTextColor(DIM);
-        background(input, false, false);
-        input.setPadding(dp(c, 13), dp(c, 8), dp(c, 13), dp(c, 8));
+        StateListDrawable surfaces = new StateListDrawable();
+        surfaces.addState(FOCUS, shape(c, 0xFF393940, 8, WHITE));
+        surfaces.addState(DEFAULT, shape(c, 0xFF24242B, 8, Color.TRANSPARENT));
+        input.setBackground(surfaces);
+        input.setPadding(dp(c, 15), dp(c, 10), dp(c, 15), dp(c, 10));
     }
 
     static AlertDialog.Builder dialog(Context c) {
@@ -249,8 +267,13 @@ final class StreamUi {
                             AlertDialog.BUTTON_NEUTRAL}) {
                         Button button = dialog.getButton(which);
                         if (button == null) continue;
-                        background(button, which == AlertDialog.BUTTON_POSITIVE, false);
-                        button.setTextColor(WHITE);
+                        if (which == AlertDialog.BUTTON_POSITIVE) {
+                            heroPrimary(button);
+                        } else {
+                            background(button, false, true);
+                            button.setTextColor(WHITE);
+                        }
+                        button.setMinHeight(dp(c, 40));
                         button.setAllCaps(false);
                     }
                 });
