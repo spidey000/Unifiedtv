@@ -135,7 +135,7 @@ for width,height,density in [(1280,720,213),(1920,1080,320),(3840,2160,640)]:
                 cmd('shell','am','force-stop',pkg)
                 cmd('shell','am','start','-n',component,'-a','com.gathin.tvhome.action.LAUNCHER_SETTINGS')
                 headings = ['Apariencia','Catálogo','Plataformas','Seguir viendo',
-                            'Actualizaciones','Permisos','Recuperación','Información']
+                            'Actualizaciones','Permisos y funcionamiento','Recuperación','Información']
                 sections = ['appearance','catalog','platforms','watch','updates','permissions','recovery','about']
                 for i,(section,heading) in enumerate(zip(sections,headings)):
                     if i:
