@@ -42,34 +42,44 @@ final class UnifiedCatalogRoute {
             if (!media.availabilityReady) return null;
             List<UnifiedCatalogPrefs.Provider> eligible = UnifiedCatalogApi.eligible(activity, media);
             if (eligible.isEmpty()) {
-                media.autoTargetReady = true;
-                return null;
+                String pkg = UnifiedCatalogPrefs.NUVIO.installedPackage(activity);
+                if (pkg != null && UnifiedCatalogPrefs.nuvioSelected(activity))
+                    media.autoTarget = new Target(UnifiedCatalogPrefs.NUVIO, pkg,
+                            nuvioUri(media.type, media.id), false);
+            } else {
+                // Respect provider priority even if its verified content link is missing.
+                media.autoTarget = resolveProvider(activity, media, eligible.get(0));
             }
-            java.util.Map<String, String> wikidata = null;
-            for (UnifiedCatalogPrefs.Provider provider : eligible) {
-                String pkg = provider.installedPackage(activity);
-                if (pkg == null) continue;
-                String local = UnifiedTvProgramLinks.find(activity, media, pkg);
-                if (!local.isEmpty()) {
-                    media.autoTarget = new Target(provider, pkg, local, true);
-                    media.autoTargetReady = true;
-                    return media.autoTarget;
-                }
-                if (wikidata == null) wikidata = UnifiedWikidataLinks.resolve(activity, media);
-                String url = wikidata.get(provider.key);
-                if (!UnifiedWikidataLinks.safeUrl(provider.key, url)) continue;
-                media.autoTarget = new Target(provider, pkg, url, false);
-                media.autoTargetReady = true;
-                return media.autoTarget;
-            }
-            media.autoTargetReady = true;
-            return null;
+            media.autoTargetReady = media.autoTarget != null;
+            return media.autoTarget;
         }
+    }
+
+    static UnifiedCatalogPrefs.Provider badgeProvider(Activity activity, UnifiedCatalogApi.Media media) {
+        if (!media.availabilityReady) return null;
+        List<UnifiedCatalogPrefs.Provider> eligible = UnifiedCatalogApi.eligible(activity, media);
+        if (!eligible.isEmpty()) return eligible.get(0);
+        return UnifiedCatalogPrefs.nuvioSelected(activity)
+                && UnifiedCatalogPrefs.NUVIO.installedPackage(activity) != null
+                ? UnifiedCatalogPrefs.NUVIO : null;
+    }
+
+    private static Target resolveProvider(Activity activity, UnifiedCatalogApi.Media media,
+                                          UnifiedCatalogPrefs.Provider provider) {
+        String pkg = provider.installedPackage(activity);
+        if (pkg == null) return null;
+        String local = UnifiedTvProgramLinks.find(activity, media, pkg);
+        if (!local.isEmpty()) return new Target(provider, pkg, local, true);
+        String url = UnifiedWikidataLinks.resolve(activity, media).get(provider.key);
+        return UnifiedWikidataLinks.safeUrl(provider.key, url)
+                ? new Target(provider, pkg, url, false) : null;
     }
 
     /** A dispatch intent is always scoped to its publisher's installed package. */
     static boolean launchTarget(Activity activity, Target target) {
         if (target == null) return false;
+        if ("nuvio".equals(target.provider.key))
+            return openUri(activity, target.packageName, target.url);
         try {
             Intent intent;
             if (target.fromAndroidTv) {
@@ -79,6 +89,18 @@ final class UnifiedCatalogRoute {
                 if (!UnifiedWikidataLinks.safeUrl(target.provider.key, target.url)) return false;
                 intent = new Intent(Intent.ACTION_VIEW, Uri.parse(target.url))
                         .setPackage(target.packageName).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            }
+            if ("netflix".equals(target.provider.key)) {
+                // TV Netflix expects the search source extra. Use its actual launcher
+                // component for web title URLs (some builds expose no matching VIEW filter).
+                if (!target.fromAndroidTv && "com.netflix.ninja".equals(target.packageName)) {
+                    Intent launcher = activity.getPackageManager()
+                            .getLeanbackLaunchIntentForPackage(target.packageName);
+                    if (launcher != null && launcher.getComponent() != null)
+                        intent.setComponent(launcher.getComponent());
+                }
+                intent.putExtra("source", "30");
+                intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
             }
             activity.startActivity(intent);
             return true;
@@ -113,10 +135,12 @@ final class UnifiedCatalogRoute {
                     choices.add(new Choice(provider.name + "  ·  según TMDB", pkg, "provider"));
             }
         }
+        String nuvio = UnifiedCatalogPrefs.NUVIO.installedPackage(activity);
+        if (nuvio != null && UnifiedCatalogPrefs.nuvioSelected(activity) && packages.add(nuvio))
+            choices.add(new Choice("Nuvio  ·  proveedor P2P de último recurso", nuvio, "nuvio"));
         for (UnifiedPlaybackApps.App app : UnifiedPlaybackApps.enabled(activity)) {
             if (!packages.add(app.packageName)) continue;
-            String suffix = "nuvio".equals(app.key) ? "  ·  abrir ficha"
-                    : "stremio".equals(app.key) ? "  ·  abrir ficha / buscar"
+            String suffix = "stremio".equals(app.key) ? "  ·  abrir ficha / buscar"
                     : "  ·  abrir app";
             choices.add(new Choice(app.name + suffix, app.packageName, app.key));
         }
@@ -147,17 +171,27 @@ final class UnifiedCatalogRoute {
 
     private static void launch(Activity activity, UnifiedCatalogApi.Media media, Choice choice) {
         if ("provider".equals(choice.kind)) {
-            if (media.autoTarget != null
-                    && choice.packageName.equals(media.autoTarget.packageName)
-                    && launchTarget(activity, media.autoTarget)) return;
-            StreamUi.dialog(activity).setTitle("Enlace directo no disponible")
-                    .setMessage("TMDB confirma la oferta, pero no hay un enlace verificable a la ficha"
-                            + " de «" + media.title + "» en esta aplicación. Puedes buscarla"
-                            + " manualmente; no se abrirá la portada como si fuera la película.")
-                    .setPositiveButton("Buscar en la app",
-                            (dialog, which) -> openSearchOrApp(activity,
+            // Each selection resolves its own link, including non-default providers.
+            new Thread(() -> {
+                Target target = null;
+                for (UnifiedCatalogPrefs.Provider provider : UnifiedCatalogApi.eligible(activity, media)) {
+                    if (choice.packageName.equals(provider.installedPackage(activity))) {
+                        target = resolveProvider(activity, media, provider);
+                        break;
+                    }
+                }
+                final Target resolved = target;
+                activity.runOnUiThread(() -> {
+                    if (activity.isFinishing() || activity.isDestroyed()) return;
+                    if (launchTarget(activity, resolved)) return;
+                    StreamUi.dialog(activity).setTitle("Enlace directo no disponible")
+                            .setMessage("La oferta está disponible según TMDB, pero no se pudo abrir"
+                                    + " un enlace verificable a «" + media.title + "».")
+                            .setPositiveButton("Buscar en la app", (d, w) -> openSearchOrApp(activity,
                                     choice.packageName, choice.label, media.title))
-                    .setNegativeButton("Cancelar", null).show();
+                            .setNegativeButton("Cancelar", null).show();
+                });
+            }, "unifiedtv-provider-link").start();
             return;
         }
         if ("nuvio".equals(choice.kind)) {

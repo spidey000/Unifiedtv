@@ -30,7 +30,10 @@ public class UnifiedCatalogRouteTest {
             assertTrue(ids.add(app.key));
             for (String pkg : app.packages) assertTrue(packages.add(pkg));
         }
-        assertTrue(ids.contains("nuvio"));
+        assertFalse(ids.contains("nuvio"));
+        assertEquals("nuvio", UnifiedCatalogPrefs.NUVIO.key);
+        assertEquals(0, UnifiedCatalogPrefs.NUVIO.tmdbIds.length);
+        for (String pkg : UnifiedCatalogPrefs.NUVIO.packages) assertFalse(packages.contains(pkg));
         assertTrue(ids.contains("stremio"));
         assertFalse(UnifiedCatalogPrefs.PROVIDERS.stream().anyMatch(p -> "nuvio".equals(p.key)
                 || "stremio".equals(p.key)));

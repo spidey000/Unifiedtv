@@ -361,8 +361,19 @@ public final class UnifiedCatalogSettingsActivity extends Activity {
             add(content, row);
         }
 
+        description("PROVEEDOR DE ÚLTIMO RECURSO");
+        description("Nuvio es un proveedor P2P. Se usa automáticamente cuando ninguno de los"
+                + " proveedores seleccionados e instalados tiene el título según TMDB.");
+        Switch nuvio = StreamUi.toggle(this, "Nuvio"
+                + (UnifiedCatalogPrefs.NUVIO.installedPackage(this) != null
+                ? "  ·  Instalada" : "  ·  No instalada"), UnifiedCatalogPrefs.nuvioSelected(this));
+        nuvio.setOnCheckedChangeListener((v, checked) -> save("selected_nuvio", checked));
+        nuvio.setTag("provider:nuvio");
+        left(nuvio);
+        add(content, nuvio);
+
         description("REPRODUCTORES");
-        description("Apps para abrir títulos descubiertos en TMDB. Nuvio y Stremio pueden abrir fichas; "
+        description("Apps para abrir títulos descubiertos en TMDB. Stremio puede abrir fichas; "
                 + "otras apps pueden requerir buscar manualmente. No implica disponibilidad del contenido.");
         for (UnifiedPlaybackApps.Known app : UnifiedPlaybackApps.KNOWN) {
             boolean installed = app.installedPackage(this) != null;

@@ -61,6 +61,15 @@ final class UnifiedCatalogPrefs {
         }
     }
 
+    static final Provider NUVIO = new Provider("nuvio", "Nuvio", new int[]{},
+            "com.nuvio.tv", "com.nuvio.app");
+
+    static boolean nuvioSelected(Context context) {
+        // Preserve the setting from versions that grouped Nuvio with players.
+        return prefs(context).getBoolean("selected_nuvio",
+                prefs(context).getBoolean("playback_source_nuvio", true));
+    }
+
     // Platform IDs are TMDB provider identifiers, not package IDs.
     static final List<Provider> PROVIDERS = Collections.unmodifiableList(Arrays.asList(
         new Provider("netflix", "Netflix", new int[]{8, 1796}, "com.netflix.ninja", "com.netflix.mediaclient"),
@@ -88,15 +97,13 @@ final class UnifiedCatalogPrefs {
     static final String UPDATE_LAST_SHOWN = "update_last_shown";
 
 
-    // Stremio and Nuvio are catalog/player apps rather than TMDB subscription providers.
-    // They are sources of Watch Next, not TMDB availability badges.
+    // Nuvio is a fallback provider without a TMDB availability feed.
     static final List<Provider> CONTINUE_SOURCES;
     static {
         List<Provider> sources = new ArrayList<>(PROVIDERS);
         sources.add(new Provider("stremio", "Stremio", new int[]{},
                 "com.stremio.one", "com.stremio.two"));
-        sources.add(new Provider("nuvio", "Nuvio", new int[]{},
-                "com.nuvio.tv", "com.nuvio.app"));
+        sources.add(NUVIO);
         CONTINUE_SOURCES = Collections.unmodifiableList(sources);
     }
 

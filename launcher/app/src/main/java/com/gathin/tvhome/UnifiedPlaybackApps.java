@@ -54,7 +54,6 @@ final class UnifiedPlaybackApps {
 
     // Explicitly supported local catalog apps, followed by well-known media players.
     static final List<Known> KNOWN = Collections.unmodifiableList(java.util.Arrays.asList(
-            new Known("nuvio", "Nuvio", "com.nuvio.tv", "com.nuvio.app"),
             new Known("stremio", "Stremio", "com.stremio.one", "com.stremio.two"),
             new Known("kodi", "Kodi", "org.xbmc.kodi"),
             new Known("plex", "Plex", "com.plexapp.android", "tv.plex"),
@@ -92,6 +91,7 @@ final class UnifiedPlaybackApps {
         PackageManager pm = context.getPackageManager();
         Set<String> excluded = new HashSet<>();
         excluded.add(context.getPackageName());
+        Collections.addAll(excluded, UnifiedCatalogPrefs.NUVIO.packages);
         for (Known app : KNOWN) Collections.addAll(excluded, app.packages);
         for (UnifiedCatalogPrefs.Provider provider : UnifiedCatalogPrefs.PROVIDERS)
             Collections.addAll(excluded, provider.packages);
