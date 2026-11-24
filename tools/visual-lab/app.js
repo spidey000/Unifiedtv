@@ -72,3 +72,12 @@ class App extends React.Component {
  }
 }
 ReactDOM.render(h(App),document.getElementById('root'));
+
+// The web laboratory models Android dp density; it is never shipped in the APK.
+function resizePreviewStage(){
+ const scale=window.innerWidth/1920;
+ document.documentElement.style.setProperty('--preview-scale',scale);
+ document.getElementById('root').style.height=(window.innerHeight/scale)+'px';
+}
+resizePreviewStage();
+window.addEventListener('resize',resizePreviewStage);
