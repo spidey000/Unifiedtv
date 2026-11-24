@@ -30,9 +30,9 @@ component = pkg+'/com.gathin.tvhome.MainActivity'
 records = []
 expected_size = (1920,1080)
 
-def cmd(*args):
+def cmd(*args, input_data=None):
     r = subprocess.run([adb,*map(str,args)], stdout=subprocess.PIPE,
-                       stderr=subprocess.PIPE, timeout=45)
+                       stderr=subprocess.PIPE, timeout=45, input=input_data)
     if r.returncode:
         raise RuntimeError(r.stderr.decode(errors='replace'))
     return r.stdout
@@ -112,6 +112,13 @@ for width,height,density in [(1280,720,213),(1920,1080,320),(3840,2160,640)]:
             cmd('shell','wm','density','reset')
             print(cmd('shell','wm','size').decode(),flush=True)
             cmd('install','-r',str(a.apk.resolve()))
+            cmd('shell','am','force-stop',pkg)
+            # Isolate screenshots from release announcements in this disposable AVD.
+            # Production defaults remain unchanged; no account or API key is seeded.
+            cmd('shell','run-as',pkg,'mkdir','-p','shared_prefs')
+            prefs = b'<map><boolean name="update_auto_check" value="false" /></map>'
+            cmd('shell',f"run-as {pkg} sh -c 'cat > shared_prefs/unifiedtv_catalog.xml'",
+                input_data=prefs)
             for page in ['HOME','MOVIES','SERIES','WATCH','SEARCH','APPS','LIVE']:
                 cmd('shell','am','force-stop',pkg)
                 cmd('shell','am','start','-n',component)
