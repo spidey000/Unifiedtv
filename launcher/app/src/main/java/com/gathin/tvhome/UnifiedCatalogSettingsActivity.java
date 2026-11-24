@@ -160,6 +160,8 @@ public final class UnifiedCatalogSettingsActivity extends Activity {
             android.graphics.Rect bounds = new android.graphics.Rect(
                     0, 0, focused.getWidth(), focused.getHeight());
             scroll.offsetDescendantRectToMyCoords(focused, bounds);
+            // Convert viewport-relative bounds into content coordinates before scoring.
+            bounds.offset(0, scroll.getScrollY());
             int shift = TvFocusViewport.scrollDelta(bounds.top, bounds.bottom,
                     scroll.getScrollY(), scroll.getHeight(), dp(12));
             if (shift != 0) scroll.smoothScrollBy(0, shift);
