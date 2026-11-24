@@ -200,11 +200,11 @@ public final class UnifiedCatalogActivity extends Activity {
         rail.addView(mark);
         route(rail, Page.HOME, "Inicio", R.drawable.uic_house);
         route(rail, Page.MOVIES, "Películas", R.drawable.uic_film);
-        route(rail, Page.SERIES, "Series", R.drawable.uic_layers);
+        route(rail, Page.SERIES, "Series", R.drawable.ic_livetv);
         route(rail, Page.SEARCH, "Buscar", R.drawable.uic_search);
         route(rail, Page.WATCH, "Seguir viendo", R.drawable.uic_layers);
         route(rail, Page.APPS, "Apps y fuentes", R.drawable.ic_apps);
-        route(rail, Page.LIVE, "Entradas de TV", R.drawable.ic_livetv);
+        route(rail, Page.LIVE, "Entradas de TV", R.drawable.ic_input);
         rail.addView(new View(this), new LinearLayout.LayoutParams(1, dp(12)));
         TextView settings = StreamUi.control(this, "Ajustes", R.drawable.ic_settings, false,
                 v -> startActivity(new Intent(this, UnifiedCatalogSettingsActivity.class)));

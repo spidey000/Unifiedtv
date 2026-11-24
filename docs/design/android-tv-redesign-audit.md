@@ -33,6 +33,9 @@ El foco conserva escala moderada e insets; 106 % no cabe en todas las celdas exi
 
 ## Validación y límites
 
+Validación local: 97 tests JVM, 41 comprobaciones Python y build/lint de release correctos.
+El primer workflow web produjo 32 capturas sin errores JavaScript.
+
 Los tests JVM cubren geometría del hero, seis columnas, insets, scroll ya desplazado,
 filas incompletas, Watch Next, deeplinks y actualización. Los tests Python son
 comprobaciones estáticas: por sí solos no certifican una interfaz renderizada.

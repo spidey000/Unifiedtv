@@ -42,8 +42,10 @@ jobs:
           cd launcher
           bash gradlew --no-daemon -PlauncherApplicationId=io.github.spidey000.unifiedtv assembleDebug
           cd ..
-          mkdir -p "$HOME/.android"
-          echo no | avdmanager create avd --force -n unifiedtv -k 'system-images;android-30;android-tv;x86' --device tv_1080p
+          export ANDROID_AVD_HOME="$RUNNER_TEMP/unifiedtv-avd"
+          mkdir -p "$ANDROID_AVD_HOME"
+          avdmanager --verbose create avd --force -n unifiedtv -p "$ANDROID_AVD_HOME/unifiedtv.avd" -k 'system-images;android-30;android-tv;x86' --device tv_1080p
+          test -f "$ANDROID_AVD_HOME/unifiedtv.ini"
           python tools/validation/capture_android_tv.py --apk launcher/app/build/outputs/apk/debug/app-debug.apk --output native-captures
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()

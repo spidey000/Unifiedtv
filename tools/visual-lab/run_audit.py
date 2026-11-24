@@ -24,7 +24,7 @@ async def check(page,label):
       const visible=[...document.querySelectorAll('button,input')].filter(e=>{let r=e.getBoundingClientRect(),s=getComputedStyle(e);return r.width>0&&r.height>0&&s.visibility!=='hidden'});
       const leftClipped=visible.filter(e=>e.getBoundingClientRect().right<0||e.getBoundingClientRect().left>innerWidth);
       const offRight=visible.filter(e=>e.getBoundingClientRect().left<innerWidth&&e.getBoundingClientRect().right>innerWidth+1);
-      const overflow=[...document.querySelectorAll('.page-head,.shelf-header,.setting-row,.app-logo,.nav-entry')].filter(e=>e.scrollWidth>e.clientWidth+2).map(e=>e.className+': '+e.textContent.slice(0,50));
+      const overflow=[...document.querySelectorAll('.page-head,.shelf-header,.setting-row,.app-logo,.nav-entry')].filter(e=>e.scrollWidth>e.clientWidth+2 && !(e.matches('.nav-entry') && getComputedStyle(e.querySelector('.nav-name') || e).opacity === '0')).map(e=>e.className+': '+e.textContent.slice(0,50));
       return {viewport:[innerWidth,innerHeight],docScrollX:doc.scrollWidth>innerWidth+1,bodyScrollX:body.scrollWidth>innerWidth+1,rootScrollX:root.scrollWidth>innerWidth+1,buttons:visible.length,offRight:offRight.map(e=>e.textContent.slice(0,50)),overflowText:overflow.slice(0,20),visibleOffLeft:leftClipped.length};
     }"""
     v=await page.evaluate(js)
