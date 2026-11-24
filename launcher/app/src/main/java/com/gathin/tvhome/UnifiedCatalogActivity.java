@@ -1688,6 +1688,7 @@ public final class UnifiedCatalogActivity extends Activity {
     }
 
     @Override public void onBackPressed() {
+        pendingFocusKey = null; // Back takes priority over a late async focus restoration.
         if (TvSpatialNavigation.inside(viewport, getCurrentFocus())) {
             routes.get(page).requestFocus();
         } else if (page != Page.HOME) {
