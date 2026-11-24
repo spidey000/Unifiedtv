@@ -153,11 +153,8 @@ public final class UnifiedCatalogSettingsActivity extends Activity {
             android.graphics.Rect bounds = new android.graphics.Rect(
                     0, 0, focused.getWidth(), focused.getHeight());
             scroll.offsetDescendantRectToMyCoords(focused, bounds);
-            int inset = dp(12);
-            int top = scroll.getScrollY() + inset;
-            int bottom = scroll.getScrollY() + scroll.getHeight() - inset;
-            int shift = bounds.bottom > bottom ? bounds.bottom - bottom
-                    : bounds.top < top ? bounds.top - top : 0;
+            int shift = TvFocusViewport.scrollDelta(bounds.top, bounds.bottom,
+                    scroll.getScrollY(), scroll.getHeight(), dp(12));
             if (shift != 0) scroll.smoothScrollBy(0, shift);
         });
     }
