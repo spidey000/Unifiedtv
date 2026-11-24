@@ -31,6 +31,7 @@ La elección de Home es responsabilidad del sistema y del usuario.
 - [Guía de recuperación](docs/recovery.md)
 - [Biblioteca y procedencia de logotipos](docs/design/provider-wordmarks.md)
 - [Diseño de Apps y fuentes](docs/design/apps-and-sources.md)
+- [Criterios de paridad visual React → Android TV](docs/design/native-tv-visual-parity.md)
 - [Catálogo y API TMDB](docs/UNIFIEDTV.md)
 
 ## Desarrollo
