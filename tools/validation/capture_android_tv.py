@@ -88,6 +88,9 @@ for width,height,density in [(1280,720,213),(1920,1080,320),(3840,2160,640)]:
     expected_size = (width,height)
     size = f'{width}x{height}'
     configure(width,height,density)
+    # Generate/load the host ADB key before the emulator copies its public key.
+    # Starting both together races into an unauthorized device on fresh runners.
+    cmd('start-server')
     args = [str(sdk/'emulator/emulator'),'-avd',a.avd,'-skin',size,'-no-window',
             '-no-audio','-no-snapshot','-gpu','swiftshader_indirect','-memory','1536']
     if a.software:
