@@ -11,7 +11,8 @@ import android.view.Gravity;
 import android.view.KeyEvent;
 import android.view.View;
 import android.view.ViewTreeObserver;
-import android.widget.CheckBox;
+import android.widget.Switch;
+import android.widget.ImageView;
 import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
@@ -62,12 +63,18 @@ public final class UnifiedCatalogSettingsActivity extends Activity {
             final int index = i;
             TextView tab = StreamUi.control(this, SECTIONS[i], SECTION_ICONS[i], false, v -> show(index, null));
             StreamUi.navigation(tab);
+            tab.setMinHeight(dp(38));
+            tab.setTextSize(12);
+            tab.setPadding(dp(10), dp(3), dp(9), dp(3));
             tabs.add(tab);
             add(rail, tab);
         }
         TextView back = StreamUi.control(this, "Volver", R.drawable.uic_arrow_left,
                 false, v -> finish());
         StreamUi.navigation(back);
+        back.setMinHeight(dp(38));
+        back.setTextSize(12);
+        back.setPadding(dp(10), dp(3), dp(9), dp(3));
         add(rail, back);
         railScroll.addView(rail);
         root.addView(railScroll, new LinearLayout.LayoutParams(dp(178), -1));
@@ -165,8 +172,12 @@ public final class UnifiedCatalogSettingsActivity extends Activity {
         for (int i = 0; i < tabs.size(); i++) tabs.get(i).setSelected(i == selected);
         content.removeAllViews();
         installPermissionStatus = null;
-        content.addView(text(selected == PERMISSIONS_SECTION ? "Permisos y funcionamiento"
-                : SECTIONS[selected], 32, StreamUi.WHITE, true));
+        TextView heading = text(selected == PERMISSIONS_SECTION ? "Permisos y funcionamiento"
+                : SECTIONS[selected], 32, StreamUi.WHITE, true);
+        heading.setLetterSpacing(-.025f);
+        LinearLayout.LayoutParams headingSize = new LinearLayout.LayoutParams(-1, -2);
+        headingSize.bottomMargin = dp(11);
+        content.addView(heading, headingSize);
         switch (selected) {
             case 0: appearance(); break;
             case 1: catalog(); break;
@@ -223,11 +234,14 @@ public final class UnifiedCatalogSettingsActivity extends Activity {
             sample.setTag(tag);
             sample.setSelected(active == color);
             if (i == 0) left(sample);
-            android.graphics.drawable.GradientDrawable swatch = StreamUi.shape(this, color, 10, StreamUi.BORDER);
+            StreamUi.background(sample, false, true);
+            sample.setMinHeight(dp(41));
+            sample.setTextSize(12);
+            android.graphics.drawable.GradientDrawable swatch = StreamUi.shape(this, color, 10, Color.TRANSPARENT);
             swatch.setBounds(0, 0, dp(15), dp(15));
             sample.setCompoundDrawablesRelative(swatch, null, null, null);
             sample.setCompoundDrawablePadding(dp(6));
-            sample.setPadding(dp(7), 0, dp(7), 0);
+            sample.setPadding(dp(9), dp(3), dp(7), dp(3));
             LinearLayout.LayoutParams size = new LinearLayout.LayoutParams(0, -2, 1);
             size.setMarginEnd(dp(5));
             choices.addView(sample, size);
@@ -235,6 +249,7 @@ public final class UnifiedCatalogSettingsActivity extends Activity {
         add(content, choices);
         action("Color personalizado  ·  " + hex(active), v -> customAccent(), "custom");
         action("Restablecer el color", v -> setAccent(StreamUi.DEFAULT_ACCENT, "custom"), "reset");
+        description("CARÁTULAS");
         description("Insignia de plataforma sobre las carátulas");
         action(posterBadgeDescription(), v -> selectPosterBadge(), "poster-badge");
         toggle("Mostrar puntuación TMDB (★)", UnifiedCatalogPrefs.SHOW_TMDB_RATINGS, true);
@@ -306,8 +321,9 @@ public final class UnifiedCatalogSettingsActivity extends Activity {
                 : "Cambiar clave de TMDB desde el móvil", v -> pairKey(), "tmdb");
         action("Introducir clave de TMDB con el mando", v -> editKey(), "tmdb-manual");
         action("Región de disponibilidad  ·  " + UnifiedCatalogPrefs.region(this), v -> chooseRegion(), "region");
-        description("Distribución del catálogo: filas horizontales (predeterminado)"
-                + " o secciones en columnas, cada categoría con dos subcolumnas de pósteres 2:3.");
+        description("DISTRIBUCIÓN");
+        description("Filas horizontales (predeterminado) o secciones en columnas, "
+                + "cada categoría con dos subcolumnas de pósteres 2:3.");
         toggle("Categorías en columnas · 2 pósteres por fila",
                 UnifiedCatalogPrefs.CATALOG_COLUMNS, false);
         toggle("Incluir servicios gratuitos y con anuncios", UnifiedCatalogPrefs.INCLUDE_FREE, true);
@@ -326,11 +342,12 @@ public final class UnifiedCatalogSettingsActivity extends Activity {
             description("Enlaces de Android TV autorizados. Se usan solo con coincidencias fiables"
                     + " del título y de la plataforma.");
         }
+        description("PLATAFORMAS DISPONIBLES");
         for (UnifiedCatalogPrefs.Provider provider : UnifiedCatalogPrefs.ordered(this)) {
             LinearLayout row = new LinearLayout(this);
             row.setGravity(Gravity.CENTER_VERTICAL);
             boolean installed = provider.installedPackage(this) != null;
-            CheckBox use = StreamUi.toggle(this, provider.name + (installed ? "  ·  Instalada" : "  ·  No instalada"),
+            Switch use = StreamUi.toggle(this, provider.name + (installed ? "  ·  Instalada" : "  ·  No instalada"),
                     UnifiedCatalogPrefs.selected(this, provider));
             use.setOnCheckedChangeListener((v, checked) -> save("selected_" + provider.key, checked));
             use.setTag("provider:" + provider.key);
@@ -341,10 +358,12 @@ public final class UnifiedCatalogSettingsActivity extends Activity {
             add(content, row);
         }
 
-        description("Apps para abrir títulos descubiertos en TMDB. Nuvio y Stremio pueden abrir fichas; otras apps pueden requerir buscar manualmente. No implica disponibilidad del contenido.");
+        description("REPRODUCTORES");
+        description("Apps para abrir títulos descubiertos en TMDB. Nuvio y Stremio pueden abrir fichas; "
+                + "otras apps pueden requerir buscar manualmente. No implica disponibilidad del contenido.");
         for (UnifiedPlaybackApps.Known app : UnifiedPlaybackApps.KNOWN) {
             boolean installed = app.installedPackage(this) != null;
-            CheckBox use = StreamUi.toggle(this, app.name + (installed ? "  ·  Instalada" : "  ·  No instalada"),
+            Switch use = StreamUi.toggle(this, app.name + (installed ? "  ·  Instalada" : "  ·  No instalada"),
                     UnifiedPlaybackApps.selected(this, app));
             use.setOnCheckedChangeListener((v, checked) -> save("playback_source_" + app.key, checked));
             use.setTag("playback:" + app.key);
@@ -383,6 +402,10 @@ public final class UnifiedCatalogSettingsActivity extends Activity {
             UnifiedCatalogPrefs.move(this, provider, direction);
             show(section, tag);
         });
+        StreamUi.background(button, false, true);
+        button.setMinHeight(dp(38));
+        button.setMinWidth(dp(38));
+        button.setPadding(dp(8), dp(6), dp(8), dp(6));
         button.setContentDescription((direction < 0 ? "Subir prioridad: " : "Bajar prioridad: ") + provider.name);
         button.setTag(tag);
         LinearLayout.LayoutParams size = new LinearLayout.LayoutParams(-2, -2);
@@ -406,10 +429,11 @@ public final class UnifiedCatalogSettingsActivity extends Activity {
         toggle("Ocultar títulos completados (95% o más)", UnifiedCatalogPrefs.CONTINUE_HIDE_FINISHED, true);
         toggle("Incluir otras apps que compartan Watch Next", UnifiedCatalogPrefs.CONTINUE_OTHER_APPS, false);
         action("Antigüedad máxima  ·  " + UnifiedCatalogPrefs.continueMaxAge(this) + " días", v -> chooseAge(), "age");
+        description("FUENTES DE SEGUIR VIENDO");
         description("Fuentes que pueden alimentar esta lista:");
         for (UnifiedCatalogPrefs.Provider provider : UnifiedCatalogPrefs.CONTINUE_SOURCES) {
             boolean installed = provider.installedPackage(this) != null;
-            CheckBox use = StreamUi.toggle(this, provider.name + (installed ? "  ·  Instalada" : "  ·  No instalada"),
+            Switch use = StreamUi.toggle(this, provider.name + (installed ? "  ·  Instalada" : "  ·  No instalada"),
                     UnifiedCatalogPrefs.continueSourceSelected(this, provider));
             use.setOnCheckedChangeListener((v, checked) -> save("continue_source_" + provider.key, checked));
             use.setTag("continue:" + provider.key);
@@ -601,8 +625,14 @@ public final class UnifiedCatalogSettingsActivity extends Activity {
     }
 
     private TextView description(String message) {
-        TextView label = text(message, 15, StreamUi.DIM, false);
-        label.setPadding(0, dp(9), 0, dp(9));
+        // React parity: uppercase section captions are subdued, letter-spaced
+        // group headings instead of paragraphs or decorative cards.
+        boolean group = message.equals(message.toUpperCase(java.util.Locale.ROOT))
+                && message.matches(".*[A-ZÁÉÍÓÚ].*") && message.length() < 64;
+        TextView label = text(message, group ? 11 : 13,
+                group ? 0xFF9898A4 : StreamUi.DIM, group);
+        if (group) label.setLetterSpacing(.16f);
+        label.setPadding(0, dp(group ? 20 : 7), 0, dp(group ? 5 : 9));
         add(content, label);
         return label;
     }
@@ -615,16 +645,64 @@ public final class UnifiedCatalogSettingsActivity extends Activity {
 
     private void left(View view) { view.setNextFocusLeftId(tabs.get(section).getId()); }
 
+    /**
+     * React-style split setting row. The end value and chevron remain visible
+     * at TV distance, while the native clickable row retains the focus tag,
+     * click handler, TalkBack label and DPAD navigation.
+     */
     private void action(String label, View.OnClickListener click, String tag) {
-        TextView button = StreamUi.control(this, label, R.drawable.uic_chevron_right, false, click);
-        StreamUi.background(button, false, true);
-        button.setTag(tag);
-        left(button);
-        add(content, button);
+        String marker = "  ·  ";
+        int split = label.indexOf(marker);
+        String name = split < 0 ? label : label.substring(0, split);
+        String value = split < 0 ? "" : label.substring(split + marker.length());
+        LinearLayout row = new LinearLayout(this);
+        row.setId(View.generateViewId());
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setMinimumHeight(dp(48));
+        row.setPadding(dp(14), dp(6), dp(12), dp(6));
+        row.setBackground(StreamUi.buttonBackground(this, false, true));
+        row.setFocusable(true);
+        row.setClickable(true);
+        row.setOnClickListener(click);
+        row.setContentDescription(label);
+        row.setTag(tag);
+
+        TextView nameView = text(name, 14, StreamUi.WHITE, true);
+        nameView.setMaxLines(2);
+        nameView.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        nameView.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+        row.addView(nameView, new LinearLayout.LayoutParams(0, -2, 1));
+
+        TextView valueView = text(value, 12, StreamUi.DIM, false);
+        valueView.setMaxWidth(dp(185));
+        valueView.setMaxLines(2);
+        valueView.setGravity(Gravity.END);
+        valueView.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        valueView.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+        if (!value.isEmpty()) {
+            LinearLayout.LayoutParams meta = new LinearLayout.LayoutParams(-2, -2);
+            meta.setMarginStart(dp(8));
+            row.addView(valueView, meta);
+        }
+
+        ImageView chevron = new ImageView(this);
+        chevron.setImageResource(R.drawable.uic_chevron_right);
+        chevron.setColorFilter(0xFF91919B);
+        chevron.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+        LinearLayout.LayoutParams arrow = new LinearLayout.LayoutParams(dp(16), dp(16));
+        arrow.setMarginStart(dp(10));
+        row.addView(chevron, arrow);
+        row.setOnFocusChangeListener((view, focused) -> {
+            valueView.setTextColor(focused ? StreamUi.WHITE : StreamUi.DIM);
+            chevron.setColorFilter(focused ? StreamUi.WHITE : 0xFF91919B);
+        });
+        left(row);
+        add(content, row);
     }
 
     private void toggle(String title, String key, boolean fallback) {
-        CheckBox check = StreamUi.toggle(this, title, UnifiedCatalogPrefs.prefs(this).getBoolean(key, fallback));
+        Switch check = StreamUi.toggle(this, title, UnifiedCatalogPrefs.prefs(this).getBoolean(key, fallback));
         check.setOnCheckedChangeListener((view, value) -> save(key, value));
         check.setTag("toggle:" + key);
         left(check);
