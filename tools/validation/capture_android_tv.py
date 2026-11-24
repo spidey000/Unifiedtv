@@ -19,6 +19,7 @@ p.add_argument('--avd', default='unifiedtv')
 p.add_argument('--apk', type=Path, required=True)
 p.add_argument('--output', type=Path, required=True)
 p.add_argument('--software', action='store_true')
+p.add_argument('--resolutions', nargs='+', choices=['720p','1080p','4k'], default=['720p','1080p','4k'])
 a = p.parse_args()
 a.output.mkdir(parents=True, exist_ok=True)
 sdk = Path(os.environ['ANDROID_HOME'])
@@ -84,7 +85,9 @@ def configure(width,height,density):
 env = os.environ.copy()
 if a.software:
     env['ANDROID_I_WANT_MY_TCG'] = 'yes'
-for width,height,density in [(1280,720,213),(1920,1080,320),(3840,2160,640)]:
+for label,width,height,density in [('720p',1280,720,213),('1080p',1920,1080,320),('4k',3840,2160,640)]:
+    if label not in a.resolutions:
+        continue
     expected_size = (width,height)
     size = f'{width}x{height}'
     configure(width,height,density)
@@ -92,7 +95,7 @@ for width,height,density in [(1280,720,213),(1920,1080,320),(3840,2160,640)]:
     # Starting both together races into an unauthorized device on fresh runners.
     cmd('start-server')
     args = [str(sdk/'emulator/emulator'),'-avd',a.avd,'-skin',size,'-no-window',
-            '-no-audio','-no-snapshot','-gpu','swiftshader_indirect','-memory','1536']
+            '-no-audio','-no-boot-anim','-no-snapshot','-gpu','swiftshader_indirect','-memory','2048']
     if a.software:
         args += ['-accel','off']
     with (a.output/('emulator-'+size+'.log')).open('w') as log:
