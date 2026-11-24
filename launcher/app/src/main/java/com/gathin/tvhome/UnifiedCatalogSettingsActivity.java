@@ -61,24 +61,29 @@ public final class UnifiedCatalogSettingsActivity extends Activity {
         for (int i = 0; i < SECTIONS.length; i++) {
             final int index = i;
             TextView tab = StreamUi.control(this, SECTIONS[i], SECTION_ICONS[i], false, v -> show(index, null));
-            StreamUi.background(tab, false, true);
+            StreamUi.navigation(tab);
             tabs.add(tab);
             add(rail, tab);
         }
-        add(rail, StreamUi.control(this, "Volver", R.drawable.uic_arrow_left, false, v -> finish()));
+        TextView back = StreamUi.control(this, "Volver", R.drawable.uic_arrow_left,
+                false, v -> finish());
+        StreamUi.navigation(back);
+        add(rail, back);
         railScroll.addView(rail);
         root.addView(railScroll, new LinearLayout.LayoutParams(dp(178), -1));
         scroll = new ScrollView(this);
         scroll.setVerticalScrollBarEnabled(false);
         scroll.setFillViewport(true);
+        scroll.setClipToPadding(false);
         content = StreamUi.column(this);
-        content.setPadding(dp(24), dp(16), dp(24), dp(24));
+        content.setPadding(dp(24), dp(16), dp(24), dp(40));
         scroll.addView(content);
         root.addView(scroll, new LinearLayout.LayoutParams(0, -1, 1));
         setContentView(root);
         spatial = new TvSpatialNavigation(railScroll, scroll);
         focusObserver = (previous, current) -> {
             spatial.remember(current);
+            if (TvSpatialNavigation.inside(scroll, current)) revealSettingsFocus(current);
             if (TvSpatialNavigation.inside(railScroll, current)) {
                 restoredFocus = null;
             } else if (TvSpatialNavigation.inside(scroll, current)
@@ -135,6 +140,23 @@ public final class UnifiedCatalogSettingsActivity extends Activity {
     private int dp(int n) { return StreamUi.dp(this, n); }
     private TextView text(String value, int size, int color, boolean bold) {
         return StreamUi.text(this, value, size, color, bold);
+    }
+
+    /**
+     * Preserve the entire focused settings row after DPAD navigation, including
+     * on 540p TVs and the long Permissions/Platforms panels.
+     */
+    private void revealSettingsFocus(View focused) {
+        focused.post(() -> {
+            if (!focused.isFocused() || scroll.getHeight() == 0
+                    || !TvSpatialNavigation.inside(scroll, focused)) return;
+            android.graphics.Rect bounds = new android.graphics.Rect(
+                    0, 0, focused.getWidth(), focused.getHeight());
+            scroll.offsetDescendantRectToMyCoords(focused, bounds);
+            int shift = TvFocusViewport.scrollDelta(bounds.top, bounds.bottom,
+                    scroll.getScrollY(), scroll.getHeight(), dp(12));
+            if (shift != 0) scroll.smoothScrollBy(0, shift);
+        });
     }
 
     private void show(int selected, String focusTag) {
@@ -595,6 +617,7 @@ public final class UnifiedCatalogSettingsActivity extends Activity {
 
     private void action(String label, View.OnClickListener click, String tag) {
         TextView button = StreamUi.control(this, label, R.drawable.uic_chevron_right, false, click);
+        StreamUi.background(button, false, true);
         button.setTag(tag);
         left(button);
         add(content, button);

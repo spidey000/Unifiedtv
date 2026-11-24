@@ -117,8 +117,11 @@ final class TvSpatialNavigation {
 
     private static boolean move(View destination) {
         if (destination == null || !destination.requestFocus()) return false;
+        // The actual focus outline can extend outside the view's measured bounds.
+        int inset = Math.round(6 * destination.getResources().getDisplayMetrics().density);
         destination.requestRectangleOnScreen(
-                new Rect(0, 0, destination.getWidth(), destination.getHeight()), false);
+                new Rect(-inset, -inset, destination.getWidth() + inset,
+                        destination.getHeight() + inset), false);
         return true;
     }
 

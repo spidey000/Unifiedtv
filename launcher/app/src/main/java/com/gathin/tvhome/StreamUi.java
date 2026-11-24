@@ -69,12 +69,11 @@ final class StreamUi {
     }
 
     static GradientDrawable panel(Context c) {
-        return glass(c, 0xE9212128, 0x44FFFFFF, 1);
+        return glass(c, 0xF21C1C21, 0, 0);
     }
 
     static GradientDrawable rail(Context c) {
-        return new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, new int[]{
-                0xFF121217, BLACK, shade(accent(c), .14f), BLACK});
+        return shape(c, 0xFF121216, 0, Color.TRANSPARENT);
     }
 
     static int dp(Context context, int value) {
@@ -114,14 +113,63 @@ final class StreamUi {
 
     static StateListDrawable buttonBackground(Context c, boolean primary, boolean bare) {
         StateListDrawable drawable = new StateListDrawable();
-        Drawable active = glass(c, 0x503F3F49, visibleAccent(c), 1);
+        Drawable active = glass(c, 0xFF34343A, 0, 0);
         drawable.addState(new int[]{-android.R.attr.state_enabled}, glass(c, 0x301B1B21, 0, 0));
-        drawable.addState(FOCUS, glass(c, 0xE64B4B57, WHITE, 2));
-        drawable.addState(new int[]{android.R.attr.state_activated}, glass(c, 0x553F3F49, visibleAccent(c), 1));
+        drawable.addState(FOCUS, glass(c, 0xFF55555D, 0, 0));
+        drawable.addState(new int[]{android.R.attr.state_activated}, glass(c, 0xFF34343A, 0, 0));
         drawable.addState(SELECTED, active);
-        drawable.addState(DEFAULT, primary ? glass(c, 0xE63B3B46, 0x66FFFFFF, 1)
+        drawable.addState(DEFAULT, primary ? glass(c, 0xFF45454C, 0, 0)
                 : bare ? shape(c, Color.TRANSPARENT, 10, Color.TRANSPARENT) : panel(c));
         return drawable;
+    }
+
+    /**
+     * The selected route is identified by its accent icon/text only. The stronger
+     * neutral surface is reserved for the item under DPAD focus; this avoids
+     * making two adjacent menu entries look simultaneously focused.
+     */
+    static void navigation(TextView control) {
+        Context c = control.getContext();
+        int[] focused = {android.R.attr.state_focused};
+        int[] selected = {android.R.attr.state_selected};
+        int[] idle = {};
+        StateListDrawable surfaces = new StateListDrawable();
+        surfaces.addState(focused, shape(c, 0xFF55555D, 9, Color.TRANSPARENT));
+        surfaces.addState(selected, shape(c, Color.TRANSPARENT, 9, Color.TRANSPARENT));
+        surfaces.addState(idle, shape(c, Color.TRANSPARENT, 9, Color.TRANSPARENT));
+        int left = control.getPaddingLeft(), top = control.getPaddingTop();
+        int right = control.getPaddingRight(), bottom = control.getPaddingBottom();
+        control.setBackground(surfaces);
+        control.setPadding(left, top, right, bottom);
+        ColorStateList colors = new ColorStateList(
+                new int[][]{focused, selected, idle},
+                new int[]{WHITE, readableAccent(c), DIM});
+        control.setTextColor(colors);
+        control.setCompoundDrawableTintList(colors);
+    }
+
+    /** Only the principal hero action gets a light Netflix-style treatment. */
+    static void heroPrimary(TextView control) {
+        Context c = control.getContext();
+        StateListDrawable surface = new StateListDrawable();
+        surface.addState(new int[]{android.R.attr.state_focused},
+                shape(c, 0xFFFFFFFF, 8, 0xFF777780));
+        surface.addState(new int[]{},
+                shape(c, 0xFFF3F3F4, 8, Color.TRANSPARENT));
+        control.setBackground(surface);
+        control.setTextColor(0xFF151519);
+        control.setCompoundDrawableTintList(ColorStateList.valueOf(0xFF151519));
+        control.setOnFocusChangeListener((view, focused) -> {
+            view.animate().cancel();
+            if (motionEnabled()) {
+                view.animate().scaleX(focused ? 1.035f : 1f)
+                        .scaleY(focused ? 1.035f : 1f)
+                        .setDuration(FOCUS_ANIM_MS).start();
+            } else {
+                view.setScaleX(focused ? 1.035f : 1f);
+                view.setScaleY(focused ? 1.035f : 1f);
+            }
+        });
     }
 
     static void background(View view, boolean primary, boolean bare) {
@@ -173,7 +221,7 @@ final class StreamUi {
         box.setChecked(value);
         box.setMinHeight(dp(c, 46));
         box.setPadding(dp(c, 8), dp(c, 4), dp(c, 10), dp(c, 4));
-        background(box, false, false);
+        background(box, false, true);
         box.setButtonTintList(new ColorStateList(new int[][]{{android.R.attr.state_checked}, DEFAULT},
                 new int[]{readableAccent(c), DIM}));
         return box;
@@ -194,7 +242,7 @@ final class StreamUi {
                 dialog.setOnShowListener(ignored -> {
                     dialog.getWindow().setBackgroundDrawable(panel(c));
                     if (dialog.getListView() != null) {
-                        dialog.getListView().setSelector(glass(c, 0xC83F3F49, WHITE, 2));
+                        dialog.getListView().setSelector(glass(c, 0xFF55555D, 0, 0));
                         dialog.getListView().setDrawSelectorOnTop(false);
                     }
                     for (int which : new int[]{AlertDialog.BUTTON_POSITIVE, AlertDialog.BUTTON_NEGATIVE,
