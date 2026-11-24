@@ -32,11 +32,17 @@ records = []
 expected_size = (1920,1080)
 
 def cmd(*args, input_data=None):
-    r = subprocess.run([adb,*map(str,args)], stdout=subprocess.PIPE,
-                       stderr=subprocess.PIPE, timeout=45, input=input_data)
-    if r.returncode:
-        raise RuntimeError(r.stderr.decode(errors='replace'))
-    return r.stdout
+    for attempt in range(6):
+        r = subprocess.run([adb,*map(str,args)], stdout=subprocess.PIPE,
+                           stderr=subprocess.PIPE, timeout=45, input=input_data)
+        if not r.returncode:
+            return r.stdout
+        error = r.stderr.decode(errors='replace')
+        if attempt < 5 and any(reason in error.lower() for reason in
+                               ['device offline','no devices/emulators found','device not found']):
+            time.sleep(1)
+            continue
+        raise RuntimeError(error)
 
 def key(*keys):
     cmd('shell','input','keyevent',*keys)
@@ -114,8 +120,9 @@ for label,width,height,density in [('720p',1280,720,213),('1080p',1920,1080,320)
                 time.sleep(2)
             else:
                 raise TimeoutError('Android TV did not boot within five minutes')
-            cmd('shell','wm','size','reset')
-            cmd('shell','wm','density','reset')
+            cmd('shell','wm','size',size)
+            cmd('shell','wm','density',str(density))
+            time.sleep(1)
             print(cmd('shell','wm','size').decode(),flush=True)
             cmd('install','-r',str(a.apk.resolve()))
             cmd('shell','am','force-stop',pkg)

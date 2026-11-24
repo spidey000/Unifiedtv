@@ -29,8 +29,8 @@ final class StreamUi {
     static final int FOCUS_SURFACE = 0xFF55555D;
     static final int SELECTED_SURFACE = 0xFF28282F;
     static final long FOCUS_ANIM_MS = 180;
-    static final int SAFE_HORIZONTAL_DP = 24;
-    static final int SAFE_VERTICAL_DP = 14;
+    static final int SAFE_HORIZONTAL_DP = 48;
+    static final int SAFE_VERTICAL_DP = 27;
     static final int RAIL_DP = 52;
     static final long ART_ANIM_MS = 190;
     private static final String ACCENT_KEY = "accent_color";

@@ -9,7 +9,7 @@
 .audit-note{display:none}
 
 /* TV-safe viewport: dp geometry at a 960x540 logical reference. */
-:root { --rating:#f4c66f; --safe-x:2.5vw; --safe-y:2.59vh; }
+:root { --rating:#f4c66f; --safe-x:5vw; --safe-y:5vh; }
 .main-shell { padding:var(--safe-y) var(--safe-x); position:relative; }
 .main-nav { position:absolute; left:var(--safe-x); top:var(--safe-y); bottom:var(--safe-y); width:104px; padding:20px 14px; transition:width 180ms ease; }
 .main-nav.expanded,.main-nav:focus-within { width:300px; }
@@ -28,7 +28,7 @@
 /* Render one 1920x1080 reference stage at TV density, including text and controls. */
 #root { width:1920px; height:1080px; transform:scale(var(--preview-scale,1)); transform-origin:top left; }
 .frag { height:100%; }
-.main-shell,.settings-shell { width:100%; height:100%; padding:28px 48px; }
-.main-nav { left:48px; top:28px; bottom:28px; }
+.main-shell,.settings-shell { width:100%; height:100%; padding:54px 96px; }
+.main-nav { left:96px; top:54px; bottom:54px; }
 .poster { padding:18px 12px; }
 .audit-note { display:block; }

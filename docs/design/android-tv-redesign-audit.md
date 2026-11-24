@@ -9,7 +9,7 @@ No se reemplazan esas integraciones ni se modifican `addons/`.
 
 Tokens: fondo #0B0B0F, panel #19191E, texto #F7F7F8, secundario #B7B7C0,
 acento configurable #E3293F, estrella #F4C66F, transición de foco 180 ms.
-La referencia lógica 960×540 dp usa márgenes horizontales 24 dp y verticales 14 dp.
+La referencia lógica 960×540 dp usa márgenes horizontales 48 dp y verticales 27 dp.
 La barra mantiene 52 dp colapsada y se expande por encima del contenido.
 Se conservan seis columnas, pósteres 2:3 y banners de apps 16:9.
 El foco conserva escala moderada e insets; 106 % no cabe en todas las celdas existentes.
@@ -59,3 +59,5 @@ web, contenido real con una clave TMDB de prueba, pulsación larga, QR móvil/TV
 retorno desde reproductores instalados, actualizaciones con firma oficial y prueba
 física de legibilidad/overscan. La APK local usa la clave debug y no sustituye una
 release oficial. El pipeline existente firma y publica las versiones de main.
+
+Referencia de márgenes seguros: https://developer.android.com/training/tv/playback/compose/layouts#overscan
