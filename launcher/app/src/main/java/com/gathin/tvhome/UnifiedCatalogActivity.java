@@ -169,9 +169,9 @@ public final class UnifiedCatalogActivity extends Activity {
         route(rail, Page.MOVIES, "Películas", R.drawable.uic_film);
         route(rail, Page.SERIES, "Series", R.drawable.ic_livetv);
         route(rail, Page.SEARCH, "Buscar", R.drawable.uic_search);
-        route(rail, Page.WATCH, "Mi lista", R.drawable.uic_layers);
+        route(rail, Page.WATCH, "Seguir viendo", R.drawable.uic_layers);
         route(rail, Page.APPS, "Apps y fuentes", R.drawable.ic_apps);
-        route(rail, Page.LIVE, "TV en directo", R.drawable.ic_livetv);
+        route(rail, Page.LIVE, "Entradas de TV", R.drawable.ic_livetv);
         rail.addView(new View(this), new LinearLayout.LayoutParams(1, 0, 1));
         TextView settings = StreamUi.control(this, "Ajustes", R.drawable.ic_settings, false,
                 v -> startActivity(new Intent(this, UnifiedCatalogSettingsActivity.class)));
@@ -193,6 +193,7 @@ public final class UnifiedCatalogActivity extends Activity {
         spatial.setPreferredRail(routes.get(page));
         railFocus = (previous, current) -> {
             spatial.remember(current);
+            if (TvSpatialNavigation.inside(scroll, current)) revealContentFocus(current);
             boolean hadFocus = previous != null && previous.getParent() == rail;
             boolean hasFocus = current != null && current.getParent() == rail;
             if (hadFocus == hasFocus) return;
@@ -209,6 +210,27 @@ public final class UnifiedCatalogActivity extends Activity {
             railAnimation.start();
         };
         getWindow().getDecorView().getViewTreeObserver().addOnGlobalFocusChangeListener(railFocus);
+    }
+
+    /**
+     * Focus can grow 2.5% beyond its poster bounds. Scroll the outer page by
+     * enough to expose that outline, without changing the horizontal focus slot
+     * managed by pinCarouselFocus().
+     */
+    private void revealContentFocus(View focused) {
+        focused.post(() -> {
+            if (!focused.isFocused() || scroll == null || scroll.getHeight() == 0
+                    || !TvSpatialNavigation.inside(scroll, focused)) return;
+            android.graphics.Rect bounds = new android.graphics.Rect(
+                    0, 0, focused.getWidth(), focused.getHeight());
+            scroll.offsetDescendantRectToMyCoords(focused, bounds);
+            int margin = dp(14);
+            int top = scroll.getScrollY() + margin;
+            int bottom = scroll.getScrollY() + scroll.getHeight() - margin;
+            int delta = bounds.bottom > bottom ? bounds.bottom - bottom
+                    : bounds.top < top ? bounds.top - top : 0;
+            if (delta != 0) scroll.smoothScrollBy(0, delta);
+        });
     }
 
     private void clearRailListener() {
@@ -236,7 +258,7 @@ public final class UnifiedCatalogActivity extends Activity {
     }
 
     private void styleRailControl(TextView control) {
-        StreamUi.background(control, false, true);
+        StreamUi.navigation(control);
         control.setTextSize(11);
         control.setContentDescription(control.getText());
         control.setPadding(dp(11), 0, dp(4), 0);
@@ -270,15 +292,15 @@ public final class UnifiedCatalogActivity extends Activity {
         pageBody = StreamUi.column(this);
         pageBody.setClipChildren(false);
         pageBody.setClipToPadding(false);
-        pageBody.setPadding(0, 0, 0, dp(24));
+        pageBody.setPadding(0, 0, 0, dp(40));
         scroll.addView(pageBody);
         viewport.addView(scroll, new FrameLayout.LayoutParams(-1, -1));
         switch (page) {
             case HOME: case MOVIES: case SERIES: home(stamp, refresh); break;
             case WATCH: title("Seguir viendo", "Todos los títulos compartidos con Android TV"); watch(stamp); break;
             case LIVE:
-                title("TV en directo", "Sintonizador y entradas de la TV");
-                link("Ver entradas disponibles", R.drawable.ic_input, v -> UnifiedTvHome.openInputs(this));
+                title("Entradas de TV", "Sintonizador y fuentes conectadas al televisor");
+                link("Abrir entradas y fuentes", R.drawable.ic_input, v -> UnifiedTvHome.openInputs(this));
                 break;
             case SEARCH: searchPage(stamp); break;
             case APPS: apps(stamp); break;
@@ -432,11 +454,12 @@ public final class UnifiedCatalogActivity extends Activity {
                 v -> openMedia(result.get(hero.index), (TextView) v, stamp));
         leftToRail(watch);
         styleHeroAction(watch);
-        actions.addView(watch, new LinearLayout.LayoutParams(-2, dp(28)));
+        StreamUi.heroPrimary(watch);
+        actions.addView(watch, new LinearLayout.LayoutParams(-2, dp(32)));
         TextView details = StreamUi.control(this, "Más información", R.drawable.uic_info, false,
                 v -> details(result.get(hero.index)));
         styleHeroAction(details);
-        LinearLayout.LayoutParams detailSize = new LinearLayout.LayoutParams(-2, dp(28));
+        LinearLayout.LayoutParams detailSize = new LinearLayout.LayoutParams(-2, dp(32));
         detailSize.setMarginStart(dp(7));
         actions.addView(details, detailSize);
 
@@ -883,7 +906,7 @@ public final class UnifiedCatalogActivity extends Activity {
         GridLayout grid = new GridLayout(this);
         grid.setColumnCount(UnifiedCatalogLayout.COLUMNS);
         grid.setOrientation(GridLayout.HORIZONTAL);
-        grid.setPadding(dp(CONTENT_START), dp(10), dp(CONTENT_END), dp(14));
+        grid.setPadding(dp(CONTENT_START), dp(10), dp(CONTENT_END), dp(23));
         grid.setClipChildren(false);
         grid.setClipToPadding(false);
         pageBody.addView(grid, new LinearLayout.LayoutParams(-1, -2));
@@ -1322,7 +1345,7 @@ public final class UnifiedCatalogActivity extends Activity {
         GridLayout grid = new GridLayout(this);
         grid.setColumnCount(UnifiedCatalogLayout.COLUMNS);
         grid.setOrientation(GridLayout.HORIZONTAL);
-        grid.setPadding(dp(CONTENT_START), dp(7), dp(CONTENT_END), dp(15));
+        grid.setPadding(dp(CONTENT_START), dp(7), dp(CONTENT_END), dp(23));
         grid.setClipChildren(false);
         grid.setClipToPadding(false);
         pageBody.addView(grid, new LinearLayout.LayoutParams(-1, -2));
