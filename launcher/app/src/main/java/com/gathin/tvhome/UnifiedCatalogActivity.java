@@ -224,11 +224,8 @@ public final class UnifiedCatalogActivity extends Activity {
             android.graphics.Rect bounds = new android.graphics.Rect(
                     0, 0, focused.getWidth(), focused.getHeight());
             scroll.offsetDescendantRectToMyCoords(focused, bounds);
-            int margin = dp(14);
-            int top = scroll.getScrollY() + margin;
-            int bottom = scroll.getScrollY() + scroll.getHeight() - margin;
-            int delta = bounds.bottom > bottom ? bounds.bottom - bottom
-                    : bounds.top < top ? bounds.top - top : 0;
+            int delta = TvFocusViewport.scrollDelta(bounds.top, bounds.bottom,
+                    scroll.getScrollY(), scroll.getHeight(), dp(14));
             if (delta != 0) scroll.smoothScrollBy(0, delta);
         });
     }
