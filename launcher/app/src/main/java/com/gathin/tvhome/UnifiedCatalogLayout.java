@@ -64,5 +64,17 @@ final class UnifiedCatalogLayout {
     static int row(int index) { return index / COLUMNS; }
     static int column(int index) { return index % COLUMNS; }
 
+    /** 44% of the safe viewport, with enough room for two title lines and actions. */
+    static int heroHeightDp(int safeHeightDp, float fontScale) {
+        int copyHeight = Math.round(200 * Math.max(1f, fontScale)) + 24;
+        return Math.max(copyHeight, Math.round(safeHeightDp * .44f));
+    }
+
+    /** Last incomplete grid row remains reachable from every column above it. */
+    static int below(int index, int count) {
+        int nextRow = (row(index) + 1) * COLUMNS;
+        return nextRow < count ? Math.min(index + COLUMNS, count - 1) : -1;
+    }
+
     private UnifiedCatalogLayout() {}
 }

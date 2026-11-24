@@ -59,6 +59,32 @@ public class UnifiedCatalogLayoutTest {
         }
     }
 
+    @Test public void compactHeroLeavesRoomForAnEntireShelfAtTvDensities() {
+        // 720p @ tvdpi, 1080p @ xhdpi, 4K @ xxxhdpi share a 960x540dp viewport.
+        for (int safeHeight : new int[]{486, 512, 692, 1052}) {
+            int hero = UnifiedCatalogLayout.heroHeightDp(safeHeight, 1f);
+            assertTrue(hero >= 224);
+            assertTrue(hero < safeHeight / 2);
+        }
+        int width = UnifiedCatalogLayout.posterWidthDp(864, 52, 21, 12, 7);
+        int hero = UnifiedCatalogLayout.heroHeightDp(486, 1f);
+        assertTrue(hero + UnifiedCatalogLayout.posterHeightDp(width) + 64 <= 486);
+        assertTrue(UnifiedCatalogLayout.heroHeightDp(512, 1.3f) > hero);
+    }
+
+    @Test public void incompleteLastGridRowIsReachableFromEveryColumn() {
+        for (int count = 7; count < 36; count++) {
+            for (int index = 0; index < count; index++) {
+                int next = UnifiedCatalogLayout.below(index, count);
+                if (UnifiedCatalogLayout.row(index) < UnifiedCatalogLayout.row(count - 1)) {
+                    assertTrue(next > index);
+                    assertTrue(next < count);
+                    assertEquals(UnifiedCatalogLayout.row(index) + 1, UnifiedCatalogLayout.row(next));
+                } else assertEquals(-1, next);
+            }
+        }
+    }
+
     @Test public void geometryRemainsPositiveOnNarrowScreens() {
         int poster = UnifiedCatalogLayout.posterWidthDp(320, 52, 21, 12, 7);
         assertTrue(poster > 0);

@@ -1,0 +1,1 @@
+Maqueta React RECONSTRUIDA a partir del código Android. NO es el prototipo original del día anterior ni la APK. Para abrirla, ejecutar en esta carpeta: python -m http.server 8000 y acceder a http://localhost:8000 . Requiere un navegador con JavaScript. Para generar capturas: python run_audit.py (requiere Playwright y Chromium en /usr/bin/chromium).

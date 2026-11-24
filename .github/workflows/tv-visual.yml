@@ -1,0 +1,66 @@
+name: TV visual validation
+on:
+  pull_request:
+    paths: ['launcher/**', 'tools/visual-lab/**', 'tools/validation/**', '.github/workflows/tv-visual.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  react:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - run: |
+          python -m pip install playwright
+          python -m playwright install --with-deps chromium
+          python tools/visual-lab/export_native_resources.py
+          python tools/visual-lab/run_audit.py
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: react-visual-review
+          path: tools/visual-lab/capturas/
+          retention-days: 7
+  android-tv:
+    name: Android TV ${{ matrix.resolution }} (API ${{ matrix.api }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { api: 30, abi: x86, resolution: 720p }
+          - { api: 30, abi: x86, resolution: 1080p }
+          - { api: 36, abi: x86_64, resolution: 4k }
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Make room for the UHD system image
+        if: matrix.api == 36
+        run: sudo rm -rf /usr/share/dotnet
+      - uses: android-actions/setup-android@9fc6c4e9069bf8d3d10b2204b1fb8f6ef7065407
+        with:
+          packages: platforms;android-34 build-tools;34.0.0 emulator platform-tools system-images;android-${{ matrix.api }};android-tv;${{ matrix.abi }}
+      - uses: gradle/actions/setup-gradle@748248ddd2a24f49513d8f472f81c3a07d4d50e1
+      - name: Enable emulator acceleration
+        run: sudo chmod 666 /dev/kvm
+      - name: Build and capture real Android screens
+        run: |
+          cd launcher
+          bash gradlew --no-daemon -PlauncherApplicationId=io.github.spidey000.unifiedtv assembleDebug
+          cd ..
+          export ANDROID_AVD_HOME="$RUNNER_TEMP/unifiedtv-avd"
+          mkdir -p "$ANDROID_AVD_HOME"
+          avdmanager --verbose create avd --force -n unifiedtv -p "$ANDROID_AVD_HOME/unifiedtv.avd" -k 'system-images;android-${{ matrix.api }};android-tv;${{ matrix.abi }}' --device tv_1080p
+          test -f "$ANDROID_AVD_HOME/unifiedtv.ini"
+          python tools/validation/capture_android_tv.py --apk launcher/app/build/outputs/apk/debug/app-debug.apk --output native-captures --resolutions ${{ matrix.resolution }}
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: android-tv-native-${{ matrix.resolution }}
+          path: native-captures/
+          retention-days: 7

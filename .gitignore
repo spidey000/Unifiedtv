@@ -30,3 +30,7 @@ keystore.properties
 key.properties
 launcher/hs_err_pid*.log
 launcher/replay_pid*.log
+
+# Generated visual audit output and derived Android resources.
+tools/visual-lab/capturas/
+tools/visual-lab/assets/native-resources.js

@@ -25,10 +25,13 @@ final class StreamUi {
     static final int DIM = 0xFFB7B7C0;
     static final int DEFAULT_ACCENT = 0xFFE3293F;
     static final int BORDER = 0xFF34343E;
-    static final int RATING = 0xFF99E3B6;
+    static final int RATING = 0xFFF4C66F;
     static final int FOCUS_SURFACE = 0xFF55555D;
     static final int SELECTED_SURFACE = 0xFF28282F;
-    static final long FOCUS_ANIM_MS = 210;
+    static final long FOCUS_ANIM_MS = 180;
+    static final int SAFE_HORIZONTAL_DP = 48;
+    static final int SAFE_VERTICAL_DP = 27;
+    static final int RAIL_DP = 52;
     static final long ART_ANIM_MS = 190;
     private static final String ACCENT_KEY = "accent_color";
     private static final int[] FOCUS = {android.R.attr.state_focused};

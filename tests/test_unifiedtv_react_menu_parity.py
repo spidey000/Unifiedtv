@@ -45,17 +45,17 @@ class ReactMenuParityTests(unittest.TestCase):
         self.assertIn("heading.setLetterSpacing(-.025f)", s)
         self.assertIn("tab.setMinHeight(dp(38))", s)
 
-    def test_expanding_rail_shifts_content_and_reduces_motion(self):
+    def test_expanding_rail_preserves_content_and_reduces_motion(self):
         main = self.read("UnifiedCatalogActivity.java")
         self.assertIn("resizeNavigation(rail, target)", main)
-        self.assertIn("body.leftMargin = width", main)
+        self.assertNotIn("body.leftMargin = width", main)
         self.assertIn("if (!StreamUi.motionEnabled())", main)
-        self.assertIn("railAnimation.setDuration(220)", main)
+        self.assertIn("railAnimation.setDuration(StreamUi.FOCUS_ANIM_MS)", main)
 
     def test_focused_cards_scroll_in_content_coordinates(self):
         for name in ("UnifiedCatalogActivity.java", "UnifiedCatalogSettingsActivity.java"):
             source = self.read(name)
-            self.assertIn("bounds.offset(0, scroll.getScrollY())", source)
+            self.assertNotIn("bounds.offset(0, scroll.getScrollY())", source)
             self.assertIn("TvFocusViewport.scrollDelta(", source)
         self.assertIn("new Rect(-inset, -inset, destination.getWidth() + inset",
                       self.read("TvSpatialNavigation.java"))
