@@ -64,6 +64,7 @@ public final class UnifiedCatalogActivity extends Activity {
     private LinearLayout pageBody;
     private Page page = Page.HOME;
     private volatile int revision;
+    private boolean resumed;
     private String settingsSnapshot;
     private String query = "";
     private boolean returning;
@@ -130,8 +131,35 @@ public final class UnifiedCatalogActivity extends Activity {
         if (event.getAction() == KeyEvent.ACTION_DOWN
                 && event.getKeyCode() >= KeyEvent.KEYCODE_DPAD_UP
                 && event.getKeyCode() <= KeyEvent.KEYCODE_DPAD_CENTER) pendingFocusKey = null;
+        View focused = getCurrentFocus();
+        if (event.getAction() == KeyEvent.ACTION_DOWN
+                && event.getKeyCode() == KeyEvent.KEYCODE_DPAD_DOWN
+                && focused != null && ("hero:watch".equals(focused.getTag())
+                || "hero:details".equals(focused.getTag()))) {
+            View first = firstContentCard(pageBody);
+            if (first != null && first.requestFocus()) {
+                first.requestRectangleOnScreen(new android.graphics.Rect(
+                        0, 0, first.getWidth(), first.getHeight()), false);
+                return true;
+            }
+        }
         return (spatial != null && spatial.onKey(getCurrentFocus(), event))
                 || super.dispatchKeyEvent(event);
+    }
+
+    private View firstContentCard(View view) {
+        Object tag = view.getTag();
+        if (view.isFocusable() && view.isEnabled() && tag instanceof String
+                && (((String) tag).startsWith("media:") || ((String) tag).startsWith("watch:")))
+            return view;
+        if (view instanceof android.view.ViewGroup) {
+            android.view.ViewGroup group = (android.view.ViewGroup) view;
+            for (int i = 0; i < group.getChildCount(); i++) {
+                View found = firstContentCard(group.getChildAt(i));
+                if (found != null) return found;
+            }
+        }
+        return null;
     }
 
     @Override protected void onSaveInstanceState(Bundle state) {
@@ -146,6 +174,7 @@ public final class UnifiedCatalogActivity extends Activity {
 
     @Override protected void onResume() {
         super.onResume();
+        resumed = true;
         UnifiedAppUpdater.onResume(this);
         UnifiedAppUpdater.checkAutomatically(this);
         String snapshot = snapshot();
@@ -351,6 +380,11 @@ public final class UnifiedCatalogActivity extends Activity {
             case SEARCH: searchPage(stamp); break;
             case APPS: apps(stamp); break;
         }
+    }
+
+    @Override protected void onPause() {
+        resumed = false;
+        super.onPause();
     }
 
     private boolean live(int stamp) { return stamp == revision && !isFinishing(); }
@@ -594,7 +628,7 @@ public final class UnifiedCatalogActivity extends Activity {
             catch (Exception ignored) { /* Local players work without the catalog network. */ }
             UnifiedCatalogRoute.Target target = UnifiedCatalogRoute.resolve(this, media);
             runOnUiThread(() -> {
-                if (!live(stamp) || !hasWindowFocus()) {
+                if (!live(stamp) || !resumed) {
                     if (live(stamp) && button != null) button.setEnabled(true);
                     return;
                 }
@@ -713,26 +747,22 @@ public final class UnifiedCatalogActivity extends Activity {
     }
 
     /**
-     * Optional catalogue mode: category groups become horizontal columns.
-     * Every group has two inner poster columns (2:3 cards); the whole page
-     * scrolls vertically and categories scroll sideways. No 16:9 previews.
+     * Three category groups per row, each with two poster columns.
+     * Additional categories wrap vertically; there is no lateral scroll.
      */
     private void columnCatalog(int stamp, String kind, boolean refresh, FrameLayout spotlight) {
-        HorizontalScrollView horizontal = new HorizontalScrollView(this);
-        horizontal.setHorizontalScrollBarEnabled(false);
-        horizontal.setClipChildren(false);
-        horizontal.setClipToPadding(false);
-        horizontal.setFocusable(false);
-        LinearLayout categories = new LinearLayout(this);
-        categories.setOrientation(LinearLayout.HORIZONTAL);
+        GridLayout categories = new GridLayout(this);
+        categories.setColumnCount(3);
         categories.setClipChildren(false);
         categories.setClipToPadding(false);
         categories.setPadding(dp(CONTENT_START), dp(9), dp(CONTENT_END), dp(18));
-        horizontal.addView(categories);
-        pageBody.addView(horizontal, new LinearLayout.LayoutParams(-1, -2));
+        pageBody.addView(categories, new LinearLayout.LayoutParams(-1, -2));
 
-        final int slotWidth = Math.max(96, Math.min(145, coverWidth()));
-        final int sectionWidth = 2 * (slotWidth + CARD_GAP) + 14;
+        int usable = getResources().getConfiguration().screenWidthDp
+                - 2 * StreamUi.SAFE_HORIZONTAL_DP - RAIL_COLLAPSED - CONTENT_START - CONTENT_END;
+        // Include group padding, both cell margins and density rounding in the budget.
+        final int sectionWidth = UnifiedCatalogLayout.categoryWidthDp(usable, CARD_GAP);
+        final int slotWidth = UnifiedCatalogLayout.categorySlotWidthDp(sectionWidth, CARD_GAP);
         List<FrameLayout> cards = new ArrayList<>();
         List<Runnable> loaders = new ArrayList<>();
         Runnable preload = () -> {
@@ -741,7 +771,6 @@ public final class UnifiedCatalogActivity extends Activity {
                 if (cards.get(i).getGlobalVisibleRect(visible)) loaders.get(i).run();
             }
         };
-        horizontal.setOnScrollChangeListener((v, x, y, oldX, oldY) -> preload.run());
         scroll.setOnScrollChangeListener((v, x, y, oldX, oldY) -> preload.run());
 
         for (int categoryIndex = 0; categoryIndex < FILTERS.length; categoryIndex++) {
@@ -750,9 +779,11 @@ public final class UnifiedCatalogActivity extends Activity {
             section.setClipChildren(false);
             section.setClipToPadding(false);
             section.setPadding(dp(5), 0, dp(5), dp(6));
-            LinearLayout.LayoutParams sectionParams =
-                    new LinearLayout.LayoutParams(dp(sectionWidth), -2);
-            sectionParams.setMarginEnd(dp(CARD_GAP));
+            GridLayout.LayoutParams sectionParams = new GridLayout.LayoutParams(
+                    GridLayout.spec(category / 3, GridLayout.TOP), GridLayout.spec(category % 3));
+            sectionParams.width = dp(sectionWidth);
+            sectionParams.height = -2;
+            sectionParams.setMarginEnd(category % 3 == 2 ? 0 : dp(CARD_GAP));
             categories.addView(section, sectionParams);
             TextView heading = text(LABELS[category], 16, StreamUi.WHITE, true);
             heading.setPadding(dp(6), dp(4), 0, dp(11));
@@ -778,7 +809,7 @@ public final class UnifiedCatalogActivity extends Activity {
                     FrameLayout card = mediaCard(() -> openMedia(media, null, stamp));
                     card.setTag("media:" + category + ":" + media.type + ":" + media.id);
                     card.setOnLongClickListener(v -> { details(media); return true; });
-                    if (i == 0) leftToRail(card);
+                    if (i % 2 == 0 && category % 3 == 0) leftToRail(card);
                     GridLayout.LayoutParams layout = new GridLayout.LayoutParams(
                             GridLayout.spec(i / 2), GridLayout.spec(i % 2));
                     layout.width = dp(UnifiedCatalogLayout.cardWidthDp(slotWidth));
@@ -817,17 +848,6 @@ public final class UnifiedCatalogActivity extends Activity {
                         }
                         if (focused) {
                             load.run();
-                            view.post(() -> {
-                                if (!view.isFocused()) return;
-                                int left = section.getLeft();
-                                int right = section.getRight();
-                                int visibleLeft = horizontal.getScrollX();
-                                int visibleRight = visibleLeft + horizontal.getWidth();
-                                if (left < visibleLeft)
-                                    horizontal.smoothScrollTo(Math.max(0, left - dp(9)), 0);
-                                else if (right > visibleRight)
-                                    horizontal.smoothScrollTo(right - horizontal.getWidth() + dp(9), 0);
-                            });
                         }
                     });
                 }
@@ -840,13 +860,12 @@ public final class UnifiedCatalogActivity extends Activity {
         }
     }
 
-    /** Dark-glass provider logo belongs to the service that will open automatically. */
+    /** Transparent provider identity, independent of content-link availability. */
     private ImageView providerIcon(FrameLayout card) {
         ImageView icon = new ImageView(this);
         icon.setScaleType(ImageView.ScaleType.FIT_CENTER);
         icon.setPadding(dp(5), dp(3), dp(5), dp(3));
-        icon.setBackground(StreamUi.shape(this, 0xE51A1A22, 7, 0x44FFFFFF));
-        icon.setClipToOutline(true);
+        icon.setBackground(null);
         icon.setVisibility(View.GONE);
         icon.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
         // Horizontal wordmark badge: avoids the unreadable 29x29 TMDB icon.
@@ -863,21 +882,23 @@ public final class UnifiedCatalogActivity extends Activity {
             if (revision != stamp) return;
             try { UnifiedCatalogApi.availability(this, media); }
             catch (Exception ignored) { return; }
-            UnifiedCatalogRoute.Target target = UnifiedCatalogRoute.resolve(this, media);
-            if (target == null || revision != stamp) return;
+            UnifiedCatalogPrefs.Provider provider = UnifiedCatalogRoute.badgeProvider(this, media);
+            if (provider == null || revision != stamp) return;
+            String packageName = provider.installedPackage(this);
             String badge = UnifiedCatalogPrefs.posterBadge(this);
             if (UnifiedCatalogPrefs.BADGE_HIDDEN.equals(badge)) return;
             boolean appIcon = UnifiedCatalogPrefs.BADGE_APP_ICON.equals(badge);
-            int wordmark = appIcon ? 0 : UnifiedProviderWordmarks.forKey(target.provider.key);
+            int wordmark = appIcon ? 0 : UnifiedProviderWordmarks.forKey(provider.key);
             Drawable installedIcon = null;
             if (appIcon) {
-                try { installedIcon = getPackageManager().getApplicationIcon(target.packageName); }
+                try { installedIcon = getPackageManager().getApplicationIcon(packageName); }
                 catch (PackageManager.NameNotFoundException ignored) { }
             }
             final Drawable appDrawable = installedIcon;
-            Bitmap tmdbLogo = !appIcon && wordmark == 0 ? UnifiedCatalogApi.logo(this,
-                    UnifiedCatalogApi.logoPath(media, target.provider)) : null;
-            if ((appIcon && appDrawable == null) || (!appIcon && wordmark == 0 && tmdbLogo == null)) return;
+            // Unknown brands use plain transparent text, never an opaque TMDB logo tile.
+            final Drawable textLogo = !appIcon && wordmark == 0
+                    ? UnifiedProviderWordmarks.textLogo(this, provider.name) : null;
+            if (appIcon && appDrawable == null) return;
             runOnUiThread(() -> {
                 if (!live(stamp)) return;
                 FrameLayout.LayoutParams slot = (FrameLayout.LayoutParams) icon.getLayoutParams();
@@ -891,11 +912,12 @@ public final class UnifiedCatalogActivity extends Activity {
                     icon.setImageResource(wordmark);
                     UnifiedProviderWordmarks.applyTint(icon, wordmark);
                 } else {
-                    icon.setImageBitmap(tmdbLogo);
+                    icon.setImageDrawable(textLogo);
                 }
                 icon.setVisibility(View.VISIBLE);
-                card.setContentDescription(media.title + " · Se abrirá en "
-                        + target.provider.name + (UnifiedCatalogPrefs.showRatings(this) && media.hasRating()
+                card.setContentDescription(media.title + (provider == UnifiedCatalogPrefs.NUVIO
+                        ? " · Proveedor P2P de último recurso: " : " · Disponible en: ")
+                        + provider.name + (UnifiedCatalogPrefs.showRatings(this) && media.hasRating()
                         ? " · ★ " + media.ratingText() : ""));
             });
         });
@@ -1544,6 +1566,10 @@ public final class UnifiedCatalogActivity extends Activity {
 
     /** Long press: comprehensive TMDB sheet; never starts playback on its own. */
     private void details(UnifiedCatalogApi.Media media) {
+        details(media, () -> openMedia(media, null, revision));
+    }
+
+    private void details(UnifiedCatalogApi.Media media, Runnable openTitle) {
         Dialog dialog = new Dialog(this);
         dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
         LinearLayout root = new LinearLayout(this);
@@ -1588,7 +1614,7 @@ public final class UnifiedCatalogActivity extends Activity {
         buttons.setGravity(Gravity.CENTER_VERTICAL);
         TextView open = StreamUi.control(this, "Abrir título", R.drawable.uic_play, true, v -> {
             dialog.dismiss();
-            openMedia(media, null, revision);
+            openTitle.run();
         });
         StreamUi.heroPrimary(open);
         buttons.addView(open, new LinearLayout.LayoutParams(-2, dp(36)));
@@ -1639,7 +1665,7 @@ public final class UnifiedCatalogActivity extends Activity {
                         : names.isEmpty() ? "Sin proveedores configurados disponibles según TMDB"
                         : "Disponible en: " + TextUtils.join(" · ", names);
                 platforms.setText(availability + (players.isEmpty() ? ""
-                        : "\nReproductores instalados: " + TextUtils.join(" · ", players)));
+                        : "\nOtras aplicaciones instaladas: " + TextUtils.join(" · ", players)));
             });
         });
     }
@@ -1668,7 +1694,8 @@ public final class UnifiedCatalogActivity extends Activity {
                     String year = date.length() >= 4 ? date.substring(0, 4) : "";
                     details(new UnifiedCatalogApi.Media(result.id, result.type,
                             item.title, result.poster, year, result.voteAverage,
-                            result.voteCount, result.backdrop, result.overview));
+                            result.voteCount, result.backdrop, result.overview),
+                            () -> UnifiedWatchNext.open(this, item));
                 } else {
                     String message = "Aplicación: " + item.source
                             + (item.releaseDate.isEmpty() ? ""

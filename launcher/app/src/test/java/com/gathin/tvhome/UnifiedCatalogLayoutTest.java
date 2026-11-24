@@ -85,6 +85,23 @@ public class UnifiedCatalogLayoutTest {
         }
     }
 
+    @Test public void threeDoubleColumnCategoriesFitIncludingAllMargins() {
+        for (int usable : new int[]{540, 640, 760, 800, 1000, 1600}) {
+            int group = UnifiedCatalogLayout.categoryWidthDp(usable, 7);
+            int slot = UnifiedCatalogLayout.categorySlotWidthDp(group, 7);
+            int cell = UnifiedCatalogLayout.cardWidthDp(slot)
+                    + 2 * UnifiedCatalogLayout.FOCUS_INSET_X_DP + 7;
+            assertTrue(2 * cell + 10 <= group);
+            assertTrue(3 * group + 2 * 7 + 6 <= usable);
+            for (float density : new float[]{1f, 1.33125f, 1.5f, 2f, 3f, 4f}) {
+                int actualPixels = 3 * Math.round(group * density) + 2 * Math.round(7 * density);
+                assertTrue(actualPixels <= Math.floor(usable * density));
+            }
+            assertTrue(UnifiedCatalogLayout.cardHeightDp(slot)
+                    > UnifiedCatalogLayout.cardWidthDp(slot));
+        }
+    }
+
     @Test public void geometryRemainsPositiveOnNarrowScreens() {
         int poster = UnifiedCatalogLayout.posterWidthDp(320, 52, 21, 12, 7);
         assertTrue(poster > 0);

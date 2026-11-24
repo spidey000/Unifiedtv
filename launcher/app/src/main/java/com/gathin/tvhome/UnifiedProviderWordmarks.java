@@ -63,6 +63,21 @@ final class UnifiedProviderWordmarks {
         }
     }
 
+    /** Plain transparent text for providers without bundled artwork (e.g. Nuvio/Filmin). */
+    static android.graphics.drawable.Drawable textLogo(android.content.Context context, String name) {
+        android.graphics.Paint paint = new android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG);
+        paint.setColor(android.graphics.Color.WHITE);
+        paint.setTypeface(android.graphics.Typeface.create("sans-serif", android.graphics.Typeface.BOLD));
+        paint.setTextSize(40);
+        int width = Math.max(1, (int) Math.ceil(paint.measureText(name)));
+        android.graphics.Paint.FontMetrics metrics = paint.getFontMetrics();
+        int height = Math.max(1, (int) Math.ceil(metrics.descent - metrics.ascent));
+        android.graphics.Bitmap bitmap = android.graphics.Bitmap.createBitmap(
+                width, height, android.graphics.Bitmap.Config.ARGB_8888);
+        new android.graphics.Canvas(bitmap).drawText(name, 0, -metrics.ascent, paint);
+        return new android.graphics.drawable.BitmapDrawable(context.getResources(), bitmap);
+    }
+
     static void applyTint(ImageView image, int resourceId) {
         image.clearColorFilter();
         // The pre-rendered Netflix wordmark is white; the brand red contrasts with dark glass.

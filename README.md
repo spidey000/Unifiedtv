@@ -15,7 +15,8 @@ servicio: puede depender de los enlaces públicos de la plataforma.
 2. Abre **Ajustes → Catálogo** y vincula una clave TMDB con QR o mando.
 3. En **Ajustes → Permisos**, comprueba el acceso a Android TV
    Watch Next, las actualizaciones y los permisos opcionales del mando.
-4. En **Ajustes → Plataformas**, selecciona proveedores y reproductores.
+4. En **Ajustes → Plataformas**, selecciona proveedores y reproductores. Nuvio se configura como proveedor P2P
+   de último recurso, después de los servicios con oferta en TMDB.
 5. En **Ajustes → Apariencia**, selecciona overlay: logotipo con nombre,
    icono de aplicación o ninguno. Configura también la puntuación ★ TMDB.
 6. Para volver al inicio original del televisor, entra en **Ajustes → Recuperación**

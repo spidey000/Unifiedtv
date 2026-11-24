@@ -15,7 +15,10 @@
 ## Catálogo y reproducción
 - `UnifiedCatalogApi`: TMDB, cacheo de JSON, imágenes, disponibilidad TMDB.
 - `UnifiedCatalogRoute`: deep links verificables de plataformas;
-  Nuvio/Stremio y otras apps instaladas son destinos independientes.
+  Nuvio es el proveedor P2P de último recurso cuando no hay oferta en los
+  proveedores seleccionados e instalados; Stremio y otras apps son destinos
+  independientes. Las insignias identifican oferta regional, aunque aún no
+  exista un enlace directo. No prometen reproducción en Nuvio.
 - `UnifiedWatchNext`: datos publicados por canales Android TV cuando el usuario
   conceda el permiso; no accede al historial interno privado de las apps.
 - `UnifiedProviderWordmarks`: 23 marcas empaquetadas, mapeo por proveedor/paquete;

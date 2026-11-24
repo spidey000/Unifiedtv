@@ -61,6 +61,15 @@ final class UnifiedCatalogLayout {
                 - cardHeightDp(slotWidthDp) - FOCUS_INSET_TOP_DP);
     }
 
+    /** Three double-column groups include outer gaps and a density-rounding reserve. */
+    static int categoryWidthDp(int usableDp, int gapDp) {
+        return Math.max(1, (usableDp - 2 * gapDp - 6) / 3);
+    }
+
+    static int categorySlotWidthDp(int groupWidthDp, int gapDp) {
+        return Math.max(1, (groupWidthDp - 10) / 2 - gapDp);
+    }
+
     static int row(int index) { return index / COLUMNS; }
     static int column(int index) { return index % COLUMNS; }
 
