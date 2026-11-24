@@ -176,7 +176,7 @@ public final class UnifiedCatalogActivity extends Activity {
         TextView settings = StreamUi.control(this, "Ajustes", R.drawable.ic_settings, false,
                 v -> startActivity(new Intent(this, UnifiedCatalogSettingsActivity.class)));
         styleRailControl(settings);
-        rail.addView(settings, new LinearLayout.LayoutParams(-1, dp(29)));
+        rail.addView(settings, new LinearLayout.LayoutParams(-1, dp(33)));
         viewport = new FrameLayout(this);
         viewport.setClipChildren(false);
         viewport.setClipToPadding(false);
@@ -199,14 +199,15 @@ public final class UnifiedCatalogActivity extends Activity {
             if (hadFocus == hasFocus) return;
             if (railAnimation != null) railAnimation.cancel();
             for (TextView label : labels) label.setText(hasFocus ? label.getContentDescription() : "");
-            railAnimation = ValueAnimator.ofInt(rail.getLayoutParams().width,
-                    dp(hasFocus ? railWidth() : RAIL_COLLAPSED));
+            int target = dp(hasFocus ? railWidth() : RAIL_COLLAPSED);
+            if (!StreamUi.motionEnabled()) {
+                resizeNavigation(rail, target);
+                return;
+            }
+            railAnimation = ValueAnimator.ofInt(rail.getLayoutParams().width, target);
             railAnimation.setDuration(220);
-            railAnimation.addUpdateListener(animation -> {
-                android.view.ViewGroup.LayoutParams size = rail.getLayoutParams();
-                size.width = (int) animation.getAnimatedValue();
-                rail.setLayoutParams(size);
-            });
+            railAnimation.addUpdateListener(animation ->
+                    resizeNavigation(rail, (int) animation.getAnimatedValue()));
             railAnimation.start();
         };
         getWindow().getDecorView().getViewTreeObserver().addOnGlobalFocusChangeListener(railFocus);
@@ -221,13 +222,29 @@ public final class UnifiedCatalogActivity extends Activity {
         focused.post(() -> {
             if (!focused.isFocused() || scroll == null || scroll.getHeight() == 0
                     || !TvSpatialNavigation.inside(scroll, focused)) return;
+            int extra = dp(5);
             android.graphics.Rect bounds = new android.graphics.Rect(
-                    0, 0, focused.getWidth(), focused.getHeight());
+                    -extra, -extra, focused.getWidth() + extra,
+                    focused.getHeight() + extra);
             scroll.offsetDescendantRectToMyCoords(focused, bounds);
             int delta = TvFocusViewport.scrollDelta(bounds.top, bounds.bottom,
                     scroll.getScrollY(), scroll.getHeight(), dp(14));
             if (delta != 0) scroll.smoothScrollBy(0, delta);
         });
+    }
+
+    /** Match React flex navigation: opening the rail shifts the content viewport. */
+    private void resizeNavigation(LinearLayout rail, int width) {
+        android.view.ViewGroup.LayoutParams size = rail.getLayoutParams();
+        if (size.width != width) {
+            size.width = width;
+            rail.setLayoutParams(size);
+        }
+        FrameLayout.LayoutParams body = (FrameLayout.LayoutParams) viewport.getLayoutParams();
+        if (body.leftMargin != width) {
+            body.leftMargin = width;
+            viewport.setLayoutParams(body);
+        }
     }
 
     private void clearRailListener() {
@@ -244,19 +261,21 @@ public final class UnifiedCatalogActivity extends Activity {
     private void route(LinearLayout rail, Page destination, String label, int icon) {
         TextView control = StreamUi.control(this, label, icon, false, v -> show(destination, false));
         styleRailControl(control);
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-1, dp(29));
-        lp.bottomMargin = dp(9);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-1, dp(33));
+        lp.bottomMargin = dp(7);
         rail.addView(control, lp);
         routes.put(destination, control);
     }
 
     private int railWidth() {
-        return Math.max(128, Math.min(152, getResources().getConfiguration().screenWidthDp * 12 / 100));
+        return Math.max(136, Math.min(156,
+                getResources().getConfiguration().screenWidthDp * 15 / 100));
     }
 
     private void styleRailControl(TextView control) {
         StreamUi.navigation(control);
-        control.setTextSize(11);
+        control.setTextSize(12);
+        control.setMinHeight(dp(32));
         control.setContentDescription(control.getText());
         control.setPadding(dp(11), 0, dp(4), 0);
         control.setSingleLine(true);
