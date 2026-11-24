@@ -20,7 +20,7 @@ class NativeVisualParityTests(unittest.TestCase):
         settings = (SRC / "UnifiedCatalogSettingsActivity.java").read_text()
         self.assertIn('static void navigation(TextView control)', stream)
         self.assertIn('static void heroPrimary(TextView control)', stream)
-        self.assertIn('surfaces.addState(selected, shape(c, Color.TRANSPARENT', stream)
+        self.assertIn('surfaces.addState(selected, shape(c, SELECTED_SURFACE', stream)
         self.assertIn('StreamUi.navigation(control)', main)
         self.assertIn('StreamUi.navigation(tab)', settings)
         self.assertIn('StreamUi.heroPrimary(watch)', main)
