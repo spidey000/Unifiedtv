@@ -123,6 +123,55 @@ final class StreamUi {
         return drawable;
     }
 
+    /**
+     * The selected route is identified by its accent icon/text only. The stronger
+     * neutral surface is reserved for the item under DPAD focus; this avoids
+     * making two adjacent menu entries look simultaneously focused.
+     */
+    static void navigation(TextView control) {
+        Context c = control.getContext();
+        int[] focused = {android.R.attr.state_focused};
+        int[] selected = {android.R.attr.state_selected};
+        int[] idle = {};
+        StateListDrawable surfaces = new StateListDrawable();
+        surfaces.addState(focused, shape(c, 0xFF55555D, 9, Color.TRANSPARENT));
+        surfaces.addState(selected, shape(c, Color.TRANSPARENT, 9, Color.TRANSPARENT));
+        surfaces.addState(idle, shape(c, Color.TRANSPARENT, 9, Color.TRANSPARENT));
+        int left = control.getPaddingLeft(), top = control.getPaddingTop();
+        int right = control.getPaddingRight(), bottom = control.getPaddingBottom();
+        control.setBackground(surfaces);
+        control.setPadding(left, top, right, bottom);
+        ColorStateList colors = new ColorStateList(
+                new int[][]{focused, selected, idle},
+                new int[]{WHITE, readableAccent(c), DIM});
+        control.setTextColor(colors);
+        control.setCompoundDrawableTintList(colors);
+    }
+
+    /** Only the principal hero action gets a light Netflix-style treatment. */
+    static void heroPrimary(TextView control) {
+        Context c = control.getContext();
+        StateListDrawable surface = new StateListDrawable();
+        surface.addState(new int[]{android.R.attr.state_focused},
+                shape(c, 0xFFFFFFFF, 8, 0xFF777780));
+        surface.addState(new int[]{},
+                shape(c, 0xFFF3F3F4, 8, Color.TRANSPARENT));
+        control.setBackground(surface);
+        control.setTextColor(0xFF151519);
+        control.setCompoundDrawableTintList(ColorStateList.valueOf(0xFF151519));
+        control.setOnFocusChangeListener((view, focused) -> {
+            view.animate().cancel();
+            if (motionEnabled()) {
+                view.animate().scaleX(focused ? 1.035f : 1f)
+                        .scaleY(focused ? 1.035f : 1f)
+                        .setDuration(FOCUS_ANIM_MS).start();
+            } else {
+                view.setScaleX(focused ? 1.035f : 1f);
+                view.setScaleY(focused ? 1.035f : 1f);
+            }
+        });
+    }
+
     static void background(View view, boolean primary, boolean bare) {
         int left = view.getPaddingLeft(), top = view.getPaddingTop();
         int right = view.getPaddingRight(), bottom = view.getPaddingBottom();
