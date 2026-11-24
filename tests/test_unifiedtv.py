@@ -93,7 +93,7 @@ class UnifiedTvTests(unittest.TestCase):
     def test_movies_and_series_use_side_rail_without_hero_tabs(self):
         home = (JAVA / "UnifiedCatalogActivity.java").read_text(encoding="utf-8")
         self.assertIn('route(rail, Page.MOVIES, "Películas", R.drawable.uic_film)', home)
-        self.assertIn('route(rail, Page.SERIES, "Series", R.drawable.ic_livetv)', home)
+        self.assertIn('route(rail, Page.SERIES, "Series", R.drawable.uic_layers)', home)
         self.assertIn('page == Page.SERIES ? "tv" : "movie"', home)
         self.assertNotIn("addHomeTabs", home)
         self.assertNotIn("R.id.moviesTab", home)

@@ -23,6 +23,11 @@ public final class TvFocusViewportTest {
         assertEquals(-12, TvFocusViewport.scrollDelta(0, 400, 0, 300, 12));
     }
 
+    @Test public void visibleContentDoesNotJumpAfterThePageHasScrolled() {
+        assertEquals(0, TvFocusViewport.scrollDelta(420, 600, 400, 300, 14));
+        assertEquals(24, TvFocusViewport.scrollDelta(610, 710, 400, 300, 14));
+    }
+
     @Test public void doesNotScrollWithoutAViewport() {
         assertEquals(0, TvFocusViewport.scrollDelta(200, 320, 100, 0, 14));
     }

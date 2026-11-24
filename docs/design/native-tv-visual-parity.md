@@ -24,7 +24,7 @@ demostración al dispositivo.
 - Foco del mando distinto de la ruta seleccionada: el seleccionado no compite
   con el foco y mantiene el acento visual incluso con el lateral colapsado.
 - Botón `Ver ahora` más claro; se conserva su acción real y deep link.
-- Scroll vertical de contenido y ajustes con un margen adicional para revelar
+- Scroll vertical de contenido y ajustes en coordenadas de contenido, con un margen adicional para revelar
   el elemento enfocado, sin interferir con el desplazamiento horizontal de
   carruseles ni con el editor de búsqueda.
 - Espacio inferior adicional en pantallas con scroll y grids de seis columnas.
@@ -46,3 +46,5 @@ Verificar en equipo real: el elemento enfocado debe estar enteramente visible;
 las flechas no deben atraparse en menús; las filas de contenido deben conservar
 imágenes y overlays auténticos; el QR de TMDB, permisos y cambio de Home deben
 usar sus flujos nativos y mantener el foco al volver.
+
+Revisión posterior: [auditoría integral Android TV](android-tv-redesign-audit.md).

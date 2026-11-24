@@ -50,6 +50,8 @@ public final class UnifiedCatalogSettingsActivity extends Activity {
         super.onCreate(state);
         LinearLayout root = new LinearLayout(this);
         root.setBackgroundColor(StreamUi.BLACK);
+        root.setPadding(dp(StreamUi.SAFE_HORIZONTAL_DP), dp(StreamUi.SAFE_VERTICAL_DP),
+                dp(StreamUi.SAFE_HORIZONTAL_DP), dp(StreamUi.SAFE_VERTICAL_DP));
         LinearLayout rail = StreamUi.column(this);
         ScrollView railScroll = new ScrollView(this);
         railScroll.setBackground(StreamUi.rail(this));
@@ -160,8 +162,7 @@ public final class UnifiedCatalogSettingsActivity extends Activity {
             android.graphics.Rect bounds = new android.graphics.Rect(
                     0, 0, focused.getWidth(), focused.getHeight());
             scroll.offsetDescendantRectToMyCoords(focused, bounds);
-            // Convert viewport-relative bounds into content coordinates before scoring.
-            bounds.offset(0, scroll.getScrollY());
+            // Android already returns content coordinates; adding scrollY would double-count it.
             int shift = TvFocusViewport.scrollDelta(bounds.top, bounds.bottom,
                     scroll.getScrollY(), scroll.getHeight(), dp(12));
             if (shift != 0) scroll.smoothScrollBy(0, shift);

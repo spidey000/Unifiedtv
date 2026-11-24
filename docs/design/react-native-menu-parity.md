@@ -12,7 +12,7 @@ UnifiedTV, incluidos los logotipos originales y el flujo QR de TMDB.
 | React | Android TV |
 | --- | --- |
 | `.main-nav`  / `.nav-entry` | `UnifiedCatalogActivity.inflateShell` y `StreamUi.navigation` |
-| `.main-nav.expanded` | `resizeNavigation` mueve el rail **y el viewport** en 220 ms |
+| `.main-nav.expanded` | `resizeNavigation` expande solo el rail en 180 ms; el viewport conserva su ancho |
 | `.settings-sidebar` | Navegación `StreamUi.navigation`, altura 38 dp y tipografía 12 sp |
 | `.settings-h1` | Título 32 sp, tracking ajustado y margen inferior |
 | `.settings-group` | `description` detecta encabezados en mayúsculas, tamaño 11 sp y espaciado |
@@ -48,3 +48,5 @@ Prueba visual nativa adicional necesaria: comparar con el mosaico Chromium en
 720p y 1080p, abrir el rail desde cada sección, recorrer todos los switches y
 filas de Ajustes con DPAD, comprobar foco tras volver de permisos o QR,
 verificar los títulos largos y el final de las pantallas desplazables.
+
+Revisión posterior: [auditoría integral Android TV](android-tv-redesign-audit.md).

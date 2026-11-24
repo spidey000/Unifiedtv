@@ -14,6 +14,8 @@ import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
 import android.text.TextUtils;
+import android.text.Editable;
+import android.text.TextWatcher;
 import android.view.Gravity;
 import android.view.KeyEvent;
 import android.view.View;
@@ -46,7 +48,7 @@ public final class UnifiedCatalogActivity extends Activity {
     private static final int CONTENT_START = 21;
     private static final int CONTENT_END = 12;
     private static final int CARD_GAP = 7;
-    private static final int RAIL_COLLAPSED = 52;
+    private static final int RAIL_COLLAPSED = StreamUi.RAIL_DP;
     private int accent;
 
     private final ExecutorService data = Executors.newFixedThreadPool(3);
@@ -66,6 +68,21 @@ public final class UnifiedCatalogActivity extends Activity {
     private String query = "";
     private boolean returning;
     private boolean focusWatchGrid;
+    private String returnFocusKey, pendingFocusKey;
+    private int returnScrollY;
+
+    private void restoreContentFocus() {
+        if (pendingFocusKey == null) return;
+        View target = pageBody.findViewWithTag(pendingFocusKey);
+        if (target == null) return; // Async shelf may not have arrived yet.
+        pendingFocusKey = null;
+        target.post(() -> {
+            if (!target.isAttachedToWindow()) return;
+            scroll.scrollTo(0, returnScrollY);
+            target.requestFocus();
+            revealContentFocus(target);
+        });
+    }
 
     @Override protected void onCreate(Bundle state) {
         super.onCreate(state);
@@ -77,6 +94,8 @@ public final class UnifiedCatalogActivity extends Activity {
             if (page == Page.HOME && state.getBoolean("series", false))
                 page = Page.SERIES; // Migrate the former top tab.
             query = state.getString("query", "");
+            pendingFocusKey = state.getString("focusKey");
+            returnScrollY = state.getInt("scrollY", 0);
         }
         if (state == null) openRequestedPage(getIntent());
         settingsSnapshot = snapshot();
@@ -108,6 +127,9 @@ public final class UnifiedCatalogActivity extends Activity {
     }
 
     @Override public boolean dispatchKeyEvent(KeyEvent event) {
+        if (event.getAction() == KeyEvent.ACTION_DOWN
+                && event.getKeyCode() >= KeyEvent.KEYCODE_DPAD_UP
+                && event.getKeyCode() <= KeyEvent.KEYCODE_DPAD_CENTER) pendingFocusKey = null;
         return (spatial != null && spatial.onKey(getCurrentFocus(), event))
                 || super.dispatchKeyEvent(event);
     }
@@ -116,6 +138,10 @@ public final class UnifiedCatalogActivity extends Activity {
         super.onSaveInstanceState(state);
         state.putString("catalogPage", page.name());
         state.putString("query", query);
+        View focused = getCurrentFocus();
+        if (focused != null && focused.getTag() instanceof String)
+            state.putString("focusKey", (String) focused.getTag());
+        state.putInt("scrollY", scroll == null ? 0 : scroll.getScrollY());
     }
 
     @Override protected void onResume() {
@@ -132,6 +158,7 @@ public final class UnifiedCatalogActivity extends Activity {
         if (paletteChanged || !snapshot.equals(settingsSnapshot)
                 || (returning && (page == Page.WATCH || (page == Page.HOME && UnifiedCatalogPrefs.continueOnHome(this))))) {
             settingsSnapshot = snapshot;
+            pendingFocusKey = returnFocusKey;
             show(page, false);
             if (paletteChanged) routes.get(page).requestFocus();
         }
@@ -140,6 +167,10 @@ public final class UnifiedCatalogActivity extends Activity {
 
     @Override protected void onStop() {
         returning = true;
+        View focused = getCurrentFocus();
+        returnFocusKey = focused != null && focused.getTag() instanceof String
+                ? (String) focused.getTag() : null;
+        returnScrollY = scroll == null ? 0 : scroll.getScrollY();
         super.onStop();
     }
 
@@ -155,24 +186,26 @@ public final class UnifiedCatalogActivity extends Activity {
         routes.clear();
         FrameLayout root = new FrameLayout(this);
         root.setBackgroundColor(StreamUi.BLACK);
+        root.setPadding(dp(StreamUi.SAFE_HORIZONTAL_DP), dp(StreamUi.SAFE_VERTICAL_DP),
+                dp(StreamUi.SAFE_HORIZONTAL_DP), dp(StreamUi.SAFE_VERTICAL_DP));
         LinearLayout rail = StreamUi.column(this);
         rail.setBackgroundColor(0xF516161C);
-        rail.setPadding(dp(7), dp(15), dp(7), dp(41));
+        rail.setPadding(dp(7), dp(10), dp(7), dp(10));
         TextView mark = text(getString(R.string.unifiedtv_name), 17, StreamUi.WHITE, true);
         StreamUi.icon(mark, R.drawable.uic_play);
         mark.getCompoundDrawablesRelative()[0].setTint(StreamUi.visibleAccent(this));
-        mark.setPadding(dp(10), 0, 0, dp(36));
+        mark.setPadding(dp(10), 0, 0, dp(20));
         mark.setContentDescription(mark.getText());
         mark.setSingleLine(true);
         rail.addView(mark);
         route(rail, Page.HOME, "Inicio", R.drawable.uic_house);
         route(rail, Page.MOVIES, "Películas", R.drawable.uic_film);
-        route(rail, Page.SERIES, "Series", R.drawable.ic_livetv);
+        route(rail, Page.SERIES, "Series", R.drawable.uic_layers);
         route(rail, Page.SEARCH, "Buscar", R.drawable.uic_search);
         route(rail, Page.WATCH, "Seguir viendo", R.drawable.uic_layers);
         route(rail, Page.APPS, "Apps y fuentes", R.drawable.ic_apps);
         route(rail, Page.LIVE, "Entradas de TV", R.drawable.ic_livetv);
-        rail.addView(new View(this), new LinearLayout.LayoutParams(1, 0, 1));
+        rail.addView(new View(this), new LinearLayout.LayoutParams(1, dp(12)));
         TextView settings = StreamUi.control(this, "Ajustes", R.drawable.ic_settings, false,
                 v -> startActivity(new Intent(this, UnifiedCatalogSettingsActivity.class)));
         styleRailControl(settings);
@@ -205,7 +238,7 @@ public final class UnifiedCatalogActivity extends Activity {
                 return;
             }
             railAnimation = ValueAnimator.ofInt(rail.getLayoutParams().width, target);
-            railAnimation.setDuration(220);
+            railAnimation.setDuration(StreamUi.FOCUS_ANIM_MS);
             railAnimation.addUpdateListener(animation ->
                     resizeNavigation(rail, (int) animation.getAnimatedValue()));
             railAnimation.start();
@@ -227,26 +260,21 @@ public final class UnifiedCatalogActivity extends Activity {
                     -extra, -extra, focused.getWidth() + extra,
                     focused.getHeight() + extra);
             scroll.offsetDescendantRectToMyCoords(focused, bounds);
-            // Convert viewport-relative bounds into content coordinates before scoring.
-            bounds.offset(0, scroll.getScrollY());
+            // Android already returns content coordinates; adding scrollY would double-count it.
             int delta = TvFocusViewport.scrollDelta(bounds.top, bounds.bottom,
                     scroll.getScrollY(), scroll.getHeight(), dp(14));
             if (delta != 0) scroll.smoothScrollBy(0, delta);
         });
     }
 
-    /** Match React flex navigation: opening the rail shifts the content viewport. */
+    /** Expand over the catalog so poster widths and focus positions stay fixed. */
     private void resizeNavigation(LinearLayout rail, int width) {
         android.view.ViewGroup.LayoutParams size = rail.getLayoutParams();
         if (size.width != width) {
             size.width = width;
             rail.setLayoutParams(size);
         }
-        FrameLayout.LayoutParams body = (FrameLayout.LayoutParams) viewport.getLayoutParams();
-        if (body.leftMargin != width) {
-            body.leftMargin = width;
-            viewport.setLayoutParams(body);
-        }
+
     }
 
     private void clearRailListener() {
@@ -408,15 +436,15 @@ public final class UnifiedCatalogActivity extends Activity {
                 new int[]{StreamUi.BLACK, Color.TRANSPARENT}));
         panel.addView(fade, new FrameLayout.LayoutParams(-1, dp(52), Gravity.BOTTOM));
         LinearLayout copy = StreamUi.column(this);
-        copy.setPadding(dp(CONTENT_START + 15), dp(71), dp(24), dp(10));
+        copy.setPadding(dp(CONTENT_START), dp(12), dp(24), dp(14));
         copy.setGravity(Gravity.BOTTOM);
         panel.addView(copy, new FrameLayout.LayoutParams(-1, -1));
         TextView kicker = text(badge, 9, StreamUi.readableAccent(this), true);
         kicker.setLetterSpacing(.23f);
         copy.addView(kicker);
-        TextView headline = text(heading, 36, StreamUi.WHITE, true);
-        headline.setAllCaps(true);
-        headline.setLetterSpacing(.09f);
+        TextView headline = text(heading, 28, StreamUi.WHITE, true);
+        headline.setAllCaps(false);
+        headline.setLetterSpacing(-.02f);
         headline.setIncludeFontPadding(false);
         headline.setMaxLines(2);
         headline.setEllipsize(TextUtils.TruncateAt.END);
@@ -441,7 +469,9 @@ public final class UnifiedCatalogActivity extends Activity {
         description.setEllipsize(TextUtils.TruncateAt.END);
         copy.addView(description, new LinearLayout.LayoutParams(-2, -2));
         panel.setTag(new Spotlight(backdrop, copy, headline, score, meta, description));
-        int height = Math.max(255, Math.min(400, getResources().getConfiguration().screenHeightDp * 41 / 100 + 35));
+        int height = UnifiedCatalogLayout.heroHeightDp(
+                getResources().getConfiguration().screenHeightDp - 2 * StreamUi.SAFE_VERTICAL_DP,
+                getResources().getConfiguration().fontScale);
         pageBody.addView(panel, new LinearLayout.LayoutParams(-1, dp(height)));
         return panel;
     }
@@ -470,14 +500,16 @@ public final class UnifiedCatalogActivity extends Activity {
         hero.copy.addView(actions, lp);
         TextView watch = StreamUi.control(this, "Ver ahora", R.drawable.uic_play, true,
                 v -> openMedia(result.get(hero.index), (TextView) v, stamp));
+        watch.setTag("hero:watch");
         leftToRail(watch);
         styleHeroAction(watch);
         StreamUi.heroPrimary(watch);
-        actions.addView(watch, new LinearLayout.LayoutParams(-2, dp(32)));
+        actions.addView(watch, new LinearLayout.LayoutParams(-2, dp(36)));
         TextView details = StreamUi.control(this, "Más información", R.drawable.uic_info, false,
                 v -> details(result.get(hero.index)));
+        details.setTag("hero:details");
         styleHeroAction(details);
-        LinearLayout.LayoutParams detailSize = new LinearLayout.LayoutParams(-2, dp(32));
+        LinearLayout.LayoutParams detailSize = new LinearLayout.LayoutParams(-2, dp(36));
         detailSize.setMarginStart(dp(7));
         actions.addView(details, detailSize);
 
@@ -546,6 +578,7 @@ public final class UnifiedCatalogActivity extends Activity {
             dots.add(dot);
         }
         update.run();
+        restoreContentFocus();
     }
 
     private void styleHeroAction(TextView button) {
@@ -654,10 +687,11 @@ public final class UnifiedCatalogActivity extends Activity {
             for (int i = 0; i < result.size() - first; i++) {
                 UnifiedCatalogApi.Media media = result.get(i + first);
                 FrameLayout card = mediaTile(row, i, () -> openMedia(media, null, stamp));
+                card.setTag("media:" + category + ":" + media.type + ":" + media.id);
                 card.setOnLongClickListener(v -> { details(media); return true; });
                 ImageView cover = tileArt(card);
                 LinearLayout caption = caption(card);
-                TextView title = singleLine(media.title, 9, StreamUi.WHITE, true);
+                TextView title = posterTitle(media.title);
                 caption.addView(title);
                 TextView facts = singleLine(kindAndYear(media), 10, StreamUi.DIM, false);
                 caption.addView(facts);
@@ -671,6 +705,7 @@ public final class UnifiedCatalogActivity extends Activity {
                 bindTileFocus(card, loads, i, facts);
             }
             finishCarousel(row);
+            restoreContentFocus();
         }, () -> {
             row.removeAllViews();
             row.addView(text("No disponible. Revisa tu conexión o la configuración de TMDB.", 15, StreamUi.DIM, false));
@@ -741,6 +776,7 @@ public final class UnifiedCatalogActivity extends Activity {
                 for (int i = 0; i < result.size(); i++) {
                     UnifiedCatalogApi.Media media = result.get(i);
                     FrameLayout card = mediaCard(() -> openMedia(media, null, stamp));
+                    card.setTag("media:" + category + ":" + media.type + ":" + media.id);
                     card.setOnLongClickListener(v -> { details(media); return true; });
                     if (i == 0) leftToRail(card);
                     GridLayout.LayoutParams layout = new GridLayout.LayoutParams(
@@ -754,7 +790,7 @@ public final class UnifiedCatalogActivity extends Activity {
                     posters.addView(card, layout);
                     ImageView cover = tileArt(card);
                     LinearLayout caption = caption(card);
-                    TextView title = singleLine(media.title, 9, StreamUi.WHITE, true);
+                    TextView title = posterTitle(media.title);
                     caption.addView(title);
                     caption.addView(singleLine(kindAndYear(media), 9, StreamUi.DIM, false));
                     if (UnifiedCatalogPrefs.showRatings(this) && media.hasRating()) rating(card, media.ratingText());
@@ -796,6 +832,7 @@ public final class UnifiedCatalogActivity extends Activity {
                     });
                 }
                 posters.post(preload);
+                restoreContentFocus();
             }, () -> {
                 posters.removeAllViews();
                 posters.addView(text("No disponible", 12, StreamUi.DIM, false));
@@ -866,7 +903,8 @@ public final class UnifiedCatalogActivity extends Activity {
 
     /** End space allows even the last card to settle in the stationary focus slot. */
     private void finishCarousel(LinearLayout line) {
-        int room = getResources().getConfiguration().screenWidthDp - RAIL_COLLAPSED;
+        int room = getResources().getConfiguration().screenWidthDp
+                - 2 * StreamUi.SAFE_HORIZONTAL_DP - RAIL_COLLAPSED;
         int focusWidth = coverWidth();
         int trailing = Math.max(0, room - CONTENT_START - focusWidth - CONTENT_END);
         line.addView(new View(this), new LinearLayout.LayoutParams(dp(trailing), dp(1)));
@@ -883,7 +921,7 @@ public final class UnifiedCatalogActivity extends Activity {
 
     private int coverWidth() {
         return UnifiedCatalogLayout.posterWidthDp(
-                getResources().getConfiguration().screenWidthDp,
+                getResources().getConfiguration().screenWidthDp - 2 * StreamUi.SAFE_HORIZONTAL_DP,
                 RAIL_COLLAPSED, CONTENT_START, CONTENT_END, CARD_GAP);
     }
 
@@ -965,6 +1003,13 @@ public final class UnifiedCatalogActivity extends Activity {
         copy.setPadding(dp(7), dp(12), dp(7), dp(7));
         card.addView(copy, new FrameLayout.LayoutParams(-1, -2, Gravity.BOTTOM));
         return copy;
+    }
+
+    private TextView posterTitle(String title) {
+        TextView view = text(title, 11, StreamUi.WHITE, true);
+        view.setMaxLines(2);
+        view.setEllipsize(TextUtils.TruncateAt.END);
+        return view;
     }
 
     private TextView ratingBadge(String label) {
@@ -1097,8 +1142,8 @@ public final class UnifiedCatalogActivity extends Activity {
                 card.setNextFocusRightId(cards.get(i + 1).getId());
             if (i >= UnifiedCatalogLayout.COLUMNS)
                 card.setNextFocusUpId(cards.get(i - UnifiedCatalogLayout.COLUMNS).getId());
-            if (i + UnifiedCatalogLayout.COLUMNS < cards.size())
-                card.setNextFocusDownId(cards.get(i + UnifiedCatalogLayout.COLUMNS).getId());
+            int below = UnifiedCatalogLayout.below(i, cards.size());
+            if (below >= 0) card.setNextFocusDownId(cards.get(below).getId());
             final int index = i;
             card.setOnFocusChangeListener((view, focused) -> {
                 view.animate().cancel();
@@ -1257,6 +1302,7 @@ public final class UnifiedCatalogActivity extends Activity {
                     FrameLayout card = fullGrid
                             ? gridTile(grid, i, () -> UnifiedWatchNext.open(this, item))
                             : mediaTile(line, i, () -> UnifiedWatchNext.open(this, item));
+                    card.setTag("watch:" + item.providerPackage + ":" + item.intentUri);
                     cards.add(card);
                     // Short press opens the publisher's own item intent. Long press
                     // resolves a richer TMDB information sheet without playing media.
@@ -1264,7 +1310,7 @@ public final class UnifiedCatalogActivity extends Activity {
                     ImageView artwork = tileArt(card);
                     TextView score = ratingSlot(card);
                     LinearLayout copy = caption(card);
-                    TextView title = singleLine(item.title, 9, StreamUi.WHITE, true);
+                    TextView title = posterTitle(item.title);
                     copy.addView(title);
                     copy.addView(singleLine(item.source, 9, StreamUi.WHITE, true));
                     card.setContentDescription(item.title + " · " + item.source
@@ -1294,6 +1340,7 @@ public final class UnifiedCatalogActivity extends Activity {
                     loads.add(loadArtwork);
                     if (!fullGrid) bindTileFocus(card, loads, i, episode);
                 }
+                restoreContentFocus();
                 if (!fullGrid) finishCarousel(line);
                 if (fullGrid) {
                     connectGridFocus(cards, loads);
@@ -1327,25 +1374,40 @@ public final class UnifiedCatalogActivity extends Activity {
         field.setId(View.generateViewId());
         leftToRail(field);
         form.addView(field, new LinearLayout.LayoutParams(0, -2, 1));
-        Runnable submit = () -> {
+        Runnable search = () -> {
+            if (!field.isAttachedToWindow() || page != Page.SEARCH) return;
             query = field.getText().toString().trim();
+            int searchStamp = ++revision; // Late results from the previous query cannot replace these.
+            while (pageBody.getChildCount() > 2) pageBody.removeViewAt(2);
+            if (!query.isEmpty()) {
+                shelf(searchStamp, "Películas", "movie", "search", query, false);
+                shelf(searchStamp, "Series", "tv", "search", query, false);
+            }
+        };
+        Runnable submit = () -> {
+            field.removeCallbacks(search);
             getSystemService(InputMethodManager.class).hideSoftInputFromWindow(field.getWindowToken(), 0);
-            show(Page.SEARCH, false);
-            routes.get(Page.SEARCH).requestFocus();
+            search.run();
         };
         TextView go = StreamUi.control(this, "Buscar", R.drawable.uic_search, true, v -> submit.run());
         form.addView(go);
         field.setOnEditorActionListener((view, action, event) -> {
             if (action != EditorInfo.IME_ACTION_SEARCH) return false;
             submit.run();
+            go.requestFocus();
             return true;
+        });
+        field.addTextChangedListener(new TextWatcher() {
+            @Override public void beforeTextChanged(CharSequence value, int start, int count, int after) { }
+            @Override public void onTextChanged(CharSequence value, int start, int before, int count) {
+                field.removeCallbacks(search);
+                field.postDelayed(search, 450);
+            }
+            @Override public void afterTextChanged(Editable value) { }
         });
         pageBody.addView(form);
         routes.get(page).setNextFocusRightId(field.getId());
-        if (!query.isEmpty()) {
-            shelf(stamp, "Películas", "movie", "search", query, false);
-            shelf(stamp, "Series", "tv", "search", query, false);
-        }
+        if (!query.isEmpty()) field.post(search);
     }
 
     /**
@@ -1356,7 +1418,7 @@ public final class UnifiedCatalogActivity extends Activity {
     private void apps(int stamp) {
         title("Apps y fuentes", "Aplicaciones disponibles en este dispositivo");
         int bannerWidth = UnifiedCatalogLayout.appBannerWidthDp(
-                getResources().getConfiguration().screenWidthDp,
+                getResources().getConfiguration().screenWidthDp - 2 * StreamUi.SAFE_HORIZONTAL_DP,
                 RAIL_COLLAPSED, CONTENT_START, CONTENT_END);
         int bannerHeight = UnifiedCatalogLayout.appBannerHeightDp(bannerWidth);
         int cardHeight = UnifiedCatalogLayout.appCardHeightDp(bannerWidth);
@@ -1499,6 +1561,8 @@ public final class UnifiedCatalogActivity extends Activity {
 
         ScrollView information = new ScrollView(this);
         information.setFillViewport(false);
+        information.setFocusable(true);
+        information.setContentDescription("Sinopsis y ficha completa");
         information.setVerticalScrollBarEnabled(false);
         LinearLayout copy = StreamUi.column(this);
         copy.setPadding(0, 0, dp(8), dp(8));
@@ -1624,7 +1688,9 @@ public final class UnifiedCatalogActivity extends Activity {
     }
 
     @Override public void onBackPressed() {
-        if (page != Page.HOME) {
+        if (TvSpatialNavigation.inside(viewport, getCurrentFocus())) {
+            routes.get(page).requestFocus();
+        } else if (page != Page.HOME) {
             show(Page.HOME, false);
             routes.get(Page.HOME).requestFocus();
         } // Home stays on Home when Back is pressed; no classic launcher fallback.
